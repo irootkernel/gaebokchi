@@ -183,7 +183,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-003"></a>
 ### TASK-003: Implement bounded owned-child lifecycle
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Make provider execution finite and safe before protocol code is allowed to use it.
 
@@ -205,10 +205,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Every successfully started direct child is waited on exactly once and no test hangs beyond its bounded budget.
-- [ ] The 64 KiB stderr cap does not stop draining or leak output; temporary resources are removed safely.
-- [ ] Cancellation/timeout cleanup cannot kill the caller’s existing Codex/Grok sessions or a provider-managed shared leader.
-- [ ] Process tests operate on test helpers only and need no real credentials or provider installation.
+- [x] Every successfully started direct child is waited on exactly once and no test hangs beyond its bounded budget.
+- [x] The 64 KiB stderr cap does not stop draining or leak output; temporary resources are removed safely.
+- [x] Cancellation/timeout cleanup cannot kill the caller’s existing Codex/Grok sessions or a provider-managed shared leader.
+- [x] Process tests operate on test helpers only and need no real credentials or provider installation.
 
 **Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-SAFETY](architecture.md#v-safety). Run `go test ./internal/process` and the focused race/lifecycle tests on the current native host. Cross-platform qualification is owned by TASK-012.
 
