@@ -494,7 +494,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-010"></a>
 ### TASK-010: Deliver the final table and CLI exit behavior
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Expose the user-requested command as a complete four-line default view with stable errors and identities.
 
@@ -516,10 +516,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] The default executable emits exactly a header and three account lines, and custom homes obey the N+2 rule.
-- [ ] Success, partial failure and monthly/API-key non-applicability produce the exact output/exit behavior defined by architecture.md.
-- [ ] Labels cannot inject columns/lines/control sequences and duplicate Codex identities remain distinguishable.
-- [ ] Help/version never invoke a provider; stderr/stdout contracts and broken-output behavior are tested.
+- [x] The default executable emits exactly a header and three account lines, and custom homes obey the N+2 rule.
+- [x] Success, partial failure and monthly/API-key non-applicability produce the exact output/exit behavior defined by architecture.md.
+- [x] Labels cannot inject columns/lines/control sequences and duplicate Codex identities remain distinguishable.
+- [x] Help/version never invoke a provider; stderr/stdout contracts and broken-output behavior are tested.
 
 **Verification:** [V-OPTIONS](architecture.md#v-options), [V-IDENTITY](architecture.md#v-identity), [V-OUTPUT](architecture.md#v-output), [V-EXIT](architecture.md#v-exit). Run `go test ./internal/render ./cmd/gaebokchi` plus options/app tests and `go test ./...`.
 

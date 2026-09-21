@@ -45,8 +45,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build).
 
 <a id="req-002"></a>
-- [ ] **REQ-002: Default account set.** With no account flags, query exactly three targets, in this order: Codex at `~/.codex`, Codex at `~/.codex-hsy`, and the existing default Grok login. Render the header and those three rows, even when individual targets fail.
-  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+- [x] **REQ-002: Default account set.** With no account flags, query exactly three targets, in this order: Codex at `~/.codex`, Codex at `~/.codex-hsy`, and the existing default Grok login. Render the header and those three rows, even when individual targets fail.
+  - - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) — default run queries exactly codex:0/codex:1/grok:0 and renders header+3 rows; per-target failures keep their rows.
 
 <a id="req-003"></a>
 - [x] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
@@ -63,8 +63,8 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### CLI and output
 
 <a id="req-006"></a>
-- [ ] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
-  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options).
+- [x] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
+  - - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) parser matrix plus TASK-010 help/version/no-launch and exit-code tests.
 
 <a id="req-007"></a>
 - [x] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
@@ -79,16 +79,16 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
 
 <a id="req-010"></a>
-- [ ] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
-  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-010](plan.md#task-010). Verification: [V-IDENTITY](architecture.md#v-identity).
+- [x] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
+  - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-010](plan.md#task-010). Verification: [V-IDENTITY](architecture.md#v-identity). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) and TASK-006/008 identity suites — protocol email preferred, home-basename fallback, Grok alias, duplicate disambiguation.
 
 <a id="req-011"></a>
-- [ ] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
-  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+- [x] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
+  - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) golden tests — three headings, no extras, 4 lines default, N+2 rule, final newline.
 
 <a id="req-012"></a>
-- [ ] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
-  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+- [x] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
+  - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) — stdout table only, stderr diagnostics only, no raw provider output, control-character sanitization.
 
 ### Usage semantics
 
@@ -139,8 +139,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
 
 <a id="req-024"></a>
-- [ ] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
-  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-EXIT](architecture.md#v-exit).
+- [x] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
+  - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-EXIT](architecture.md#v-exit). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) — codes 0/1/2/130 exercised end-to-end; 143 shares the SIGTERM path; non-applicability is clean.
 
 ### Codex provider
 
