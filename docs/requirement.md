@@ -57,8 +57,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner).
 
 <a id="req-005"></a>
-- [ ] **REQ-005: Real provider support.** Qualify both providers through real, prompt-free CLI queries before claiming v0.1 complete. An `UNSUPPORTED` fallback, a synthetic fixture, or a handler found only in source is not evidence of working Grok integration.
-  - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live).
+- [x] **REQ-005: Real provider support.** Qualify both providers through real, prompt-free CLI queries before claiming v0.1 complete. An `UNSUPPORTED` fallback, a synthetic fixture, or a handler found only in source is not evidence of working Grok integration.
+  - - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live). Evidence: [docs/verification/live-acceptance.md](verification/live-acceptance.md) — live prompt-free queries through both installed CLIs via the delivered binary; no UNSUPPORTED/fixture fallback used.
 
 ### CLI and output
 
@@ -243,8 +243,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-PLATFORM](architecture.md#v-platform). Evidence: [docs/verification/TASK-012.md](verification/TASK-012.md) — native darwin/arm64 and linux/arm64 (containerized) full suites; darwin/amd64 and linux/amd64 labelled cross-build-only.
 
 <a id="req-048"></a>
-- [ ] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
-  - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live).
+- [x] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
+  - - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live). Evidence: [docs/verification/live-acceptance.md](verification/live-acceptance.md) — both Codex homes plus the existing Grok login on darwin/arm64, live weekly values on all rows, window-boundary comparison with the headless-display limitation recorded.
 
 <a id="req-049"></a>
 - [x] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.

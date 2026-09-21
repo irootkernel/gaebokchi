@@ -5,6 +5,7 @@ package integration
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -69,5 +70,14 @@ func TestMain(m *testing.M) {
 		}
 		os.Exit(0)
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	// The shared e2e build directory is test-owned state; remove it.
+	for _, prefix := range []string{"gaebokchi-e2e-"} {
+		if matches, err := filepath.Glob(filepath.Join(os.TempDir(), prefix+"*")); err == nil {
+			for _, m := range matches {
+				_ = os.RemoveAll(m)
+			}
+		}
+	}
+	os.Exit(code)
 }

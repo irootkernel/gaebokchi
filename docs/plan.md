@@ -623,7 +623,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-013"></a>
 ### TASK-013: Run delivered-binary live acceptance
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Confirm that the completed executable, not just the early probe or fake servers, works with the actual requested account set.
 
@@ -645,10 +645,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Both requested Codex home queries work through the completed binary and their identity/quota attribution is correct.
-- [ ] The Grok path produces real valid billing metadata; UNSUPPORTED, TIMEOUT or a fixture replay cannot satisfy this gate.
-- [ ] Provider-display comparisons document period resets, concurrent usage and numeric precision rather than claiming exact simultaneity.
-- [ ] The evidence explicitly separates live-tested behavior, fixture-only weekly cases, cross-built targets and untested combinations.
+- [x] Both requested Codex home queries work through the completed binary and their identity/quota attribution is correct.
+- [x] The Grok path produces real valid billing metadata; UNSUPPORTED, TIMEOUT or a fixture replay cannot satisfy this gate.
+- [x] Provider-display comparisons document period resets, concurrent usage and numeric precision rather than claiming exact simultaneity.
+- [x] The evidence explicitly separates live-tested behavior, fixture-only weekly cases, cross-built targets and untested combinations.
 
 **Verification:** [V-LIVE](architecture.md#v-live), [V-CONTRACT](architecture.md#v-contract), [V-SAFETY](architecture.md#v-safety). Record the exact delivered-binary invocation and safe comparison steps. Run focused deterministic regressions after any discovered defect; do not automatically repeat the entire live campaign.
 
