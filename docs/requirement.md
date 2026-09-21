@@ -67,12 +67,12 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options).
 
 <a id="req-007"></a>
-- [ ] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
-  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options).
+- [x] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (replacement order, ambient CODEX_HOME ignored, Grok last).
 
 <a id="req-008"></a>
-- [ ] **REQ-008: Safe path handling.** Expand only the current-user `~` or `~/` prefix, resolve relative paths against the invocation directory, and normalize paths before use. Reject empty paths and duplicate normalized homes, including existing symlink aliases. Do not create missing provider home directories.
-  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options).
+- [x] **REQ-008: Safe path handling.** Expand only the current-user `~` or `~/` prefix, resolve relative paths against the invocation directory, and normalize paths before use. Reject empty paths and duplicate normalized homes, including existing symlink aliases. Do not create missing provider home directories.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (tilde-only expansion, `~user` rejected, relative resolution, normalization, duplicate/symlink rejection, missing homes never created).
 
 <a id="req-009"></a>
 - [ ] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.

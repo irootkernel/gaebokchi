@@ -77,7 +77,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-001"></a>
 ## EPIC-001: Contract qualification and foundation
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Prove the approved provider paths and establish the domain/CLI target contract before investing in production integration.
 
@@ -130,7 +130,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-002"></a>
 ### TASK-002: Bootstrap the Go module, domain and target policy
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Create the smallest compilable foundation that expresses the approved CLI targets and status semantics without depending on a live provider.
 
@@ -152,10 +152,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] The repository builds and focused tests pass with no provider executables, network or credentials.
-- [ ] The default target list is exactly two explicit Codex homes followed by one Grok target, even with ambient CODEX_HOME set.
-- [ ] Target identities, statuses, missing-value semantics and parser errors match architecture.md.
-- [ ] No production provider access, transport implementation, cache, or runtime config format has been introduced.
+- [x] The repository builds and focused tests pass with no provider executables, network or credentials.
+- [x] The default target list is exactly two explicit Codex homes followed by one Grok target, even with ambient CODEX_HOME set.
+- [x] Target identities, statuses, missing-value semantics and parser errors match architecture.md.
+- [x] No production provider access, transport implementation, cache, or runtime config format has been introduced.
 
 **Verification:** [V-OPTIONS](architecture.md#v-options), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/domain ./internal/options`, `go test ./...`, and `go vet ./...`. Record the selected compiler and module path.
 
