@@ -365,7 +365,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-007"></a>
 ### TASK-007: Add qualified Grok ACP authentication and billing
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Implement the exact metadata-only Grok wire contract established during the feasibility gate.
 
@@ -387,10 +387,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Actual outgoing bytes match the qualified ACP fixtures, including extension prefix/wrapper and jsonrpc marker.
-- [ ] No initialized notification, session creation, prompt, API-key fallback, browser login or REST request is introduced.
-- [ ] Correctly encoded method-not-found maps to UNSUPPORTED and remains a runtime compatibility failure, not a successful positive integration.
-- [ ] Authentication and callback failures terminate safely without leaking raw provider data.
+- [x] Actual outgoing bytes match the qualified ACP fixtures, including extension prefix/wrapper and jsonrpc marker.
+- [x] No initialized notification, session creation, prompt, API-key fallback, browser login or REST request is introduced.
+- [x] Correctly encoded method-not-found maps to UNSUPPORTED and remains a runtime compatibility failure, not a successful positive integration.
+- [x] Authentication and callback failures terminate safely without leaking raw provider data.
 
 **Verification:** [V-GROK](architecture.md#v-grok), [V-RPC](architecture.md#v-rpc), [V-SAFETY](architecture.md#v-safety). Run `go test ./internal/provider/grok ./internal/rpc`, exact-transcript assertions, and `go test ./...`.
 
