@@ -441,7 +441,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-005"></a>
 ## EPIC-005: Usable snapshot CLI and offline acceptance
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Compose the providers into the requested output and verify the full program under normal and adverse conditions.
 
@@ -532,7 +532,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-011"></a>
 ### TASK-011: Qualify the executable with offline fault and safety tests
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Verify that the integrated program satisfies product behavior under failure, rather than only testing provider helpers.
 
@@ -554,10 +554,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] The full offline suite passes without provider installations, network access or actual logged-in homes.
-- [ ] A failing or hung target cannot prevent other account rows from being produced within the execution policy.
-- [ ] No synthetic secret reaches stdout/stderr or saved test evidence and no forbidden outbound method is used.
-- [ ] All EPIC-005 local acceptance criteria are satisfied; no product wiring is left for the release epic.
+- [x] The full offline suite passes without provider installations, network access or actual logged-in homes.
+- [x] A failing or hung target cannot prevent other account rows from being produced within the execution policy.
+- [x] No synthetic secret reaches stdout/stderr or saved test evidence and no forbidden outbound method is used.
+- [x] All EPIC-005 local acceptance criteria are satisfied; no product wiring is left for the release epic.
 
 **Verification:** [V-E2E](architecture.md#v-e2e), [V-SAFETY](architecture.md#v-safety), [V-RPC](architecture.md#v-rpc), [V-QUOTA](architecture.md#v-quota), [V-EXIT](architecture.md#v-exit). Run `go test ./test/integration/...`, `go test ./...`, `go vet ./...`, and the supported native race suite.
 

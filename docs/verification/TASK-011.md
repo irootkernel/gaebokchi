@@ -1,0 +1,16 @@
+# TASK-011: Qualify the executable with offline fault and safety tests
+
+Task: TASK-011
+Status: COMPLETE
+Goal and implementation scope: Executable-level offline acceptance in test/integration: the real gaebokchi binary built by the suite and driven with fake codex/grok CLIs (the integration test binary re-executed, dispatched by argv), temporary non-secret homes, and scripted fault injection.
+Requirements and architecture sections covered: REQ-021, REQ-037, REQ-038, REQ-041, REQ-044, REQ-045 (primary); ARCH-05, ARCH-06, ARCH-09, ARCH-10, ARCH-11.
+Changed files: test/integration/main_test.go, test/integration/e2e_test.go, docs/verification/TASK-011.md.
+Verification (environment: macOS 26.6.2 arm64, go1.26.6):
+  - V-E2E: `go test ./test/integration -count=1` — builds the actual executable and covers: default happy path (4 lines, exit 0, no raw provider data on stdout); missing grok binary → NOT INSTALLED row with codex rows intact, exit 1; missing home → HOME NOT FOUND row; failed codex auth → AUTH REQUIRED row + bounded stderr diagnostic, exit 1, table retained; monthly grok → N/A (monthly), exit 0, its 88% never shown; malformed grok banner → PROTOCOL ERROR with no banner leakage; wrong response id never satisfies the billing request (EOF row instead of 1.0%); 130 KB stderr flood from the child neither leaks into output nor breaks the query; hung provider under --timeout 1s → TIMEOUT row while the healthy sibling keeps its value; unsafe session/prompt callback → PROTOCOL ERROR, payload never executed or echoed; secret markers (injected env keys and an error-message token) never reach stdout or stderr; per-provider env isolation verified from the children's own recorded environments (OPENAI key absent + CODEX_HOME set for codex; XAI key absent for grok) and argv assertions confirm `app-server` and `--no-auto-update agent stdio`; SIGINT mid-query → exit 130 with the CANCELLED table rendered; concurrent two-home isolation → both rows present with `[home]` disambiguation and two codex child invocations recorded.
+  - V-SAFETY (static): TestNoForbiddenProductionCapabilities scans every production .go file under internal/ and cmd/ — no net/http, no listeners, no auth.json/keychain references, no os.Setenv, no pkill, no shell wrappers (the rpc allowlists legitimately name forbidden methods in order to reject them).
+  - `go vet ./...`, `go test ./...`, `go test -race ./test/integration` — all pass. The entire suite needs no provider installation, real account, or network.
+Fixtures: synthetic inline payloads mirroring the captured-sanitized shapes; temporary homes created and removed by the suite.
+Findings and bounded remediation: test-harness issues only (duplicate --grok-bin flag, shared env-log overwritten across children) — no product defects found; the application behaved per contract once the harness was corrected.
+Compatibility/platform limitations: signal-exit assertions are darwin-verified here; the linux native run happens in TASK-012's matrix.
+Task commit subject: `test(TASK-011): qualify CLI isolation and failure behavior`
+Handoff to next task: EPIC-005 closes with a feature-complete, offline-qualified program; TASK-012 adds portable builds, CI evidence, and user documentation.

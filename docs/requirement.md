@@ -93,16 +93,16 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Usage semantics
 
 <a id="req-013"></a>
-- [ ] **REQ-013: Presence-aware percentages.** Emit one decimal place and `%` for a finite, explicitly present numeric value from 0 through 100. Preserve a genuine zero as `0.0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them, multiply ratios by 100, or substitute zero for missing fields.
-  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+- [x] **REQ-013: Presence-aware percentages.** Emit one decimal place and `%` for a finite, explicitly present numeric value from 0 through 100. Preserve a genuine zero as `0.0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them, multiply ratios by 100, or substitute zero for missing fields.
+  - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) and TASK-006 suites — one-decimal formatting, explicit zero preserved, out-of-range/non-numeric rejected without clamping or ratio conversion.
 
 <a id="req-014"></a>
-- [ ] **REQ-014: No invented weekly value.** Show a defined unavailable/non-applicable status when the response cannot establish a weekly value. Do not average multiple quotas, choose the highest percentage, extrapolate monthly values, or guess a window from reset time.
-  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+- [x] **REQ-014: No invented weekly value.** Show a defined unavailable/non-applicable status when the response cannot establish a weekly value. Do not average multiple quotas, choose the highest percentage, extrapolate monthly values, or guess a window from reset time.
+  - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) — defined unavailable/non-applicable statuses for every unestablishable weekly value; no averaging/extrapolation anywhere.
 
 <a id="req-015"></a>
-- [ ] **REQ-015: Window provenance.** Keep the selected quota identifier, period kind, source, and optional reset time in the in-memory result. Reset metadata is not an additional output column and must not be required when the source makes it optional.
-  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+- [x] **REQ-015: Window provenance.** Keep the selected quota identifier, period kind, source, and optional reset time in the in-memory result. Reset metadata is not an additional output column and must not be required when the source makes it optional.
+  - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) and TASK-008 — quota id, period kind, source, and optional reset preserved in domain results and never rendered as columns.
 
 ### Protocol and execution
 
@@ -127,8 +127,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
 
 <a id="req-021"></a>
-- [ ] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
-  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
+  - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — fixed application-owned messages only; secret markers and raw provider output never reach stdout/stderr.
 
 <a id="req-022"></a>
 - [ ] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
@@ -197,12 +197,12 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Security and boundaries
 
 <a id="req-037"></a>
-- [ ] **REQ-037: Credential ownership.** Leave credential discovery, keychain access, refresh, and storage to the installed CLIs. The application must not parse/copy auth files, request tokens from the user, store secrets, or implement OAuth.
-  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-037: Credential ownership.** Leave credential discovery, keychain access, refresh, and storage to the installed CLIs. The application must not parse/copy auth files, request tokens from the user, store secrets, or implement OAuth.
+  - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) static scan (no auth.json/keychain/token parsing) and provider suites using provider-managed login state only.
 
 <a id="req-038"></a>
-- [ ] **REQ-038: Business-level read-only boundary.** Issue no prompts, agent sessions, tool actions, login/logout, billing mutations, quota-reset redemption, purchases, or configuration writes. Distinguish this from provider-owned token refresh, logs, caches, and shared-process lifecycle that can occur during CLI startup.
-  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-038: Business-level read-only boundary.** Issue no prompts, agent sessions, tool actions, login/logout, billing mutations, quota-reset redemption, purchases, or configuration writes. Distinguish this from provider-owned token refresh, logs, caches, and shared-process lifecycle that can occur during CLI startup.
+  - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — allowlisted metadata methods only; no prompts/sessions/mutations; static capability scan.
 
 <a id="req-039"></a>
 - [x] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
@@ -213,8 +213,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-SAFETY](architecture.md#v-safety).
 
 <a id="req-041"></a>
-- [ ] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
-  - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
+  - - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) static scan (no listeners, no persistent files) and TASK-003 temp-dir cleanup.
 
 ### Verification and delivery
 
@@ -227,12 +227,12 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) — the entire suite runs against in-memory pipes and the compiled fake-child harness; no live CLI is invoked by `go test ./...`.
 
 <a id="req-044"></a>
-- [ ] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
-  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-QUOTA](architecture.md#v-quota).
+- [x] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
+  - - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) (Codex matrix), TASK-008 (Grok matrix), TASK-004 (framing/dialects) — unknown additive fields ignored throughout.
 
 <a id="req-045"></a>
-- [ ] **REQ-045: End-to-end failure isolation.** Verify stdout, stderr, exit status, row count/order, callback rejection, timeout, signal handling, and cleanup through the actual CLI executable with scripted fake providers.
-  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-E2E](architecture.md#v-e2e).
+- [x] **REQ-045: End-to-end failure isolation.** Verify stdout, stderr, exit status, row count/order, callback rejection, timeout, signal handling, and cleanup through the actual CLI executable with scripted fake providers.
+  - - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-E2E](architecture.md#v-e2e). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — executable-level suite with fake providers covering stdout/stderr/exit/rows/callbacks/timeouts/signals/cleanup.
 
 <a id="req-046"></a>
 - [ ] **REQ-046: Build artifacts.** Produce binaries for darwin/arm64, darwin/amd64, linux/arm64, and linux/amd64, with version metadata and checksums. Do not bundle third-party provider binaries or automatically publish a release.
