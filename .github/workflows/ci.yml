@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest   # arm64
+          - os: ubuntu-latest  # amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.6"
+      - run: go vet ./...
+      - run: go test ./... -count=1
+      - run: go test -race ./internal/... ./test/... -count=1
+      - run: go run scripts/check-docs.go
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.6"
+      - run: sh scripts/build-release.sh 0.1.0
+      - run: grep -c '^' dist/gaebokchi-0.1.0/SHA256SUMS

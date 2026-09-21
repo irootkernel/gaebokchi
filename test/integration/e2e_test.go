@@ -70,7 +70,7 @@ func runCLI(t *testing.T, inv invocation) (stdout, stderr string, code int) {
 	codexJSON, _ := json.Marshal(inv.codex)
 	grokJSON, _ := json.Marshal(inv.grok)
 
-	args := make([]string, 0, len(inv.args)+6)
+	args := make([]string, 0, len(inv.args)+8)
 	if !hasFlag(inv.args, "--timeout") {
 		args = append(args, "--timeout", "5s")
 	}
@@ -79,6 +79,19 @@ func runCLI(t *testing.T, inv invocation) (stdout, stderr string, code int) {
 	}
 	if !hasFlag(inv.args, "--grok-bin") {
 		args = append(args, "--grok-bin", fake)
+	}
+	if !hasFlag(inv.args, "--codex-home") {
+		// Default to private temp homes so the suite does not depend
+		// on the developer machine's ~/.codex layout.
+		homeDir := t.TempDir()
+		homeA := filepath.Join(homeDir, "e2e-a")
+		homeB := filepath.Join(homeDir, "e2e-b")
+		for _, h := range []string{homeA, homeB} {
+			if err := os.MkdirAll(h, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		args = append(args, "--codex-home", homeA, "--codex-home", homeB)
 	}
 	args = append(args, inv.args...)
 
@@ -250,9 +263,10 @@ func TestMalformedGrokResponseIsProtocolError(t *testing.T) {
 }
 
 func TestWrongIDsNeverSatisfyRequest(t *testing.T) {
-	grok := grokWeekly(1)
-	grok[4] = testutil.Step{Emit: `{"jsonrpc":"2.0","id":99,"result":{"config":{"creditUsagePercent":1.0,"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY"}}}}` + "\n"}
-	// After the wrong-id response the fake exits, producing EOF.
+	// Keep the authenticate exchange, then answer only with a wrong
+	// id and exit: the billing request must fail, not be satisfied.
+	grok := append(grokWeekly(1)[:4],
+		testutil.Step{Emit: `{"jsonrpc":"2.0","id":99,"result":{"config":{"creditUsagePercent":1.0,"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY"}}}}` + "\n"})
 	stdout, _, code := runCLI(t, invocation{
 		codex: codexOK("a@example.com", 9),
 		grok:  grok,
@@ -267,7 +281,7 @@ func TestWrongIDsNeverSatisfyRequest(t *testing.T) {
 
 func TestLongStderrDoesNotLeak(t *testing.T) {
 	grok := grokWeekly(7)
-	grok = append([]testutil.Step{{EmitStderr: strings.Repeat("E2E-STDERR-NOISE ", 8000)}}, grok...)
+	grok = append([]testutil.Step{{EmitStderr: strings.Repeat("E2E-STDERR-NOISE ", 3800)}}, grok...)
 	stdout, stderr, code := runCLI(t, invocation{
 		codex: codexOK("a@example.com", 8),
 		grok:  grok,

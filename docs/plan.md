@@ -585,7 +585,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-012"></a>
 ### TASK-012: Add portable build delivery and user documentation
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Make the implemented command reproducibly buildable and usable on macOS/Linux without overstating platform evidence.
 
@@ -607,10 +607,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] All four binaries build; native application/fake-provider tests pass on macOS and Linux.
-- [ ] Version/checksum information is present and no provider CLI binary or secret is packaged.
-- [ ] The README matches the implemented command and labels actual tested versions/platforms without unsupported compatibility claims.
-- [ ] The document-link check passes and local release staging requires no signing, upload or publishing permission.
+- [x] All four binaries build; native application/fake-provider tests pass on macOS and Linux.
+- [x] Version/checksum information is present and no provider CLI binary or secret is packaged.
+- [x] The README matches the implemented command and labels actual tested versions/platforms without unsupported compatibility claims.
+- [x] The document-link check passes and local release staging requires no signing, upload or publishing permission.
 
 **Verification:** [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-DOCS](architecture.md#v-docs), [V-AUDIT](architecture.md#v-audit). Run the documented build script, native test matrix, `go run scripts/check-docs.go`, README smoke commands and checksum verification.
 

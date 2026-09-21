@@ -288,11 +288,15 @@ func TestSingleOutstandingRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// Server side: consume the request, then deliver the reply.
-	requestSeen := make(chan string, 1)
+	// Server side: consume the request and hold the reply until the
+	// busy assertion has run, so the first call is deterministically
+	// still outstanding.
+	requestSeen := make(chan struct{}, 1)
+	release := make(chan struct{})
 	go func() {
-		line, _ := testutilReadLine(pp.serverR)
-		requestSeen <- line
+		testutilReadLine(pp.serverR)
+		requestSeen <- struct{}{}
+		<-release
 		io.WriteString(pp.serverW, `{"id":1,"result":{}}`+"\n")
 	}()
 
@@ -306,6 +310,7 @@ func TestSingleOutstandingRequest(t *testing.T) {
 	if _, err := c.Call(ctx, "initialize", nil); !errors.Is(err, ErrBusy) {
 		t.Fatalf("err = %v, want ErrBusy", err)
 	}
+	close(release)
 	select {
 	case err := <-firstDone:
 		if err != nil {

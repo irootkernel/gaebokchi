@@ -41,8 +41,8 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Product scope
 
 <a id="req-001"></a>
-- [ ] **REQ-001: Native Go CLI.** Provide an executable named `gaebokchi` for macOS and Linux. Use a small Go codebase and the installed `codex` and `grok` executables; a Go installation is not required to run a distributed binary.
-  - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build).
+- [x] **REQ-001: Native Go CLI.** Provide an executable named `gaebokchi` for macOS and Linux. Use a small Go codebase and the installed `codex` and `grok` executables; a Go installation is not required to run a distributed binary.
+  - - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build). Evidence: [docs/verification/TASK-012.md](verification/TASK-012.md) — self-contained CGO-free binaries for macOS/Linux; `gaebokchi` executable with version metadata.
 
 <a id="req-002"></a>
 - [x] **REQ-002: Default account set.** With no account flags, query exactly three targets, in this order: Codex at `~/.codex`, Codex at `~/.codex-hsy`, and the existing default Grok login. Render the header and those three rows, even when individual targets fail.
@@ -235,20 +235,20 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-E2E](architecture.md#v-e2e). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — executable-level suite with fake providers covering stdout/stderr/exit/rows/callbacks/timeouts/signals/cleanup.
 
 <a id="req-046"></a>
-- [ ] **REQ-046: Build artifacts.** Produce binaries for darwin/arm64, darwin/amd64, linux/arm64, and linux/amd64, with version metadata and checksums. Do not bundle third-party provider binaries or automatically publish a release.
-  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build).
+- [x] **REQ-046: Build artifacts.** Produce binaries for darwin/arm64, darwin/amd64, linux/arm64, and linux/amd64, with version metadata and checksums. Do not bundle third-party provider binaries or automatically publish a release.
+  - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build). Evidence: [docs/verification/TASK-012.md](verification/TASK-012.md) — four target archives with SHA-256 checksums, spec docs included, no provider binaries, no publication.
 
 <a id="req-047"></a>
-- [ ] **REQ-047: Native platform evidence.** Run the application and fake-provider integration tests natively on macOS and Linux. Record which CPU architectures were executed and which were only cross-built; a successful cross-build alone is not runtime validation.
-  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-PLATFORM](architecture.md#v-platform).
+- [x] **REQ-047: Native platform evidence.** Run the application and fake-provider integration tests natively on macOS and Linux. Record which CPU architectures were executed and which were only cross-built; a successful cross-build alone is not runtime validation.
+  - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-PLATFORM](architecture.md#v-platform). Evidence: [docs/verification/TASK-012.md](verification/TASK-012.md) — native darwin/arm64 and linux/arm64 (containerized) full suites; darwin/amd64 and linux/amd64 labelled cross-build-only.
 
 <a id="req-048"></a>
 - [ ] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
   - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live).
 
 <a id="req-049"></a>
-- [ ] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.
-  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-DOCS](architecture.md#v-docs).
+- [x] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.
+  - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-DOCS](architecture.md#v-docs). Evidence: README.md — install/build, exact flags, login prerequisite, quota meaning, all statuses, exit codes, tested versions/platforms, limitations incl. alias-not-email and monthly-not-weekly; smoke-checked against the binary.
 
 <a id="req-050"></a>
 - [ ] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
