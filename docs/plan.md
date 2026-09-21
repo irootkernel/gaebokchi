@@ -274,7 +274,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-005"></a>
 ### TASK-005: Add isolated Codex authentication and account reads
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Bind a Codex connection to exactly one home and establish its subscription identity without generating an agent turn.
 
@@ -296,10 +296,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Different Codex homes receive distinct absolute CODEX_HOME values and independent handshake state.
-- [ ] Known authentication outcomes are mapped without auth-file parsing, forced relogin, experimental features by default, or a model prompt.
-- [ ] Account identity and fallback behavior are deterministic and cross-account data cannot mix.
-- [ ] Environment filtering rules for both providers are represented/tested as pure construction policy, even though the Grok adapter is not implemented yet.
+- [x] Different Codex homes receive distinct absolute CODEX_HOME values and independent handshake state.
+- [x] Known authentication outcomes are mapped without auth-file parsing, forced relogin, experimental features by default, or a model prompt.
+- [x] Account identity and fallback behavior are deterministic and cross-account data cannot mix.
+- [x] Environment filtering rules for both providers are represented/tested as pure construction policy, even though the Grok adapter is not implemented yet.
 
 **Verification:** [V-CODEX](architecture.md#v-codex), [V-IDENTITY](architecture.md#v-identity), [V-SAFETY](architecture.md#v-safety). Run focused `go test ./internal/provider/codex` and environment tests, then `go test ./...`.
 

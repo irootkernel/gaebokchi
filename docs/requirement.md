@@ -145,16 +145,16 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Codex provider
 
 <a id="req-025"></a>
-- [ ] **REQ-025: Per-target App Server.** Start a separate `codex app-server` process for each Codex home, with that target’s absolute `CODEX_HOME`. Do not switch accounts inside a shared App Server or mutate the parent environment.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+- [x] **REQ-025: Per-target App Server.** Start a separate `codex app-server` process for each Codex home, with that target’s absolute `CODEX_HOME`. Do not switch accounts inside a shared App Server or mutate the parent environment.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (per-target child with filtered env replacing CODEX_HOME; parent env immutable; two simultaneous isolated sessions).
 
 <a id="req-026"></a>
-- [ ] **REQ-026: Metadata-only handshake.** Complete `initialize`, wait for its response, then send `initialized` before the account calls. Use only the allowlisted account-read and rate-limit-read operations; do not start/resume threads or turns.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+- [x] **REQ-026: Metadata-only handshake.** Complete `initialize`, wait for its response, then send `initialized` before the account calls. Use only the allowlisted account-read and rate-limit-read operations; do not start/resume threads or turns.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (transcript-asserted ordering and outbound surface).
 
 <a id="req-027"></a>
-- [ ] **REQ-027: Existing subscription auth.** Use provider-managed ChatGPT login state without reading credentials directly. An absent/expired login becomes `AUTH REQUIRED`; API-key-only auth becomes `N/A (API key)`. Other unqualified auth variants must not be silently treated as ChatGPT subscriptions.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+- [x] **REQ-027: Existing subscription auth.** Use provider-managed ChatGPT login state without reading credentials directly. An absent/expired login becomes `AUTH REQUIRED`; API-key-only auth becomes `N/A (API key)`. Other unqualified auth variants must not be silently treated as ChatGPT subscriptions.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (chatgpt/apiKey/absent/unknown mapping without credential reads).
 
 <a id="req-028"></a>
 - [ ] **REQ-028: Deterministic quota bucket selection.** Prefer `rateLimitsByLimitId["codex"]` when the multi-bucket map is non-empty. Do not fall through to an unrelated bucket or average map entries. Use legacy `rateLimits` only under the explicit compatibility rules in ARCH-07.
@@ -205,8 +205,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
 
 <a id="req-039"></a>
-- [ ] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
-  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-005](plan.md#task-005). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-005](plan.md#task-005). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (envfilter policy: drops + per-target CODEX_HOME replacement, HOME/proxy preserved, parent untouched; argv-only child start from TASK-003).
 
 <a id="req-040"></a>
 - [ ] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.

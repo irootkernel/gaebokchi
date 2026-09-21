@@ -93,16 +93,25 @@ func RunFakeScript(stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 
 	slots := make([]json.Number, 0, 8)
 	readRequest := func() (json.Number, error) {
-		line, err := readLine(stdin)
-		if err != nil {
-			return "", err
+		for {
+			line, err := readLine(stdin)
+			if err != nil {
+				return "", err
+			}
+			// Every consumed line is reported so tests can assert the
+			// outgoing transcript.
+			fmt.Fprintf(stderr, "FAKE-GOT:%s\n", line)
+			var req struct {
+				ID json.Number `json:"id"`
+			}
+			_ = json.Unmarshal(line, &req)
+			if req.ID == "" {
+				// Notification without an id: not a request slot.
+				continue
+			}
+			slots = append(slots, req.ID)
+			return req.ID, nil
 		}
-		var req struct {
-			ID json.Number `json:"id"`
-		}
-		_ = json.Unmarshal(line, &req)
-		slots = append(slots, req.ID)
-		return req.ID, nil
 	}
 
 	for _, st := range steps {
