@@ -168,7 +168,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-002"></a>
 ## EPIC-002: Safe subprocess and RPC foundation
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Create finite, owned subprocess execution and correctly separated Codex/ACP wire handling.
 
@@ -221,7 +221,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-004"></a>
 ### TASK-004: Implement framed RPC with provider-specific codecs
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Provide a reusable, well-tested message transport without flattening the differences between Codex App Server and ACP.
 
@@ -243,10 +243,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Codex omits the jsonrpc marker, Grok includes it, and one codec does not impose the other provider’s handshake.
-- [ ] Fragmentation, coalescing, CRLF, notifications, malformed UTF-8/JSON, 4 MiB ceiling and EOF behavior match the contract.
-- [ ] Unknown response IDs never satisfy a request and host capability requests cause no execution or data exposure.
-- [ ] The transport and process packages pass together without a live provider or an unbounded wait.
+- [x] Codex omits the jsonrpc marker, Grok includes it, and one codec does not impose the other provider’s handshake.
+- [x] Fragmentation, coalescing, CRLF, notifications, malformed UTF-8/JSON, 4 MiB ceiling and EOF behavior match the contract.
+- [x] Unknown response IDs never satisfy a request and host capability requests cause no execution or data exposure.
+- [x] The transport and process packages pass together without a live provider or an unbounded wait.
 
 **Verification:** [V-RPC](architecture.md#v-rpc), [V-SAFETY](architecture.md#v-safety), [V-LIFECYCLE](architecture.md#v-lifecycle). Run `go test ./internal/rpc ./internal/process`, relevant race tests, and `go test ./...`.
 

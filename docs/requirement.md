@@ -107,20 +107,20 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Protocol and execution
 
 <a id="req-016"></a>
-- [ ] **REQ-016: Separate wire dialects.** Use stdio JSON messages with the correct provider-specific envelopes and initialization rules. Codex App Server and Grok ACP must not be treated as one interchangeable protocol. Freeze Grok extension wire encoding from an actual installed-binary probe.
-  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+- [x] **REQ-016: Separate wire dialects.** Use stdio JSON messages with the correct provider-specific envelopes and initialization rules. Codex App Server and Grok ACP must not be treated as one interchangeable protocol. Freeze Grok extension wire encoding from an actual installed-binary probe.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) plus frozen live encoding `_x.ai/billing` from [compatibility.md](verification/compatibility.md).
 
 <a id="req-017"></a>
-- [ ] **REQ-017: Bounded framing.** Support fragmented and coalesced newline-delimited UTF-8 JSON, with a 4 MiB maximum frame. Reject malformed/oversized frames and unsupported batches; bound buffered stderr to 64 KiB while continuing to drain excess bytes.
-  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+- [x] **REQ-017: Bounded framing.** Support fragmented and coalesced newline-delimited UTF-8 JSON, with a 4 MiB maximum frame. Reject malformed/oversized frames and unsupported batches; bound buffered stderr to 64 KiB while continuing to drain excess bytes.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (framing matrix incl. boundary sizes; 64 KiB stderr drain in TASK-003).
 
 <a id="req-018"></a>
-- [ ] **REQ-018: Response correlation.** Correlate responses by request ID, tolerate unrelated well-formed notifications, and never use the first received JSON object as the response. Unknown/duplicate response IDs cannot satisfy a pending request. Fail a pending call on EOF or malformed matching responses.
-  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+- [x] **REQ-018: Response correlation.** Correlate responses by request ID, tolerate unrelated well-formed notifications, and never use the first received JSON object as the response. Unknown/duplicate response IDs cannot satisfy a pending request. Fail a pending call on EOF or malformed matching responses.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md).
 
 <a id="req-019"></a>
-- [ ] **REQ-019: No host capability execution.** Advertise no filesystem, terminal, or tool execution capability to Grok. Never execute server-initiated requests, approve tools, answer elicitation with secrets, or service token-refresh callbacks requiring application-held credentials. Reject unexpected requests and close the affected query safely.
-  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-019: No host capability execution.** Advertise no filesystem, terminal, or tool execution capability to Grok. Never execute server-initiated requests, approve tools, answer elicitation with secrets, or service token-refresh callbacks requiring application-held credentials. Reject unexpected requests and close the affected query safely.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (server requests rejected with exact id and connection aborted; Grok false capabilities declared in TASK-007 wire tests).
 
 <a id="req-020"></a>
 - [ ] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
@@ -223,8 +223,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-001](plan.md#task-001). Verification: [V-CONTRACT](architecture.md#v-contract). Evidence: [docs/verification/compatibility.md](verification/compatibility.md) (codex-cli 0.155.1, grok 1.0.40, live two-home Codex reads, live weekly Grok billing, sanitized fixtures).
 
 <a id="req-043"></a>
-- [ ] **REQ-043: Offline default tests.** Run normal tests entirely against fixtures and fake child executables, without live accounts, provider installations, credentials, or network access. Keep live probes explicit and opt-in.
-  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+- [x] **REQ-043: Offline default tests.** Run normal tests entirely against fixtures and fake child executables, without live accounts, provider installations, credentials, or network access. Keep live probes explicit and opt-in.
+  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) — the entire suite runs against in-memory pipes and the compiled fake-child harness; no live CLI is invoked by `go test ./...`.
 
 <a id="req-044"></a>
 - [ ] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
