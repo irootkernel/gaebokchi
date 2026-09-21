@@ -456,7 +456,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-009"></a>
 ### TASK-009: Integrate bounded snapshot coordination
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Run all targets independently and collect one ordered terminal result per account.
 
@@ -478,10 +478,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] The default three targets run independently and the output model remains in configured order.
-- [ ] There is exactly one Query attempt for each admitted target and no more than three active targets.
-- [ ] A timeout in one home does not erase or cancel another account’s valid result.
-- [ ] Queued/active cancellation and cleanup follow the configured deadline and signal contracts.
+- [x] The default three targets run independently and the output model remains in configured order.
+- [x] There is exactly one Query attempt for each admitted target and no more than three active targets.
+- [x] A timeout in one home does not erase or cancel another account’s valid result.
+- [x] Queued/active cancellation and cleanup follow the configured deadline and signal contracts.
 
 **Verification:** [V-RUNNER](architecture.md#v-runner), [V-LIFECYCLE](architecture.md#v-lifecycle). Run `go test ./internal/app`, relevant race tests, and `go test ./...`.
 
