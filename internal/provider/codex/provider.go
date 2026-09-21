@@ -8,9 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
+	"sync"
+	"time"
 
+	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/provider/envfilter"
 	"gaebokchi/internal/rpc"
@@ -20,10 +24,159 @@ import (
 // resolution happens once per invocation and is reused for every target.
 type Provider struct {
 	Start process.Factory
+
+	resolveOnce sync.Once
+	binName     string
+	binPath     string
+	binErr      error
 }
 
 // New builds a provider using the real process factory.
 func New() *Provider { return &Provider{Start: process.Start} }
+
+// resolveBin resolves the executable once per provider instance.
+func (p *Provider) resolveBin(bin string) (string, error) {
+	p.resolveOnce.Do(func() {
+		p.binName = bin
+		p.binPath, p.binErr = ResolveBin(bin)
+	})
+	if p.binName != bin {
+		// Different names cannot occur within one invocation, but never
+		// reuse a resolution made for another executable.
+		p.resolveOnce = sync.Once{}
+		return p.resolveBin(bin)
+	}
+	return p.binPath, p.binErr
+}
+
+// Query runs the complete metadata-only lifecycle for one Codex target
+// and returns exactly one terminal result. It never renders, exits, or
+// touches other targets; a planned cleanup after a valid exchange never
+// overwrites the collected outcome.
+func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
+	res := domain.Result{
+		TargetID:      tgt.ID,
+		Provider:      tgt.Provider,
+		Account:       tgt.FallbackAccount,
+		AccountSource: domain.AccountSourceConfiguredAlias,
+		ObservedAt:    time.Now(),
+	}
+
+	switch InspectHome(tgt.Home) {
+	case HomeMissing:
+		res.Status = domain.StatusHomeNotFound
+		res.Diagnostic = domain.Diagnostic{Code: "home_not_found", Message: tgt.ID + ": codex home does not exist"}
+		return res
+	case HomeInvalid:
+		res.Status = domain.StatusHomeError
+		res.Diagnostic = domain.Diagnostic{Code: "home_error", Message: tgt.ID + ": codex home is not an accessible directory"}
+		return res
+	}
+
+	bin, err := p.resolveBin(tgt.Bin)
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+			res.Status = domain.StatusCLINotFound
+			res.Diagnostic = domain.Diagnostic{Code: "cli_not_found", Message: tgt.ID + ": codex executable not found"}
+		} else {
+			res.Status = domain.StatusProviderError
+			res.Diagnostic = domain.Diagnostic{Code: "bin_error", Message: tgt.ID + ": codex executable cannot be used"}
+		}
+		return res
+	}
+
+	sess, err := openSession(ctx, bin, tgt.Home, p.Start)
+	if err != nil {
+		return classifyTransportFailure(res, err)
+	}
+	defer sess.close()
+
+	info, err := readAccount(ctx, sess)
+	if err != nil {
+		out := classifyTransportFailure(res, err)
+		// Authentication failed before identity was read: keep the
+		// home-alias fallback, never another session's email.
+		return out
+	}
+	switch info.AuthStatus {
+	case AuthAbsent:
+		res.Status = domain.StatusAuthRequired
+		res.Diagnostic = domain.Diagnostic{Code: "auth_required", Message: tgt.ID + ": authenticate using the provider CLI outside gaebokchi"}
+		return res
+	case AuthAPIKey:
+		res.Status = domain.StatusNotApplicableAPIKey
+		res.Period = domain.PeriodUnknown
+		res.Diagnostic = domain.Diagnostic{Code: "api_key_auth", Message: tgt.ID + ": API-key auth has no ChatGPT subscription quota"}
+		return res
+	case AuthUnknownType:
+		res.Status = domain.StatusUnsupported
+		res.Diagnostic = domain.Diagnostic{Code: "auth_unsupported", Message: tgt.ID + ": unrecognized codex authentication mode"}
+		return res
+	}
+	if info.Email != "" {
+		res.Account = info.Email
+		res.AccountSource = domain.AccountSourceProtocolEmail
+	}
+
+	quotaRaw, err := readRateLimits(ctx, sess)
+	if err != nil {
+		return classifyTransportFailure(res, err)
+	}
+	out := normalizeQuota(quotaRaw)
+	res.Status = out.Status
+	res.Source = domain.SourceCodexAppServer
+	res.QuotaID = out.QuotaID
+	res.ResetAt = out.ResetAt
+	if out.Percent != nil {
+		v := domain.NormalizePercentSignedZero(*out.Percent)
+		res.UsedPercent = &v
+		res.Period = domain.PeriodWeekly
+	} else {
+		res.Period = domain.PeriodUnknown
+		res.Diagnostic = domain.Diagnostic{Code: string(out.Status), Message: formatQuotaError(out.Status, tgt.ID)}
+	}
+	return res
+}
+
+// readRateLimits performs the allowlisted quota read.
+func readRateLimits(ctx context.Context, s *session) (json.RawMessage, error) {
+	resp, err := s.conn.Call(ctx, "account/rateLimits/read", nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Err != nil {
+		return nil, &rpcCallError{method: "account/rateLimits/read", remote: resp.Err}
+	}
+	return resp.Result, nil
+}
+
+// classifyTransportFailure maps transport/process failures to terminal
+// statuses with fixed safe messages; raw provider payloads never reach
+// diagnostics.
+func classifyTransportFailure(res domain.Result, err error) domain.Result {
+	var rce *rpcCallError
+	switch {
+	case errors.Is(err, context.Canceled):
+		res.Status = domain.StatusCancelled
+		res.Diagnostic = domain.Diagnostic{Code: "cancelled", Message: res.TargetID + ": query cancelled"}
+	case errors.Is(err, context.DeadlineExceeded):
+		res.Status = domain.StatusTimeout
+		res.Diagnostic = domain.Diagnostic{Code: "timeout", Message: res.TargetID + ": query exceeded its deadline"}
+	case errors.Is(err, exec.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+		res.Status = domain.StatusCLINotFound
+		res.Diagnostic = domain.Diagnostic{Code: "cli_not_found", Message: res.TargetID + ": codex executable not found"}
+	case errors.As(err, &rce):
+		res.Status = domain.StatusProviderError
+		res.Diagnostic = domain.Diagnostic{Code: "remote_error", Message: res.TargetID + ": provider rejected a metadata read"}
+	case errors.Is(err, rpc.ErrEOF), errors.Is(err, rpc.ErrMalformedMessage), errors.Is(err, rpc.ErrServerRequest):
+		res.Status = domain.StatusProtocolError
+		res.Diagnostic = domain.Diagnostic{Code: "protocol_error", Message: res.TargetID + ": app-server protocol stream failed"}
+	default:
+		res.Status = domain.StatusProviderError
+		res.Diagnostic = domain.Diagnostic{Code: "provider_error", Message: res.TargetID + ": codex query failed"}
+	}
+	return res
+}
 
 // clientVersion identifies gaebokchi to the App Server.
 const clientVersion = "0.1.0"

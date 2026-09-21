@@ -259,7 +259,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-003"></a>
 ## EPIC-003: Codex multi-account provider
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Complete Codex metadata queries with isolated account attribution and duration-based weekly quota selection.
 
@@ -312,7 +312,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-006"></a>
 ### TASK-006: Complete Codex weekly quota normalization
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Deliver a complete, truthful Codex Query implementation for every configured home.
 
@@ -334,10 +334,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Both weekly slot positions work and a five-hour or unrelated-model quota cannot be presented as the weekly Codex value.
-- [ ] A non-empty multi-bucket map without codex does not silently fall back to unrelated/legacy data.
-- [ ] Missing/null/invalid values remain distinguishable from a real 0.0% result; duplicates/conflicts follow the explicit policy.
-- [ ] The complete provider Query passes fake-process tests and uses only the four allowlisted Codex methods.
+- [x] Both weekly slot positions work and a five-hour or unrelated-model quota cannot be presented as the weekly Codex value.
+- [x] A non-empty multi-bucket map without codex does not silently fall back to unrelated/legacy data.
+- [x] Missing/null/invalid values remain distinguishable from a real 0.0% result; duplicates/conflicts follow the explicit policy.
+- [x] The complete provider Query passes fake-process tests and uses only the four allowlisted Codex methods.
 
 **Verification:** [V-CODEX](architecture.md#v-codex), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/provider/codex`, relevant race tests with two homes, and `go test ./...`.
 

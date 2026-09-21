@@ -49,8 +49,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
 
 <a id="req-003"></a>
-- [ ] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
-  - Architecture: [ARCH-01](architecture.md#arch-01). Owner: [TASK-006](plan.md#task-006). Verification: [V-QUOTA](architecture.md#v-quota).
+- [x] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
+  - Architecture: [ARCH-01](architecture.md#arch-01). Owner: [TASK-006](plan.md#task-006). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) — the only metric surfaced is the provider-reported weekly `usedPercent`; credits, token summaries, and reset times never feed the value; `ChatGPT` labels the Codex row via `ProviderCodex.DisplayName`.
 
 <a id="req-004"></a>
 - [ ] **REQ-004: One-shot operation.** Perform one finite snapshot operation and exit. Do not introduce an application daemon, watch mode, polling, scheduled refresh, retry loop, usage history, or persistent usage cache. Blocking reads of protocol messages are permitted.
@@ -157,16 +157,16 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (chatgpt/apiKey/absent/unknown mapping without credential reads).
 
 <a id="req-028"></a>
-- [ ] **REQ-028: Deterministic quota bucket selection.** Prefer `rateLimitsByLimitId["codex"]` when the multi-bucket map is non-empty. Do not fall through to an unrelated bucket or average map entries. Use legacy `rateLimits` only under the explicit compatibility rules in ARCH-07.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex).
+- [x] **REQ-028: Deterministic quota bucket selection.** Prefer `rateLimitsByLimitId["codex"]` when the multi-bucket map is non-empty. Do not fall through to an unrelated bucket or average map entries. Use legacy `rateLimits` only under the explicit compatibility rules in ARCH-07.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) — bucket-selection table (non-empty map without codex → no_weekly, never legacy or averaging; codex null → no_data; wrong type → protocol error; empty/null map → legacy with explicit codex limitId only).
 
 <a id="req-029"></a>
-- [ ] **REQ-029: Duration-based weekly window.** Inspect both `primary` and `secondary` in the selected Codex bucket. Select by `windowDurationMins == 10080`, never by slot name. Handle absent, null, reversed, duplicated, and conflicting windows as defined in ARCH-07.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex).
+- [x] **REQ-029: Duration-based weekly window.** Inspect both `primary` and `secondary` in the selected Codex bucket. Select by `windowDurationMins == 10080`, never by slot name. Handle absent, null, reversed, duplicated, and conflicting windows as defined in ARCH-07.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) — slot matrix incl. reversed slots, five-hour-only rejection, duplicate-agreeing (37 vs 37.0) and conflicting weekly windows.
 
 <a id="req-030"></a>
-- [ ] **REQ-030: Identity isolation.** Obtain Codex account information and quota through the same isolated child. Preserve the correct fallback identity on authentication or transport failure, and test simultaneous results from two different homes.
-  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-IDENTITY](architecture.md#v-identity).
+- [x] **REQ-030: Identity isolation.** Obtain Codex account information and quota through the same isolated child. Preserve the correct fallback identity on authentication or transport failure, and test simultaneous results from two different homes.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-IDENTITY](architecture.md#v-identity). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) — same-child identity+quota; simultaneous two-home lifecycle tests with distinct emails and percentages; home-alias fallback preserved on every failure path.
 
 ### Grok provider
 
