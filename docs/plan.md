@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: NOT STARTED  
+Status: COMPLETE — all six epics and fourteen tasks closed in order; release artifacts staged locally in dist/  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -9,7 +9,7 @@ Repository and executable: `gaebokchi`
 
 ## How to use this plan
 
-This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against [architecture.md](architecture.md), and verify product coverage against the checkboxes in [requirement.md](requirement.md). This package contains a specification, not an implementation report: all work is initially pending.
+This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against [architecture.md](architecture.md), and verify product coverage against the checkboxes in [requirement.md](requirement.md). All work is complete; each task below links its verification record under docs/verification/.
 
 Keep all three documents at the repository root. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
 
@@ -570,7 +570,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-006"></a>
 ## EPIC-006: Platform delivery and final qualification
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Build and test macOS/Linux deliverables, verify real accounts, and close the specification with evidence.
 
@@ -661,7 +661,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-014"></a>
 ### TASK-014: Close requirements and prepare the v0.1 handoff
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Finish the project with complete traceability and truthful evidence, without turning closeout into another redesign cycle.
 
@@ -683,10 +683,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] All 50 requirement checkboxes have valid evidence, including positive provider qualification rather than fallback-only tests.
-- [ ] All six epics satisfy their local gates, and no task remains BLOCKED or falsely marked complete.
-- [ ] Required deterministic, native-platform and live-account checks are accurately represented; known limitations are not hidden.
-- [ ] The handoff is complete with locally staged artifacts; no remote publication or next-version feature implementation occurred.
+- [x] All 50 requirement checkboxes have valid evidence, including positive provider qualification rather than fallback-only tests.
+- [x] All six epics satisfy their local gates, and no task remains BLOCKED or falsely marked complete.
+- [x] Required deterministic, native-platform and live-account checks are accurately represented; known limitations are not hidden.
+- [x] The handoff is complete with locally staged artifacts; no remote publication or next-version feature implementation occurred.
 
 **Verification:** [V-AUDIT](architecture.md#v-audit), [V-DOCS](architecture.md#v-docs), [V-BUILD](architecture.md#v-build). Run `go test ./...`, `go vet ./...`, `go run scripts/check-docs.go`, and audit the final evidence matrix. Reuse unchanged valid native/live evidence rather than rerunning it for documentation-only edits.
 
@@ -701,13 +701,13 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 These are release-level checks, not extra implementation tasks:
 
-- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished.
-- [ ] All six epics and fourteen tasks have completed their stated local acceptance criteria in sequence.
-- [ ] Default output is exactly three columns and four logical lines, including on partial provider failure.
-- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol.
-- [ ] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully.
-- [ ] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced.
-- [ ] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication.
+- [x] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished.
+- [x] All six epics and fourteen tasks have completed their stated local acceptance criteria in sequence.
+- [x] Default output is exactly three columns and four logical lines, including on partial provider failure.
+- [x] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol.
+- [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully.
+- [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced.
+- [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication.
 
 A missing live environment is a real qualification gap, not a reason to invent evidence. Stop with a precise incomplete-gate report instead of asking an implementation AI to loop until an unavailable service becomes available.
 

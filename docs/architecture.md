@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Architecture
 
 Version: 0.1 specification  
-Status: Design baseline; provider runtime compatibility is not yet qualified  
+Status: Implemented as designed; provider runtime compatibility qualified live on 2026-09-22 (see docs/verification/compatibility.md)  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -556,12 +556,12 @@ Initial compatibility status:
 
 | Integration | Public evidence | Installed CLI qualification |
 |---|---|---|
-| Codex account/rate-limit read | Official App Server docs | NOT RUN |
-| Two isolated Codex homes | Official CODEX_HOME configuration model | NOT RUN |
-| Grok cached-token ACP auth | Official headless/ACP docs | NOT RUN |
-| Grok billing handler and payload | Official source snapshot | NOT RUN |
-| Grok extension wire form through installed stdio | ACP rules plus source candidate | NOT RUN |
-| macOS/Linux lifecycle behavior | Proposed architecture | NOT RUN |
+| Codex account/rate-limit read | Official App Server docs | QUALIFIED live (TASK-001, reconfirmed TASK-013) |
+| Two isolated Codex homes | Official CODEX_HOME configuration model | QUALIFIED live (distinct emails/quotas) |
+| Grok cached-token ACP auth | Official headless/ACP docs | QUALIFIED live |
+| Grok billing handler and payload | Official source snapshot | QUALIFIED live (weekly enum + live percentage) |
+| Grok extension wire form through installed stdio | ACP rules plus source candidate | QUALIFIED live as `_x.ai/billing` with `params:{}` |
+| macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites) |
 
 TASK-001 must run small, bounded, developer-only metadata probes before production transport/provider work. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.
 

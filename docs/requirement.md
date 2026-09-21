@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: Ready for sequential implementation; no implementation or live acceptance is claimed  
+Status: COMPLETE — implemented, offline-qualified, natively tested on darwin/arm64 and linux/arm64, and live-accepted on the owner accounts (darwin/arm64); every checkbox below links its evidence  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -13,7 +13,7 @@ This document owns **what must be delivered**. [architecture.md](architecture.md
 
 The three documents belong together at the repository root. Explicit anchors and IDs are stable. An implementation AI must not weaken a requirement merely because an upstream CLI is unsupported. Resolve contradictions across the three documents in the same task-scoped change.
 
-All checkboxes start unchecked. Check a requirement only after its named verification has passed and evidence is linked from the owning task. A task may deliver a component before the entire product is ready; that does not make all product-level requirements complete. The release audit rechecks the full set.
+All 50 requirements are checked with linked evidence from the owning tasks; the release audit (TASK-014) rechecked the full set against the delivered tree.
 
 ## Product outcome
 
@@ -53,8 +53,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-01](architecture.md#arch-01). Owner: [TASK-006](plan.md#task-006). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) — the only metric surfaced is the provider-reported weekly `usedPercent`; credits, token summaries, and reset times never feed the value; `ChatGPT` labels the Codex row via `ProviderCodex.DisplayName`.
 
 <a id="req-004"></a>
-- [ ] **REQ-004: One-shot operation.** Perform one finite snapshot operation and exit. Do not introduce an application daemon, watch mode, polling, scheduled refresh, retry loop, usage history, or persistent usage cache. Blocking reads of protocol messages are permitted.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner).
+- [x] **REQ-004: One-shot operation.** Perform one finite snapshot operation and exit. Do not introduce an application daemon, watch mode, polling, scheduled refresh, retry loop, usage history, or persistent usage cache. Blocking reads of protocol messages are permitted.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner). Evidence: [docs/verification/TASK-009.md](verification/TASK-009.md) — one bounded Run per invocation, exactly one query attempt per target, no retry/daemon/cache; the CLI exits after rendering.
 
 <a id="req-005"></a>
 - [x] **REQ-005: Real provider support.** Qualify both providers through real, prompt-free CLI queries before claiming v0.1 complete. An `UNSUPPORTED` fallback, a synthetic fixture, or a handler found only in source is not evidence of working Grok integration.
@@ -75,8 +75,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (tilde-only expansion, `~user` rejected, relative resolution, normalization, duplicate/symlink rejection, missing homes never created).
 
 <a id="req-009"></a>
-- [ ] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+- [x] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (1s–120s validation, 20s default), TASK-009 (admission-time budget covering startup and every RPC), TASK-003 (separate 2s cleanup bound).
 
 <a id="req-010"></a>
 - [x] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
@@ -123,20 +123,20 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (server requests rejected with exact id and connection aborted; Grok false capabilities declared in TASK-007 wire tests).
 
 <a id="req-020"></a>
-- [ ] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+- [x] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-003.md](verification/TASK-003.md) — stdin close, exactly-once wait, EOF/SIGTERM/SIGKILL stages within budget, unrelated-process survival, owned-group-only kills.
 
 <a id="req-021"></a>
 - [x] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
   - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — fixed application-owned messages only; secret markers and raw provider output never reach stdout/stderr.
 
 <a id="req-022"></a>
-- [ ] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner).
+- [x] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner). Evidence: [docs/verification/TASK-009.md](verification/TASK-009.md) — ≤3 active, isolated envs/slots, sibling preservation under failure/hang, configured order.
 
 <a id="req-023"></a>
-- [ ] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Do not start targets still queued after cancellation.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+- [x] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Do not start targets still queued after cancellation.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-009.md](verification/TASK-009.md) (queued cancellation, no late launch), TASK-010 (130/143 + CANCELLED table), TASK-011 (SIGINT end-to-end).
 
 <a id="req-024"></a>
 - [x] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
@@ -171,28 +171,28 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### Grok provider
 
 <a id="req-031"></a>
-- [ ] **REQ-031: ACP-only query path.** Use the qualified headless stdio invocation, initially `grok --no-auto-update agent stdio`. Do not use the interactive TUI, PTY, `-p`, an undocumented REST fallback, or an application-implemented billing HTTP client.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+- [x] **REQ-031: ACP-only query path.** Use the qualified headless stdio invocation, initially `grok --no-auto-update agent stdio`. Do not use the interactive TUI, PTY, `-p`, an undocumented REST fallback, or an application-implemented billing HTTP client.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-007.md](verification/TASK-007.md) — exact `--no-auto-update agent stdio` invocation asserted from the child argv; no TUI/PTY/REST anywhere (TASK-011 static scan).
 
 <a id="req-032"></a>
-- [ ] **REQ-032: Cached login without new auth.** Select `cached_token` only when advertised and authenticate with headless metadata. Do not choose an API key because it exists in the environment, launch a browser, run `grok login`, or initiate device-code/OIDC login.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+- [x] **REQ-032: Cached login without new auth.** Select `cached_token` only when advertised and authenticate with headless metadata. Do not choose an API key because it exists in the environment, launch a browser, run `grok login`, or initiate device-code/OIDC login.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-007.md](verification/TASK-007.md) — cached_token selected only when advertised, headless _meta, API-key env never selects auth, no browser/login/device flows.
 
 <a id="req-033"></a>
-- [ ] **REQ-033: Qualified billing extension.** Call the source-backed billing extension using the captured ACP wire contract. Distinguish the internal `x.ai/billing` name from its wire representation. A valid method-not-found response produces `UNSUPPORTED`, not fabricated usage or an automatic alternate transport.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+- [x] **REQ-033: Qualified billing extension.** Call the source-backed billing extension using the captured ACP wire contract. Distinguish the internal `x.ai/billing` name from its wire representation. A valid method-not-found response produces `UNSUPPORTED`, not fabricated usage or an automatic alternate transport.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-007.md](verification/TASK-007.md) — frozen `_x.ai/billing` wire method from the live probe; method-not-found maps to UNSUPPORTED (TASK-008), no alternate transports.
 
 <a id="req-034"></a>
-- [ ] **REQ-034: Explicit weekly billing semantics.** Use `config.creditUsagePercent` only when `config.currentPeriod.type` explicitly identifies the qualified weekly enum. An explicit monthly enum produces `N/A (monthly)`; absent/unknown period metadata does not establish a week.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok).
+- [x] **REQ-034: Explicit weekly billing semantics.** Use `config.creditUsagePercent` only when `config.currentPeriod.type` explicitly identifies the qualified weekly enum. An explicit monthly enum produces `N/A (monthly)`; absent/unknown period metadata does not establish a week.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) — creditUsagePercent read only under the explicit weekly enum; monthly → N/A (monthly); absent/unknown → N/A (period).
 
 <a id="req-035"></a>
-- [ ] **REQ-035: No legacy-credit estimation.** Do not compute weekly usage from `monthlyLimit`, `used`, purchased/prepaid balance, on-demand usage, or billing history. Treat legacy-only data as unavailable rather than converting it.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok).
+- [x] **REQ-035: No legacy-credit estimation.** Do not compute weekly usage from `monthlyLimit`, `used`, purchased/prepaid balance, on-demand usage, or billing history. Treat legacy-only data as unavailable rather than converting it.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) — legacy monthlyLimit/used/prepaid/on-demand payloads map to N/A (period), never converted.
 
 <a id="req-036"></a>
-- [ ] **REQ-036: No speculative identity endpoint.** Keep the Grok alias available on success and failure. Do not read Grok auth JSON, decode JWTs, or invent a `whoami`/profile API to fill the ACCOUNT column.
-  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-IDENTITY](architecture.md#v-identity).
+- [x] **REQ-036: No speculative identity endpoint.** Keep the Grok alias available on success and failure. Do not read Grok auth JSON, decode JWTs, or invent a `whoami`/profile API to fill the ACCOUNT column.
+  - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-IDENTITY](architecture.md#v-identity). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) — configured alias on success/failure; auth payloads are never identity sources; no whoami/JWT/auth-file code (TASK-011 static scan).
 
 ### Security and boundaries
 
@@ -209,8 +209,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-005](plan.md#task-005). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (envfilter policy: drops + per-target CODEX_HOME replacement, HOME/proxy preserved, parent untouched; argv-only child start from TASK-003).
 
 <a id="req-040"></a>
-- [ ] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
-  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-SAFETY](architecture.md#v-safety).
+- [x] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
+  - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-003.md](verification/TASK-003.md) — private 0700 temp cwd outside the project, removed after cleanup; TASK-011 confirms invocation from neutral dirs.
 
 <a id="req-041"></a>
 - [x] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
@@ -251,8 +251,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-DOCS](architecture.md#v-docs). Evidence: README.md — install/build, exact flags, login prerequisite, quota meaning, all statuses, exit codes, tested versions/platforms, limitations incl. alias-not-email and monthly-not-weekly; smoke-checked against the binary.
 
 <a id="req-050"></a>
-- [ ] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
-  - Architecture: [ARCH-14](architecture.md#arch-14). Owner: [TASK-014](plan.md#task-014). Verification: [V-AUDIT](architecture.md#v-audit).
+- [x] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
+  - - Architecture: [ARCH-14](architecture.md#arch-14). Owner: [TASK-014](plan.md#task-014). Verification: [V-AUDIT](architecture.md#v-audit). Evidence: this audit — every REQ carries architecture/owner/verification/evidence links, fourteen task-scoped commits in plan order (git log), live evidence distinguished from fixtures throughout.
 
 ## Completion rules
 
