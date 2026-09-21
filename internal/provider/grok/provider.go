@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
+	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/provider/envfilter"
 	"gaebokchi/internal/rpc"
@@ -263,4 +266,120 @@ func readBilling(ctx context.Context, s *session) (json.RawMessage, error) {
 		return nil, &rpcCallError{method: billingMethod, remote: resp.Err}
 	}
 	return resp.Result, nil
+}
+
+// Query runs the complete metadata-only lifecycle for the Grok target
+// and returns exactly one terminal result. The ACCOUNT column is the
+// configured alias on every outcome; no identity endpoint exists.
+func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
+	res := domain.Result{
+		TargetID:      tgt.ID,
+		Provider:      tgt.Provider,
+		Account:       tgt.FallbackAccount,
+		AccountSource: domain.AccountSourceConfiguredAlias,
+		ObservedAt:    time.Now(),
+	}
+
+	bin, err := p.resolveBin(tgt.Bin)
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+			res.Status = domain.StatusCLINotFound
+			res.Diagnostic = domain.Diagnostic{Code: "cli_not_found", Message: tgt.ID + ": grok executable not found"}
+		} else {
+			res.Status = domain.StatusProviderError
+			res.Diagnostic = domain.Diagnostic{Code: "bin_error", Message: tgt.ID + ": grok executable cannot be used"}
+		}
+		return res
+	}
+
+	s, plan, err := openSession(ctx, bin, p.Start)
+	if err != nil {
+		return classifyTransportFailure(res, err)
+	}
+	if s == nil {
+		// Negotiation established a terminal plan without a session.
+		switch plan {
+		case planAPIKeyOnly:
+			res.Status = domain.StatusNotApplicableAPIKey
+			res.Diagnostic = domain.Diagnostic{Code: "api_key_auth", Message: tgt.ID + ": API-key auth has no subscription billing quota"}
+		case planInteractiveOnly:
+			res.Status = domain.StatusAuthRequired
+			res.Diagnostic = domain.Diagnostic{Code: "auth_required", Message: tgt.ID + ": authenticate using the provider CLI outside gaebokchi"}
+		case planUnknownMethods:
+			res.Status = domain.StatusUnsupported
+			res.Diagnostic = domain.Diagnostic{Code: "auth_unsupported", Message: tgt.ID + ": unrecognized grok authentication advertisement"}
+		case planVersionMismatch:
+			res.Status = domain.StatusUnsupported
+			res.Diagnostic = domain.Diagnostic{Code: "version_unsupported", Message: tgt.ID + ": installed grok speaks an unsupported ACP protocol version"}
+		}
+		return res
+	}
+	defer s.close()
+
+	// A live session exists only for the cached-token plan.
+	if err := authenticateCached(ctx, s); err != nil {
+		var rce *rpcCallError
+		if errors.As(err, &rce) {
+			res.Status = domain.StatusAuthRequired
+			res.Diagnostic = domain.Diagnostic{Code: "auth_required", Message: tgt.ID + ": cached token rejected; re-authenticate with the provider CLI"}
+			return res
+		}
+		return classifyTransportFailure(res, err)
+	}
+
+	raw, err := readBilling(ctx, s)
+	if err != nil {
+		var rce *rpcCallError
+		if errors.As(err, &rce) {
+			if rce.remote.Code == rpc.MethodNotFoundCode {
+				res.Status = domain.StatusUnsupported
+				res.Diagnostic = domain.Diagnostic{Code: "method_not_found", Message: formatBillingError(domain.StatusUnsupported, tgt.ID)}
+			} else {
+				res.Status = domain.StatusProviderError
+				res.Diagnostic = domain.Diagnostic{Code: "remote_error", Message: tgt.ID + ": provider rejected the billing read"}
+			}
+			return res
+		}
+		return classifyTransportFailure(res, err)
+	}
+
+	out := normalizeBilling(raw)
+	res.Status = out.Status
+	res.Source = domain.SourceGrokACPBilling
+	res.Period = out.Period
+	res.ResetAt = out.ResetAt
+	if out.Percent != nil {
+		v := domain.NormalizePercentSignedZero(*out.Percent)
+		res.UsedPercent = &v
+	} else {
+		res.Diagnostic = domain.Diagnostic{Code: string(out.Status), Message: formatBillingError(out.Status, tgt.ID)}
+	}
+	return res
+}
+
+// classifyTransportFailure maps transport failures to terminal statuses
+// with fixed safe messages.
+func classifyTransportFailure(res domain.Result, err error) domain.Result {
+	var rce *rpcCallError
+	switch {
+	case errors.Is(err, context.Canceled):
+		res.Status = domain.StatusCancelled
+		res.Diagnostic = domain.Diagnostic{Code: "cancelled", Message: res.TargetID + ": query cancelled"}
+	case errors.Is(err, context.DeadlineExceeded):
+		res.Status = domain.StatusTimeout
+		res.Diagnostic = domain.Diagnostic{Code: "timeout", Message: res.TargetID + ": query exceeded its deadline"}
+	case errors.Is(err, exec.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+		res.Status = domain.StatusCLINotFound
+		res.Diagnostic = domain.Diagnostic{Code: "cli_not_found", Message: res.TargetID + ": grok executable not found"}
+	case errors.As(err, &rce):
+		res.Status = domain.StatusProviderError
+		res.Diagnostic = domain.Diagnostic{Code: "remote_error", Message: res.TargetID + ": provider rejected a metadata read"}
+	case errors.Is(err, rpc.ErrEOF), errors.Is(err, rpc.ErrMalformedMessage), errors.Is(err, rpc.ErrServerRequest):
+		res.Status = domain.StatusProtocolError
+		res.Diagnostic = domain.Diagnostic{Code: "protocol_error", Message: res.TargetID + ": ACP protocol stream failed"}
+	default:
+		res.Status = domain.StatusProviderError
+		res.Diagnostic = domain.Diagnostic{Code: "provider_error", Message: res.TargetID + ": grok query failed"}
+	}
+	return res
 }

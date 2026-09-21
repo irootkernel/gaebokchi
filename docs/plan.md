@@ -350,7 +350,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-004"></a>
 ## EPIC-004: Grok single-account provider
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Complete Grok metadata-only ACP billing access and explicit weekly/monthly normalization.
 
@@ -403,7 +403,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-008"></a>
 ### TASK-008: Complete Grok weekly semantics and alias behavior
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Turn Grok billing metadata into the same truthful domain result without conflating monthly, prepaid or on-demand credits.
 
@@ -425,10 +425,10 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Valid explicit weekly values, including zero, produce numeric results, while monthly values never occupy a weekly percentage cell.
-- [ ] Legacy monthlyLimit/used, prepaid balances and billing history are not converted into a weekly estimate.
-- [ ] Missing/null/unknown data remain explicit statuses, and valid optional fields do not become mandatory.
-- [ ] The full Grok adapter can now be consumed by the application runner without further protocol or authentication work.
+- [x] Valid explicit weekly values, including zero, produce numeric results, while monthly values never occupy a weekly percentage cell.
+- [x] Legacy monthlyLimit/used, prepaid balances and billing history are not converted into a weekly estimate.
+- [x] Missing/null/unknown data remain explicit statuses, and valid optional fields do not become mandatory.
+- [x] The full Grok adapter can now be consumed by the application runner without further protocol or authentication work.
 
 **Verification:** [V-GROK](architecture.md#v-grok), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/provider/grok ./internal/domain` and `go test ./...`.
 
