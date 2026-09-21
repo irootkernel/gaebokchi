@@ -1,0 +1,286 @@
+# Gaebokchi (개복치): Requirements
+
+Version: 0.1 specification  
+Status: Ready for sequential implementation; no implementation or live acceptance is claimed  
+Prepared: 2026-09-22  
+Project: Gaebokchi (개복치)  
+Ecosystem: Aquarium tool  
+Repository and executable: `gaebokchi`
+
+## Document contract
+
+This document owns **what must be delivered**. [architecture.md](architecture.md) owns implementation structure, data semantics, and protocol boundaries. [plan.md](plan.md) owns execution order, task scope, and completion evidence. Read the [execution rules](plan.md#plan-execution) before starting work.
+
+The three documents belong together at the repository root. Explicit anchors and IDs are stable. An implementation AI must not weaken a requirement merely because an upstream CLI is unsupported. Resolve contradictions across the three documents in the same task-scoped change.
+
+All checkboxes start unchecked. Check a requirement only after its named verification has passed and evidence is linked from the owning task. A task may deliver a component before the entire product is ready; that does not make all product-level requirements complete. The release audit rechecks the full set.
+
+## Product outcome
+
+Build **Gaebokchi (개복치)**, a small, read-only Go CLI in the **Aquarium tool ecosystem**, for **Codex multi-account plus Grok single-account**. Reuse existing CLI login state instead of implementing account linking. Claude is explicitly outside v0.1.
+
+The project name is **Gaebokchi (개복치)**; the repository basename and executable are `gaebokchi`, as defined in [ARCH-01](architecture.md#arch-01). The default invocation is `gaebokchi`. Illustrative output, not measured account data:
+
+```text
+AI PROVIDER  ACCOUNT                WEEKLY USAGE
+ChatGPT      account1@example.com   37.0%
+ChatGPT      account2@example.com   12.0%
+Grok         default                54.0%
+```
+
+The requested final scope is **header plus three account rows**, not the five-line table discussed before Claude was removed. Accounts retain separate rows even if they belong to the same provider or resolve to the same email.
+
+## Scope boundaries
+
+The checklist below defines the final v0.1 product, not speculative future-provider support. No Claude adapter, UI scraping, PTY, API-cost dashboard, browser session extraction, custom OAuth, model prompting, or background refresh belongs to this release. No runtime configuration file is needed; explicit flags provide the limited customization.
+
+Provider compatibility is an implementation gate. Published documentation/source can establish a candidate interface, but only a real prompt-free probe establishes that the installed binary exposes it. In particular, an internal Grok billing handler is not proof of a usable stdio endpoint. See [ARCH-12](architecture.md#arch-12) and [TASK-001](plan.md#task-001).
+
+## Acceptance checklist
+
+### Product scope
+
+<a id="req-001"></a>
+- [ ] **REQ-001: Native Go CLI.** Provide an executable named `gaebokchi` for macOS and Linux. Use a small Go codebase and the installed `codex` and `grok` executables; a Go installation is not required to run a distributed binary.
+  - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build).
+
+<a id="req-002"></a>
+- [ ] **REQ-002: Default account set.** With no account flags, query exactly three targets, in this order: Codex at `~/.codex`, Codex at `~/.codex-hsy`, and the existing default Grok login. Render the header and those three rows, even when individual targets fail.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+
+<a id="req-003"></a>
+- [ ] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
+  - Architecture: [ARCH-01](architecture.md#arch-01). Owner: [TASK-006](plan.md#task-006). Verification: [V-QUOTA](architecture.md#v-quota).
+
+<a id="req-004"></a>
+- [ ] **REQ-004: One-shot operation.** Perform one finite snapshot operation and exit. Do not introduce an application daemon, watch mode, polling, scheduled refresh, retry loop, usage history, or persistent usage cache. Blocking reads of protocol messages are permitted.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner).
+
+<a id="req-005"></a>
+- [ ] **REQ-005: Real provider support.** Qualify both providers through real, prompt-free CLI queries before claiming v0.1 complete. An `UNSUPPORTED` fallback, a synthetic fixture, or a handler found only in source is not evidence of working Grok integration.
+  - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live).
+
+### CLI and output
+
+<a id="req-006"></a>
+- [ ] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options).
+
+<a id="req-007"></a>
+- [ ] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options).
+
+<a id="req-008"></a>
+- [ ] **REQ-008: Safe path handling.** Expand only the current-user `~` or `~/` prefix, resolve relative paths against the invocation directory, and normalize paths before use. Reject empty paths and duplicate normalized homes, including existing symlink aliases. Do not create missing provider home directories.
+  - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options).
+
+<a id="req-009"></a>
+- [ ] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+
+<a id="req-010"></a>
+- [ ] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
+  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-010](plan.md#task-010). Verification: [V-IDENTITY](architecture.md#v-identity).
+
+<a id="req-011"></a>
+- [ ] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
+  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+
+<a id="req-012"></a>
+- [ ] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
+  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output).
+
+### Usage semantics
+
+<a id="req-013"></a>
+- [ ] **REQ-013: Presence-aware percentages.** Emit one decimal place and `%` for a finite, explicitly present numeric value from 0 through 100. Preserve a genuine zero as `0.0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them, multiply ratios by 100, or substitute zero for missing fields.
+  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+
+<a id="req-014"></a>
+- [ ] **REQ-014: No invented weekly value.** Show a defined unavailable/non-applicable status when the response cannot establish a weekly value. Do not average multiple quotas, choose the highest percentage, extrapolate monthly values, or guess a window from reset time.
+  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+
+<a id="req-015"></a>
+- [ ] **REQ-015: Window provenance.** Keep the selected quota identifier, period kind, source, and optional reset time in the in-memory result. Reset metadata is not an additional output column and must not be required when the source makes it optional.
+  - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota).
+
+### Protocol and execution
+
+<a id="req-016"></a>
+- [ ] **REQ-016: Separate wire dialects.** Use stdio JSON messages with the correct provider-specific envelopes and initialization rules. Codex App Server and Grok ACP must not be treated as one interchangeable protocol. Freeze Grok extension wire encoding from an actual installed-binary probe.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+
+<a id="req-017"></a>
+- [ ] **REQ-017: Bounded framing.** Support fragmented and coalesced newline-delimited UTF-8 JSON, with a 4 MiB maximum frame. Reject malformed/oversized frames and unsupported batches; bound buffered stderr to 64 KiB while continuing to drain excess bytes.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+
+<a id="req-018"></a>
+- [ ] **REQ-018: Response correlation.** Correlate responses by request ID, tolerate unrelated well-formed notifications, and never use the first received JSON object as the response. Unknown/duplicate response IDs cannot satisfy a pending request. Fail a pending call on EOF or malformed matching responses.
+  - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+
+<a id="req-019"></a>
+- [ ] **REQ-019: No host capability execution.** Advertise no filesystem, terminal, or tool execution capability to Grok. Never execute server-initiated requests, approve tools, answer elicitation with secrets, or service token-refresh callbacks requiring application-held credentials. Reject unexpected requests and close the affected query safely.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-020"></a>
+- [ ] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+
+<a id="req-021"></a>
+- [ ] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-022"></a>
+- [ ] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner).
+
+<a id="req-023"></a>
+- [ ] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Do not start targets still queued after cancellation.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle).
+
+<a id="req-024"></a>
+- [ ] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
+  - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-EXIT](architecture.md#v-exit).
+
+### Codex provider
+
+<a id="req-025"></a>
+- [ ] **REQ-025: Per-target App Server.** Start a separate `codex app-server` process for each Codex home, with that target’s absolute `CODEX_HOME`. Do not switch accounts inside a shared App Server or mutate the parent environment.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+
+<a id="req-026"></a>
+- [ ] **REQ-026: Metadata-only handshake.** Complete `initialize`, wait for its response, then send `initialized` before the account calls. Use only the allowlisted account-read and rate-limit-read operations; do not start/resume threads or turns.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+
+<a id="req-027"></a>
+- [ ] **REQ-027: Existing subscription auth.** Use provider-managed ChatGPT login state without reading credentials directly. An absent/expired login becomes `AUTH REQUIRED`; API-key-only auth becomes `N/A (API key)`. Other unqualified auth variants must not be silently treated as ChatGPT subscriptions.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-005](plan.md#task-005). Verification: [V-CODEX](architecture.md#v-codex).
+
+<a id="req-028"></a>
+- [ ] **REQ-028: Deterministic quota bucket selection.** Prefer `rateLimitsByLimitId["codex"]` when the multi-bucket map is non-empty. Do not fall through to an unrelated bucket or average map entries. Use legacy `rateLimits` only under the explicit compatibility rules in ARCH-07.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex).
+
+<a id="req-029"></a>
+- [ ] **REQ-029: Duration-based weekly window.** Inspect both `primary` and `secondary` in the selected Codex bucket. Select by `windowDurationMins == 10080`, never by slot name. Handle absent, null, reversed, duplicated, and conflicting windows as defined in ARCH-07.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-CODEX](architecture.md#v-codex).
+
+<a id="req-030"></a>
+- [ ] **REQ-030: Identity isolation.** Obtain Codex account information and quota through the same isolated child. Preserve the correct fallback identity on authentication or transport failure, and test simultaneous results from two different homes.
+  - Architecture: [ARCH-07](architecture.md#arch-07). Owner: [TASK-006](plan.md#task-006). Verification: [V-IDENTITY](architecture.md#v-identity).
+
+### Grok provider
+
+<a id="req-031"></a>
+- [ ] **REQ-031: ACP-only query path.** Use the qualified headless stdio invocation, initially `grok --no-auto-update agent stdio`. Do not use the interactive TUI, PTY, `-p`, an undocumented REST fallback, or an application-implemented billing HTTP client.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+
+<a id="req-032"></a>
+- [ ] **REQ-032: Cached login without new auth.** Select `cached_token` only when advertised and authenticate with headless metadata. Do not choose an API key because it exists in the environment, launch a browser, run `grok login`, or initiate device-code/OIDC login.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+
+<a id="req-033"></a>
+- [ ] **REQ-033: Qualified billing extension.** Call the source-backed billing extension using the captured ACP wire contract. Distinguish the internal `x.ai/billing` name from its wire representation. A valid method-not-found response produces `UNSUPPORTED`, not fabricated usage or an automatic alternate transport.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok).
+
+<a id="req-034"></a>
+- [ ] **REQ-034: Explicit weekly billing semantics.** Use `config.creditUsagePercent` only when `config.currentPeriod.type` explicitly identifies the qualified weekly enum. An explicit monthly enum produces `N/A (monthly)`; absent/unknown period metadata does not establish a week.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok).
+
+<a id="req-035"></a>
+- [ ] **REQ-035: No legacy-credit estimation.** Do not compute weekly usage from `monthlyLimit`, `used`, purchased/prepaid balance, on-demand usage, or billing history. Treat legacy-only data as unavailable rather than converting it.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-GROK](architecture.md#v-grok).
+
+<a id="req-036"></a>
+- [ ] **REQ-036: No speculative identity endpoint.** Keep the Grok alias available on success and failure. Do not read Grok auth JSON, decode JWTs, or invent a `whoami`/profile API to fill the ACCOUNT column.
+  - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-008](plan.md#task-008). Verification: [V-IDENTITY](architecture.md#v-identity).
+
+### Security and boundaries
+
+<a id="req-037"></a>
+- [ ] **REQ-037: Credential ownership.** Leave credential discovery, keychain access, refresh, and storage to the installed CLIs. The application must not parse/copy auth files, request tokens from the user, store secrets, or implement OAuth.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-038"></a>
+- [ ] **REQ-038: Business-level read-only boundary.** Issue no prompts, agent sessions, tool actions, login/logout, billing mutations, quota-reset redemption, purchases, or configuration writes. Distinguish this from provider-owned token refresh, logs, caches, and shared-process lifecycle that can occur during CLI startup.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-039"></a>
+- [ ] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
+  - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-005](plan.md#task-005). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-040"></a>
+- [ ] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
+  - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-SAFETY](architecture.md#v-safety).
+
+<a id="req-041"></a>
+- [ ] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
+  - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety).
+
+### Verification and delivery
+
+<a id="req-042"></a>
+- [x] **REQ-042: Version-qualified external contracts.** Record actual CLI executable/version evidence, protocol forms, source references, and sanitized observations. Never infer an installed version from a repository SHA or claim an untested version is supported. Detect contract mismatch safely without auto-upgrading either CLI.
+  - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-001](plan.md#task-001). Verification: [V-CONTRACT](architecture.md#v-contract). Evidence: [docs/verification/compatibility.md](verification/compatibility.md) (codex-cli 0.155.1, grok 1.0.40, live two-home Codex reads, live weekly Grok billing, sanitized fixtures).
+
+<a id="req-043"></a>
+- [ ] **REQ-043: Offline default tests.** Run normal tests entirely against fixtures and fake child executables, without live accounts, provider installations, credentials, or network access. Keep live probes explicit and opt-in.
+  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc).
+
+<a id="req-044"></a>
+- [ ] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
+  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-QUOTA](architecture.md#v-quota).
+
+<a id="req-045"></a>
+- [ ] **REQ-045: End-to-end failure isolation.** Verify stdout, stderr, exit status, row count/order, callback rejection, timeout, signal handling, and cleanup through the actual CLI executable with scripted fake providers.
+  - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-E2E](architecture.md#v-e2e).
+
+<a id="req-046"></a>
+- [ ] **REQ-046: Build artifacts.** Produce binaries for darwin/arm64, darwin/amd64, linux/arm64, and linux/amd64, with version metadata and checksums. Do not bundle third-party provider binaries or automatically publish a release.
+  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-BUILD](architecture.md#v-build).
+
+<a id="req-047"></a>
+- [ ] **REQ-047: Native platform evidence.** Run the application and fake-provider integration tests natively on macOS and Linux. Record which CPU architectures were executed and which were only cross-built; a successful cross-build alone is not runtime validation.
+  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-PLATFORM](architecture.md#v-platform).
+
+<a id="req-048"></a>
+- [ ] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
+  - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live).
+
+<a id="req-049"></a>
+- [ ] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.
+  - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-DOCS](architecture.md#v-docs).
+
+<a id="req-050"></a>
+- [ ] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
+  - Architecture: [ARCH-14](architecture.md#arch-14). Owner: [TASK-014](plan.md#task-014). Verification: [V-AUDIT](architecture.md#v-audit).
+
+## Completion rules
+
+A percentage is not required when the provider explicitly reports a monthly allowance or the account uses an out-of-scope API-key mode. Those are supported, truthful **non-applicable** outcomes. An unsupported method, missing weekly metadata, absent login, timeout, or missing executable is a supported **failure/unavailable presentation**, not evidence that the positive provider integration is complete.
+
+REQ-005 and REQ-048 require live successful queries. When the owner's Grok account is monthly, a live valid billing response and `N/A (monthly)` may qualify that account's behavior, while weekly parsing is additionally verified with source-backed fixtures. The evidence must explicitly state that a live weekly Grok percentage was not exercised; it must not claim otherwise. A method-not-found response cannot satisfy that gate.
+
+Checklists are not a replacement for evidence. Use the [task evidence format](plan.md#plan-evidence), preserve failures and unrun checks, and finish with [TASK-014](plan.md#task-014).
+
+## Requirement ownership index
+
+This index is a navigation aid. The individual checkbox remains authoritative.
+
+| Task | Requirements primarily closed by the task |
+|---|---|
+| [TASK-001](plan.md#task-001) | [REQ-042](#req-042) |
+| [TASK-002](plan.md#task-002) | [REQ-007](#req-007), [REQ-008](#req-008) |
+| [TASK-003](plan.md#task-003) | [REQ-020](#req-020), [REQ-040](#req-040) |
+| [TASK-004](plan.md#task-004) | [REQ-016](#req-016), [REQ-017](#req-017), [REQ-018](#req-018), [REQ-019](#req-019), [REQ-043](#req-043) |
+| [TASK-005](plan.md#task-005) | [REQ-025](#req-025), [REQ-026](#req-026), [REQ-027](#req-027), [REQ-039](#req-039) |
+| [TASK-006](plan.md#task-006) | [REQ-003](#req-003), [REQ-028](#req-028), [REQ-029](#req-029), [REQ-030](#req-030) |
+| [TASK-007](plan.md#task-007) | [REQ-031](#req-031), [REQ-032](#req-032), [REQ-033](#req-033) |
+| [TASK-008](plan.md#task-008) | [REQ-013](#req-013), [REQ-014](#req-014), [REQ-015](#req-015), [REQ-034](#req-034), [REQ-035](#req-035), [REQ-036](#req-036) |
+| [TASK-009](plan.md#task-009) | [REQ-004](#req-004), [REQ-009](#req-009), [REQ-022](#req-022), [REQ-023](#req-023) |
+| [TASK-010](plan.md#task-010) | [REQ-002](#req-002), [REQ-006](#req-006), [REQ-010](#req-010), [REQ-011](#req-011), [REQ-012](#req-012), [REQ-024](#req-024) |
+| [TASK-011](plan.md#task-011) | [REQ-021](#req-021), [REQ-037](#req-037), [REQ-038](#req-038), [REQ-041](#req-041), [REQ-044](#req-044), [REQ-045](#req-045) |
+| [TASK-012](plan.md#task-012) | [REQ-001](#req-001), [REQ-046](#req-046), [REQ-047](#req-047), [REQ-049](#req-049) |
+| [TASK-013](plan.md#task-013) | [REQ-005](#req-005), [REQ-048](#req-048) |
+| [TASK-014](plan.md#task-014) | [REQ-050](#req-050) |
+
+Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [plan.md](plan.md#plan-roadmap).

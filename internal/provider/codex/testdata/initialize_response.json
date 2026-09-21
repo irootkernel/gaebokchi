@@ -1,0 +1,9 @@
+{
+  "id": 1,
+  "result": {
+    "userAgent": "gaebokchi/0.155.1 (Mac OS 26.6.2; arm64) xterm-256color (gaebokchi; 0.1.0)",
+    "codexHome": "/Users/owner/.codex",
+    "platformFamily": "unix",
+    "platformOs": "macos"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "result": {
+    "_meta": {
+      "email": "grokowner@example.test",
+      "auth_mode": "Oidc",
+      "team_id": "00000000-0000-4000-8000-0000000000b1",
+      "team_name": null,
+      "is_zdr": false,
+      "team_role": null,
+      "coding_data_retention_opt_out": true,
+      "show_resolved_model": false,
+      "gate": null,
+      "subscription_tier": "SuperGrok Heavy",
+      "feedback_trace_offer": false,
+      "backend_billed": false
+    }
+  }
+}
