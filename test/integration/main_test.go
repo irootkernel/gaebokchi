@@ -33,6 +33,24 @@ func cleanupOwnedDirs() {
 // argv decides which provider script runs.
 func TestMain(m *testing.M) {
 	if os.Getenv("GAEBOKCHI_FAKE") == "1" {
+		isClaude := false
+		isClaudeAuth := false
+		for _, arg := range os.Args[1:] {
+			if arg == "--safe-mode" {
+				isClaude = true
+			}
+			if arg == "auth" {
+				isClaudeAuth = true
+			}
+		}
+		if isClaude {
+			if isClaudeAuth {
+				_, _ = os.Stdout.WriteString(`{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`)
+			} else {
+				_, _ = os.Stdout.WriteString(`{"local_command":"usage","num_turns":0,"total_cost_usd":0,"is_error":false,"result":"Current week (all models): 43% used"}`)
+			}
+			os.Exit(0)
+		}
 		steps := os.Getenv("GAEBOKCHI_FAKE_STEPS")
 		if steps == "" {
 			// The provider kind is selected by argv: codex children are

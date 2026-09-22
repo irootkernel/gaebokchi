@@ -292,13 +292,13 @@ func TestOptionsTargetsFeedRunner(t *testing.T) {
 		t.Fatal(err)
 	}
 	targets := o.Targets()
-	if len(targets) != 3 {
+	if len(targets) != 4 {
 		t.Fatalf("default targets = %d", len(targets))
 	}
 	q := &fakeQuerier{}
-	r := &Runner{Codex: q, Grok: q}
+	r := &Runner{Codex: q, Grok: q, Claude: q}
 	results := r.Run(context.Background(), targets, time.Second)
-	if results[0].TargetID != "codex:0" || results[2].TargetID != "grok:0" {
+	if results[0].TargetID != "codex:0" || results[2].TargetID != "grok:0" || results[3].TargetID != "claude:0" {
 		t.Fatalf("unexpected target order: %+v", targets)
 	}
 }

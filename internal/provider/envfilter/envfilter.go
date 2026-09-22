@@ -28,6 +28,18 @@ func Grok() Rule {
 	return Rule{Drop: []string{"XAI_API_KEY", "GROK_API_KEY"}}
 }
 
+// Claude removes overrides that would route a print-mode read away from the
+// active Claude subscription. HOME and CLAUDE_CONFIG_DIR remain inherited.
+func Claude() Rule {
+	return Rule{Drop: []string{
+		"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+		"ANTHROPIC_AWS_API_KEY", "ANTHROPIC_AWS_BASE_URL",
+		"CLAUDE_CODE_USE_ANTHROPIC_AWS", "CLAUDE_CODE_USE_BEDROCK",
+		"CLAUDE_CODE_USE_FOUNDRY", "CLAUDE_CODE_USE_MANTLE", "CLAUDE_CODE_USE_VERTEX",
+		"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST", "CLAUDE_CODE_SIMPLE",
+	}}
+}
+
 // Apply returns the child environment for parent. Later duplicate
 // entries for the same name win in the parent list; after Apply each
 // adjusted name appears exactly once, at its last position, and

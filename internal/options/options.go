@@ -18,6 +18,7 @@ import (
 const (
 	DefaultCodexBin    = "codex"
 	DefaultGrokBin     = "grok"
+	DefaultClaudeBin   = "claude"
 	DefaultGrokAccount = "default"
 	DefaultTimeout     = 20 * time.Second
 	minTimeout         = 1 * time.Second
@@ -31,6 +32,7 @@ type Options struct {
 	CodexHomes  []string
 	CodexBin    string
 	GrokBin     string
+	ClaudeBin   string
 	GrokAccount string
 	Timeout     time.Duration
 	Help        bool
@@ -87,8 +89,9 @@ func specs() map[string]*flagSpec {
 			o.CodexHomes = append(o.CodexHomes, v)
 			return nil
 		}},
-		"codex-bin": {name: "codex-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
-		"grok-bin":  {name: "grok-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
+		"codex-bin":  {name: "codex-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
+		"grok-bin":   {name: "grok-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
+		"claude-bin": {name: "claude-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.ClaudeBin }, "claude-bin")},
 		"grok-account": {name: "grok-account", kind: kindString, set: func(o *Options, v string) error {
 			// The alias is validated through the display-label policy
 			// before any provider can launch: an alias with no
@@ -145,6 +148,7 @@ func parse(args []string, homeDir, wd string) (Options, error) {
 	o := Options{
 		CodexBin:    DefaultCodexBin,
 		GrokBin:     DefaultGrokBin,
+		ClaudeBin:   DefaultClaudeBin,
 		GrokAccount: DefaultGrokAccount,
 		Timeout:     DefaultTimeout,
 	}
@@ -255,7 +259,7 @@ func rejectDuplicates(homes []string) error {
 
 // Targets builds the ordered query targets from parsed options.
 func (o Options) Targets() []domain.Target {
-	targets := make([]domain.Target, 0, len(o.CodexHomes)+1)
+	targets := make([]domain.Target, 0, len(o.CodexHomes)+2)
 	for i, home := range o.CodexHomes {
 		targets = append(targets, domain.Target{
 			ID:              fmt.Sprintf("codex:%d", i),
@@ -272,6 +276,13 @@ func (o Options) Targets() []domain.Target {
 		Provider:        domain.ProviderGrok,
 		FallbackAccount: o.GrokAccount,
 		Bin:             o.GrokBin,
+	})
+	targets = append(targets, domain.Target{
+		ID:              "claude:0",
+		Index:           len(o.CodexHomes) + 1,
+		Provider:        domain.ProviderClaude,
+		FallbackAccount: "default",
+		Bin:             o.ClaudeBin,
 	})
 	return targets
 }

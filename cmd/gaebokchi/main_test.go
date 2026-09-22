@@ -51,10 +51,10 @@ func (f *fakeProv) Query(ctx context.Context, tgt domain.Target) domain.Result {
 		AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusOK, UsedPercent: &v}
 }
 
-func fakes() (codexQuerier, grokQuerier) {
+func fakes() (codexQuerier, grokQuerier, claudeQuerier) {
 	return &fakeProv{}, &fakeProv{results: map[string]domain.Result{
 		"grok:0": {Account: "default", AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusOK, UsedPercent: ptr(28)},
-	}}
+	}}, &fakeProv{}
 }
 
 func ptr(v float64) *float64 { return &v }
@@ -82,7 +82,7 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 
 func TestVersionDispatchPrecedesOptionsAndProviders(t *testing.T) {
 	bomb := &fakeProv{results: map[string]domain.Result{"codex:0": {Status: domain.StatusProtocolError}}}
-	newProviders := func() (codexQuerier, grokQuerier) { return bomb, bomb }
+	newProviders := func() (codexQuerier, grokQuerier, claudeQuerier) { return bomb, bomb, bomb }
 	var stdout, stderr bytes.Buffer
 	code := runWithIO([]string{"version", "--json"}, &stdout, &stderr, newProviders)
 	if code != 0 || stdout.String() != "{\"name\":\"gaebokchi\",\"version\":\"(devel)\"}\n" || stderr.Len() != 0 {
@@ -105,11 +105,11 @@ func TestVersionDispatchPrecedesOptionsAndProviders(t *testing.T) {
 
 // executeWith runs execute with test fakes.
 func executeWith(opts options.Options, stdout, stderr *bytes.Buffer) int {
-	cx, gk := fakes()
-	return execute(opts, stdout, stderr, func() (codexQuerier, grokQuerier) { return cx, gk })
+	cx, gk, cl := fakes()
+	return execute(opts, stdout, stderr, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, cl })
 }
 
-func TestDefaultTableExactlyFourLines(t *testing.T) {
+func TestDefaultTableExactlyFiveLines(t *testing.T) {
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
 	code := executeWith(opts, &out, &errBuf)
@@ -117,13 +117,13 @@ func TestDefaultTableExactlyFourLines(t *testing.T) {
 		t.Fatalf("code = %d, stderr:\n%s", code, errBuf.String())
 	}
 	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
-	if len(lines) != 4 {
-		t.Fatalf("lines = %d, want 4 (header + 3 accounts):\n%s", len(lines), out.String())
+	if len(lines) != 5 {
+		t.Fatalf("lines = %d, want 5 (header + 4 accounts):\n%s", len(lines), out.String())
 	}
 	if lines[0] != "AI PROVIDER  ACCOUNT  WEEKLY USAGE" && !strings.HasPrefix(lines[0], "AI PROVIDER") {
 		t.Fatalf("header = %q", lines[0])
 	}
-	if !strings.Contains(out.String(), "ChatGPT") || !strings.Contains(out.String(), "Grok") {
+	if !strings.Contains(out.String(), "ChatGPT") || !strings.Contains(out.String(), "Grok") || !strings.Contains(out.String(), "Claude") {
 		t.Fatalf("provider names missing:\n%s", out.String())
 	}
 	if errBuf.Len() != 0 {
@@ -140,8 +140,8 @@ func TestCustomHomesNPlusTwoLines(t *testing.T) {
 		t.Fatalf("code = %d", code)
 	}
 	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
-	if len(lines) != 5 { // N=3 codex homes + header + grok
-		t.Fatalf("lines = %d, want 5:\n%s", len(lines), out.String())
+	if len(lines) != 6 { // N=3 codex homes + header + grok + claude
+		t.Fatalf("lines = %d, want 6:\n%s", len(lines), out.String())
 	}
 }
 
@@ -157,12 +157,12 @@ func TestPartialFailureKeepsTableExitOne(t *testing.T) {
 	}}
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier) { return cx, gk })
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, &fakeProv{} })
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for one incomplete row", code)
 	}
 	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
-	if len(lines) != 4 {
+	if len(lines) != 5 {
 		t.Fatalf("partial failure must keep all rows: %d lines", len(lines))
 	}
 	if !strings.Contains(out.String(), "AUTH REQUIRED") {
@@ -183,7 +183,7 @@ func TestMonthlyAndAPIKeyAreCleanExitZero(t *testing.T) {
 	}}
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier) { return cx, gk })
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, &fakeProv{} })
 	if code != 0 {
 		t.Fatalf("code = %d, want 0 for non-applicable outcomes", code)
 	}
@@ -195,7 +195,7 @@ func TestHelpLaunchesNoProviders(t *testing.T) {
 		"codex:0": {Status: domain.StatusProtocolError},
 	}}
 	var out, errBuf bytes.Buffer
-	code := execute(parse(t, "--help"), &out, &errBuf, func() (codexQuerier, grokQuerier) { return bomb, bomb })
+	code := execute(parse(t, "--help"), &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return bomb, bomb, bomb })
 	if code != 0 || !strings.HasPrefix(out.String(), "Usage:\n  gaebokchi") {
 		t.Fatalf("help: code=%d out=%q", code, out.String())
 	}
@@ -207,7 +207,7 @@ func TestHelpLaunchesNoProviders(t *testing.T) {
 func TestBrokenStdoutExitsOne(t *testing.T) {
 	opts := parse(t, "--timeout", "5s")
 	errBuf := &bytes.Buffer{}
-	code := execute(opts, errWriter{}, errBuf, func() (codexQuerier, grokQuerier) { return fakes() })
+	code := execute(opts, errWriter{}, errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return fakes() })
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for stdout failure", code)
 	}
@@ -228,7 +228,7 @@ func TestSignalCancelsAndExitsWithSignalCode(t *testing.T) {
 		slow := &fakeProv{delay: 30 * time.Second}
 		opts := parse(t, "--timeout", "20s")
 		var out, errBuf bytes.Buffer
-		code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier) { return slow, slow })
+		code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return slow, slow, slow })
 		fmt.Fprintf(os.Stderr, "SIGTEST-TABLE:\n%s", out.String())
 		os.Exit(code)
 	}
@@ -355,7 +355,7 @@ func TestCleanupFailureKeepsRowsAndExitsOne(t *testing.T) {
 		"--codex-home", homeA, "--codex-home", homeB,
 		"--codex-bin", os.Args[0], "--grok-bin", os.Args[0])
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier) { return cx, gk })
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, &fakeProv{} })
 
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for incomplete cleanup; stderr:\n%s", code, errBuf.String())

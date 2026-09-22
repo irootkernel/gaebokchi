@@ -7,6 +7,21 @@ Project: Gaebokchi (개복치)
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
 
+## Current Claude extension
+
+The v0.1 checklist below remains the historical Codex/Grok acceptance
+contract. The current application also queries one active Claude CLI account
+after Grok by default. It displays only the provider-reported
+`Current week (all models)` subscription percentage in the existing table,
+using `default` as the Claude account label. `--claude-bin` overrides the
+executable. A missing Claude executable keeps its row and makes the invocation
+incomplete. Claude auth and usage reads are prompt-free CLI commands; a
+changed or absent weekly line produces `UNSUPPORTED`, never a guessed value.
+
+The [Claude compatibility record](../verification/claude-compatibility.md)
+captures the qualified installed version. This extension does not retroactively
+change v0.1 task checkboxes or release evidence.
+
 ## Document contract
 
 This document owns **what must be delivered**. The [architecture](../architecture/README.md) owns implementation structure, data semantics, and protocol boundaries. The [roadmap](../roadmap/README.md) owns execution order, task scope, and completion evidence. Read the [execution rules](../roadmap/README.md#plan-execution) before starting work.

@@ -7,6 +7,18 @@ Project: Gaebokchi (개복치)
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
 
+## Current Claude extension
+
+The sections below describe the historical v0.1 Codex/Grok architecture.
+The current implementation adds one Claude target after Grok through the
+same bounded runner and child-process owner. Its adapter invokes
+`claude --safe-mode auth status --json` and then the built-in `/usage` local
+command in print mode with `--max-turns 0` and no session persistence. It
+requires the JSON result to establish a zero-turn, zero-cost local command
+before selecting the exact all-models weekly line. The Claude adapter uses
+no RPC dialect, credential parsing, or app-owned HTTP connection. See the
+[qualification record](../verification/claude-compatibility.md).
+
 ## Document contract and navigation
 
 The [requirements](../specs/README.md) define acceptance. The [roadmap](../roadmap/README.md) defines the sequential implementation route. This document defines the intended implementation and its boundaries. Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them.

@@ -81,6 +81,9 @@ func runCLI(t *testing.T, inv invocation) (stdout, stderr string, code int) {
 	if !hasFlag(inv.args, "--grok-bin") {
 		args = append(args, "--grok-bin", fake)
 	}
+	if !hasFlag(inv.args, "--claude-bin") {
+		args = append(args, "--claude-bin", fake)
+	}
 	if !hasFlag(inv.args, "--codex-home") {
 		// Default to private temp homes so the suite does not depend
 		// on the developer machine's ~/.codex layout.
@@ -157,7 +160,7 @@ func TestDefaultHappyPath(t *testing.T) {
 		t.Fatalf("code = %d, stderr:\n%s", code, stderr)
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
-	if len(lines) != 4 {
+	if len(lines) != 5 {
 		t.Fatalf("lines = %d:\n%s", len(lines), stdout)
 	}
 	if !strings.Contains(stdout, "account1@example.com") || !strings.Contains(stdout, "37.0%") || !strings.Contains(stdout, "28.0%") {
@@ -180,11 +183,25 @@ func TestMissingExecutableKeepsOtherRows(t *testing.T) {
 	if !strings.Contains(stdout, "NOT INSTALLED") {
 		t.Fatalf("grok row missing:\n%s", stdout)
 	}
-	if strings.Count(stdout, "\n") != 4 {
+	if strings.Count(stdout, "\n") != 5 {
 		t.Fatalf("row count changed:\n%s", stdout)
 	}
 	if !strings.Contains(stdout, "11.0%") {
 		t.Fatalf("codex rows lost:\n%s", stdout)
+	}
+}
+
+func TestMissingClaudeExecutableKeepsDefaultRow(t *testing.T) {
+	dir := t.TempDir()
+	stdout, stderr, code := runCLI(t, invocation{
+		args:  []string{"--claude-bin", filepath.Join(dir, "no-such-claude")},
+		codex: codexOK("a@example.com", 11),
+		grok:  grokWeekly(28),
+	})
+	if code != 1 || strings.Count(stdout, "\n") != 5 ||
+		!strings.Contains(stdout, "Claude") || !strings.Contains(stdout, "NOT INSTALLED") ||
+		!strings.Contains(stderr, "claude:0: NOT INSTALLED") {
+		t.Fatalf("missing Claude row: code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 }
 
@@ -403,7 +420,7 @@ func TestSignalCancellationExits130(t *testing.T) {
 	codexJSON, _ := json.Marshal([]testutil.Step{{Wait: 1}, {SleepMs: 60000}})
 	grokJSON, _ := json.Marshal([]testutil.Step{{Wait: 1}, {SleepMs: 60000}})
 	cmd := exec.Command(bin,
-		"--codex-bin", fake, "--grok-bin", fake, "--timeout", "20s")
+		"--codex-bin", fake, "--grok-bin", fake, "--claude-bin", fake, "--timeout", "20s")
 	cmd.Env = append(os.Environ(),
 		"GAEBOKCHI_FAKE=1",
 		"GAEBOKCHI_FAKE_CODEX_STEPS="+string(codexJSON),

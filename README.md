@@ -1,15 +1,15 @@
 # Gaebokchi (개복치)
 
 A small, read-only command-line tool in the Aquarium ecosystem that shows
-**weekly subscription usage** for your Codex (ChatGPT) and Grok accounts
-in one shot, reusing the logins already managed by the installed `codex`
-and `grok` CLIs.
+**weekly subscription usage** for your Codex (ChatGPT), Grok, and Claude
+accounts in one shot, reusing the logins managed by their installed CLIs.
 
 ```text
 AI PROVIDER  ACCOUNT                WEEKLY USAGE
 ChatGPT      account1@example.com   37.0%
 ChatGPT      account2@example.com   12.0%
 Grok         default                54.0%
+Claude       default                43.0%
 ```
 
 (Illustrative output; the ACCOUNT column can contain your real account
@@ -17,19 +17,21 @@ identifiers.)
 
 ## What it does (and does not do)
 
-- Queries exactly three targets by default: the Codex homes `~/.codex`
-  and `~/.codex-hsy`, plus the existing Grok login.
+- Queries four targets by default: the Codex homes `~/.codex` and
+  `~/.codex-hsy`, the existing Grok login, and the active Claude CLI login.
 - Shows the percentage already consumed in the provider-reported
   **weekly subscription quota**. It never shows remaining quota, local
   token totals, API spend, or a calendar-week guess.
 - One snapshot, then exit. No daemon, watch mode, polling, retries,
   history, or cache.
-- Read-only on the business level: no prompts, agent sessions, tool
-  actions, login/logout, or billing mutations are ever issued. Provider
+- Read-only on the business level: no model turns, tool actions,
+  login/logout, or billing mutations are issued. Provider
   startup itself may refresh tokens, update provider logs/caches, or use
   a provider-managed shared process — those are provider internals
   gaebokchi deliberately does not touch.
-- Claude is out of scope for v0.1.
+- Claude uses the CLI's `/usage` local command in print mode. Its weekly
+  all-models line is parsed only after the CLI confirms zero model turns
+  and zero cost. This human-readable line can change across CLI versions.
 
 ## Prerequisites
 
@@ -37,11 +39,14 @@ identifiers.)
   each home you query.
 - The `grok` CLI installed and logged in (`grok` manages its own cached
   token in `~/.grok`).
+- The `claude` CLI installed and logged in through a Claude subscription.
 - A Go toolchain is needed only to build from source; release binaries
   are self-contained (`CGO_ENABLED=0`).
 
 Protocol compatibility was qualified with live, prompt-free queries
 against `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on macOS/arm64.
+The Claude local-command path was checked against Claude Code 2.1.280 on
+macOS/arm64; see its [compatibility record](docs/verification/claude-compatibility.md).
 In a source checkout, see the
 [compatibility record](docs/verification/compatibility.md) for the frozen
 protocol evidence. Separately, the offline application
@@ -70,18 +75,18 @@ presence of build scripts or verification records.
 ## Usage
 
 ```sh
-gaebokchi                                            # default three targets
+gaebokchi                                            # default four targets
 gaebokchi --timeout 40s                              # longer query budget
 gaebokchi --codex-home ~/.codex-work                 # one custom home (replaces defaults)
 gaebokchi --codex-home ~/.codex-work --codex-home ~/.codex-personal
 gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
+gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi version
 gaebokchi version --json
 ```
 
-Release builds print `gaebokchi v0.1.0`; ordinary source builds without an
-explicit version override print `gaebokchi (devel)`. The JSON form is exactly
-`{"name":"gaebokchi","version":"v0.1.0"}` for the v0.1.0 release build.
+Release builds print `gaebokchi v0.1.0`. Source builds without an explicit
+version override print `gaebokchi (devel)`.
 
 ### Flags
 
@@ -90,6 +95,7 @@ explicit version override print `gaebokchi (devel)`. The JSON form is exactly
 | `--codex-home PATH` | `~/.codex` and `~/.codex-hsy` | Repeatable; supplying any replaces both defaults |
 | `--codex-bin PATH` | `codex` | codex executable path or name |
 | `--grok-bin PATH` | `grok` | grok executable path or name |
+| `--claude-bin PATH` | `claude` | claude executable path or name |
 | `--grok-account LABEL` | `default` | Display alias for the Grok row (not an email) |
 | `--timeout DURATION` | `20s` | Per-target query budget, 1s–120s |
 | `-h`, `--help` | — | Print help without launching providers |
@@ -108,11 +114,11 @@ errors.
 |---|---|
 | `37.0%` | Weekly subscription usage consumed (one decimal) |
 | `N/A (monthly)` | The account reports a monthly period — not weekly usage |
-| `N/A (API key)` | API-key auth has no ChatGPT/Grok subscription quota |
+| `N/A (API key)` | API-key auth has no provider subscription quota |
 | `N/A (no weekly)` | No weekly window in the provider's quota data |
 | `N/A (period)` / `N/A (no data)` | Period metadata or usage missing |
 | `AUTH REQUIRED` | No/failed login; authenticate with the provider CLI |
-| `UNSUPPORTED` | Installed CLI lacks the metadata interface |
+| `UNSUPPORTED` | Installed CLI lacks the qualified usage interface or its output changed |
 | `NOT INSTALLED` / `HOME NOT FOUND` / `HOME ERROR` | Local preflight failures |
 | `TIMEOUT` / `PROTOCOL ERROR` / `ERROR` | Query failures (row preserved) |
 | `CANCELLED` | Interrupted by SIGINT/SIGTERM |
@@ -124,16 +130,18 @@ errors.
 | `2` | Invalid arguments; no table is printed |
 | `130` / `143` | Cancelled by SIGINT / SIGTERM |
 
-A Grok alias is a label you chose, **not** a verified email. A monthly
-result is truthful non-applicability, not weekly usage.
+Grok and Claude use the display label `default`; it is not a verified email.
+A monthly result is truthful non-applicability, not weekly usage.
 
 ## Privacy and side effects
 
 - Credentials stay entirely with the provider CLIs: gaebokchi never
   reads auth files, tokens, or keychains, and never implements OAuth.
 - Child processes get a filtered environment: API-key overrides
-  (`OPENAI_API_KEY`, `CODEX_API_KEY`, `XAI_API_KEY`, `GROK_API_KEY`)
-  are removed, and each Codex child gets its own `CODEX_HOME`.
+  (`OPENAI_API_KEY`, `CODEX_API_KEY`, `XAI_API_KEY`, `GROK_API_KEY`,
+  `ANTHROPIC_API_KEY`) are removed, and each Codex child gets its own
+  `CODEX_HOME`. Claude also drops external-provider routing overrides
+  while keeping `HOME` and `CLAUDE_CONFIG_DIR`.
 - Children run in private temporary directories outside your project;
   the directories are removed after each run.
 - stdout contains the table (with account identifiers); diagnostics go
@@ -141,9 +149,9 @@ result is truthful non-applicability, not weekly usage.
 
 ## Troubleshooting
 
-- **AUTH REQUIRED** — run `codex login` / `grok` login flow outside
+- **AUTH REQUIRED** — run `codex login` / `grok` / `claude auth login` outside
   gaebokchi.
-- **NOT INSTALLED** — install the CLI or pass `--codex-bin`/`--grok-bin`
+- **NOT INSTALLED** — install the CLI or pass `--codex-bin`/`--grok-bin`/`--claude-bin`
   with an explicit path.
 - **UNSUPPORTED / PROTOCOL ERROR** — the installed CLI version does not
   expose the qualified metadata interface; check the compatibility record

@@ -1,5 +1,5 @@
-// Command gaebokchi renders a one-shot weekly-usage snapshot for Codex
-// (ChatGPT) and Grok accounts using the installed provider CLIs.
+// Command gaebokchi renders a one-shot weekly-usage snapshot using the
+// installed Codex, Grok, and Claude CLIs.
 package main
 
 import (
@@ -14,6 +14,7 @@ import (
 	"gaebokchi/internal/app"
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/options"
+	"gaebokchi/internal/provider/claude"
 	"gaebokchi/internal/provider/codex"
 	"gaebokchi/internal/provider/grok"
 	"gaebokchi/internal/render"
@@ -26,7 +27,7 @@ const usage = `Usage:
   gaebokchi [flags]
   gaebokchi version [--json]
 
-Show weekly subscription usage for Codex (ChatGPT) and Grok accounts using
+Show weekly subscription usage for Codex (ChatGPT), Grok, and Claude using
 the existing provider CLI logins. One snapshot, then exit.
 
 Commands:
@@ -37,6 +38,7 @@ Flags:
                         replaces the defaults ~/.codex and ~/.codex-hsy.
   --codex-bin PATH      codex executable path or name (default "codex")
   --grok-bin PATH       grok executable path or name (default "grok")
+  --claude-bin PATH     claude executable path or name (default "claude")
   --grok-account LABEL  display alias for the Grok row (default "default")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
   -h, --help            show this help and exit
@@ -53,8 +55,8 @@ func main() {
 
 // run returns the process exit code for one invocation.
 func run(args []string) int {
-	return runWithIO(args, os.Stdout, os.Stderr, func() (app.Querier, app.Querier) {
-		return codex.New(), grok.New()
+	return runWithIO(args, os.Stdout, os.Stderr, func() (app.Querier, app.Querier, app.Querier) {
+		return codex.New(), grok.New(), claude.New()
 	})
 }
 
@@ -75,10 +77,11 @@ func runWithIO(args []string, stdout, stderr io.Writer, newProviders providers) 
 }
 
 // providers is the seam through which tests inject fake providers.
-type providers func() (codexQuerier, grokQuerier)
+type providers func() (codexQuerier, grokQuerier, claudeQuerier)
 
 type codexQuerier = app.Querier
 type grokQuerier = app.Querier
+type claudeQuerier = app.Querier
 
 // execute runs the snapshot and implements the exit contract of
 // ARCH-10. Exit-code precedence is centralized in finalExit: the first
@@ -129,8 +132,8 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 		return finalExit(signalNum.Load(), false, nil)
 	}
 	targets := opts.Targets()
-	cx, gk := newProviders()
-	runner := &app.Runner{Codex: cx, Grok: gk}
+	cx, gk, cl := newProviders()
+	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl}
 	results := runner.Run(ctx, targets, opts.Timeout)
 	app.DisambiguateCodexAccounts(results, targets)
 

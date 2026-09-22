@@ -35,7 +35,7 @@ func startWithFakes(t *testing.T, extraArgs []string, codexSteps, grokSteps []te
 	grokJSON, _ := json.Marshal(grokSteps)
 	args := append([]string{
 		"--timeout", "20s",
-		"--codex-bin", fake, "--grok-bin", fake,
+		"--codex-bin", fake, "--grok-bin", fake, "--claude-bin", fake,
 		"--codex-home", homeA, "--codex-home", homeB,
 	}, extraArgs...)
 	cmd := exec.Command(bin, args...)
@@ -159,10 +159,12 @@ func TestSignalMixedCompletionKeepsNumericRow(t *testing.T) {
 	if !strings.Contains(stdout, "33.0%") {
 		t.Fatalf("established grok row lost on cancellation:\n%s", stdout)
 	}
-	if got := strings.Count(stdout, "CANCELLED"); got != 2 {
-		t.Fatalf("in-flight codex rows must render CANCELLED, got %d:\n%s", got, stdout)
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.HasPrefix(line, "ChatGPT") && !strings.Contains(line, "CANCELLED") {
+			t.Fatalf("in-flight codex row must render CANCELLED:\n%s", stdout)
+		}
 	}
-	if lines := strings.Count(strings.TrimSuffix(stdout, "\n"), "\n") + 1; lines != 4 {
+	if lines := strings.Count(strings.TrimSuffix(stdout, "\n"), "\n") + 1; lines != 5 {
 		t.Fatalf("row count changed: %d lines:\n%s", lines, stdout)
 	}
 }
@@ -213,6 +215,7 @@ func TestRelativeBinaryOverrideFromInvocationCwd(t *testing.T) {
 		"--timeout", "5s",
 		"--codex-bin", "./my codex",
 		"--grok-bin", fake,
+		"--claude-bin", fake,
 		"--codex-home", homeA, "--codex-home", homeB,
 	)
 	cmd.Dir = dir // the invocation cwd contains the relative script

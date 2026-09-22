@@ -7,6 +7,11 @@ Project: Gaebokchi (개복치)
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
 
+The Claude extension implemented after the v0.1 campaign is described in
+the [current requirements](../specs/README.md#current-claude-extension) and
+[architecture](../architecture/README.md#current-claude-extension). The task
+history and gates below retain their v0.1 meaning.
+
 ## How to use this plan
 
 This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; EPIC-007 completed the post-closeout corrective work. [EPIC-008](#epic-008) now owns the approved version-command contract.

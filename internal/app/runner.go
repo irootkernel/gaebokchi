@@ -23,8 +23,9 @@ type Querier interface {
 // Runner fans targets out to their providers with bounded concurrency
 // and fixed result slots.
 type Runner struct {
-	Codex Querier
-	Grok  Querier
+	Codex  Querier
+	Grok   Querier
+	Claude Querier
 	// MaxActive defaults to DefaultMaxActive.
 	MaxActive int
 }
@@ -40,6 +41,8 @@ func (r *Runner) querierFor(p domain.ProviderKind) Querier {
 	switch p {
 	case domain.ProviderGrok:
 		return r.Grok
+	case domain.ProviderClaude:
+		return r.Claude
 	default:
 		return r.Codex
 	}
@@ -52,38 +55,28 @@ func (r *Runner) querierFor(p domain.ProviderKind) Querier {
 // still queued at cancellation are marked cancelled without launching.
 func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.Duration) []domain.Result {
 	results := make([]domain.Result, len(targets))
-	started := make([]bool, len(targets))
 	sem := make(chan struct{}, r.maxActive())
 	var wg sync.WaitGroup
-	var mu sync.Mutex
 
 	for i := range targets {
 		tgt := targets[i]
+		select {
+		case sem <- struct{}{}:
+			if ctx.Err() != nil {
+				// A slot freed after cancellation must not launch
+				// a queued target.
+				<-sem
+				results[tgt.Index] = cancelledResult(tgt)
+				continue
+			}
+		case <-ctx.Done():
+			results[tgt.Index] = cancelledResult(tgt)
+			continue
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-				if ctx.Err() != nil {
-					// A slot freed after cancellation: still do not
-					// launch a queued target.
-					<-sem
-					mu.Lock()
-					results[tgt.Index] = cancelledResult(tgt)
-					mu.Unlock()
-					return
-				}
-			case <-ctx.Done():
-				mu.Lock()
-				results[tgt.Index] = cancelledResult(tgt)
-				mu.Unlock()
-				return
-			}
 			defer func() { <-sem }()
-
-			mu.Lock()
-			started[tgt.Index] = true
-			mu.Unlock()
 
 			qctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
@@ -92,13 +85,10 @@ func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.
 			// it survives even when the provider's bounded cleanup runs
 			// past the deadline inside Query.
 			res := r.querierFor(tgt.Provider).Query(qctx, tgt)
-			mu.Lock()
 			results[tgt.Index] = res
-			mu.Unlock()
 		}()
 	}
 	wg.Wait()
-	_ = started
 	return results
 }
 

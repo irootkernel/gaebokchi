@@ -42,12 +42,12 @@ func TestDefaultTargets(t *testing.T) {
 		t.Fatalf("default homes = %v", o.CodexHomes)
 	}
 	targets := o.Targets()
-	if len(targets) != 3 {
-		t.Fatalf("default target count = %d, want 3", len(targets))
+	if len(targets) != 4 {
+		t.Fatalf("default target count = %d, want 4", len(targets))
 	}
-	wantIDs := []string{"codex:0", "codex:1", "grok:0"}
-	wantProviders := []string{"codex", "codex", "grok"}
-	wantAccounts := []string{".codex", ".codex-hsy", "default"}
+	wantIDs := []string{"codex:0", "codex:1", "grok:0", "claude:0"}
+	wantProviders := []string{"codex", "codex", "grok", "claude"}
+	wantAccounts := []string{".codex", ".codex-hsy", "default", "default"}
 	for i, tt := range targets {
 		if tt.ID != wantIDs[i] || string(tt.Provider) != wantProviders[i] {
 			t.Errorf("target %d = %s/%s, want %s/%s", i, tt.ID, tt.Provider, wantIDs[i], wantProviders[i])
@@ -59,10 +59,10 @@ func TestDefaultTargets(t *testing.T) {
 			t.Errorf("target %d index = %d", i, tt.Index)
 		}
 	}
-	if targets[0].Home == targets[1].Home || targets[2].Home != "" {
-		t.Error("codex homes must differ and grok home must be empty")
+	if targets[0].Home == targets[1].Home || targets[2].Home != "" || targets[3].Home != "" {
+		t.Error("codex homes must differ and other homes must be empty")
 	}
-	if o.Timeout != 20*time.Second || o.CodexBin != "codex" || o.GrokBin != "grok" || o.GrokAccount != "default" {
+	if o.Timeout != 20*time.Second || o.CodexBin != "codex" || o.GrokBin != "grok" || o.ClaudeBin != "claude" || o.GrokAccount != "default" {
 		t.Errorf("defaults not applied: %+v", o)
 	}
 }
@@ -83,8 +83,8 @@ func TestCodexHomeReplacementOrder(t *testing.T) {
 		t.Fatalf("replacement order not preserved: %v", o.CodexHomes)
 	}
 	targets := o.Targets()
-	if len(targets) != 3 || targets[2].Provider != "grok" {
-		t.Fatalf("grok must stay last, got %+v", targets)
+	if len(targets) != 4 || targets[2].Provider != "grok" || targets[3].Provider != "claude" {
+		t.Fatalf("grok and claude must follow codex, got %+v", targets)
 	}
 }
 
@@ -117,6 +117,7 @@ func TestEmptyValuesRejected(t *testing.T) {
 	mustFail(t, "--grok-account", "")
 	mustFail(t, "--codex-bin", "")
 	mustFail(t, "--grok-bin", "")
+	mustFail(t, "--claude-bin", "")
 }
 
 func TestDuplicateHomesRejected(t *testing.T) {
@@ -180,6 +181,7 @@ func TestScalarFlagsOnlyOnce(t *testing.T) {
 	mustFail(t, "--timeout", "30s", "--timeout", "40s")
 	mustFail(t, "--grok-account", "a", "--grok-account", "b")
 	mustFail(t, "--codex-bin", "codex2", "--codex-bin", "codex3")
+	mustFail(t, "--claude-bin", "claude2", "--claude-bin", "claude3")
 	mustFail(t, "--help", "--help")
 }
 
@@ -236,8 +238,8 @@ func TestGrokAccountAliasNormalization(t *testing.T) {
 	// The normalized alias is what targets carry; no provider is
 	// launched during parsing by construction.
 	tgt := o.Targets()
-	if tgt[len(tgt)-1].FallbackAccount != "my grok" {
-		t.Fatalf("target alias = %q", tgt[len(tgt)-1].FallbackAccount)
+	if tgt[len(tgt)-2].FallbackAccount != "my grok" {
+		t.Fatalf("target alias = %q", tgt[len(tgt)-2].FallbackAccount)
 	}
 }
 

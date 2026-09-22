@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build local release artifacts for the four v0.1 targets with version
+# Build local release artifacts for the four supported platforms with version
 # metadata and SHA-256 checksums. Stages into dist/ only; never
 # publishes, signs, or bundles provider binaries.
 set -eu
