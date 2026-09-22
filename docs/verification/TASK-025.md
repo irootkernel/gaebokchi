@@ -1,4 +1,5 @@
 # TASK-025: Final verification and candidate packaging
+> Correction note (2026-09-22, TASK-026): the document-freshness result recorded here remains valid — all 16 packaged documents matched the finalized sources byte-for-byte. However, the exact-content claim was incomplete: each archive also carried seven unintended AppleDouble `._*` sidecar members that the host `tar -tzf` listing hid. Superseded by TASK-026's sidecar-free rebuild; the checksums below remain the historical identity of the superseded archives.
 
 Task: TASK-025
 Status: COMPLETE

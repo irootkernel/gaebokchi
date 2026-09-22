@@ -44,9 +44,9 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | COMPLETE (implementation milestone) |
 | 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) | [EPIC-006](#epic-006) implemented | COMPLETE (residual findings re-owned by EPIC-007) |
 
-Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the six original epics keep their implementation milestones and task commits, with EPIC-006's final acceptance superseded by EPIC-007 (the TASK-013/TASK-014 supersession notes record this); EPIC-007 is in progress with only its final gate task remaining. v0.1 is not fully release-accepted while REQ-048 stays open.
+Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the original six epics keep their implementation milestones and task commits (with EPIC-006's final acceptance superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record); the corrective runtime work of EPIC-007, including the TASK-026 documentation-and-archive follow-up, is complete. Full v0.1 release acceptance alone remains pending REQ-048 — an owner-authorized live gate (candidate live test plus the provider-display comparison), not unfinished implementation work.
 
-The task order is globally sequential: TASK-001 through TASK-025. Runtime account queries may be concurrent; development tasks may not.
+The task order is globally sequential: TASK-001 through TASK-026. Runtime account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -714,7 +714,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Entry:** EPIC-001 through EPIC-006 implemented (historical commits preserved); corrective audit findings accepted.
 
-**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025)
+**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026)
 
 **Local epic acceptance:** Every audit finding is either fixed with focused regression coverage or explicitly recorded as an owner action (REQ-048's provider-display comparison). The affected requirement checkboxes are re-checked only against the corrected tree. A mandatory gate that cannot be run in this environment is reported as blocked, never waived.
 
@@ -1043,7 +1043,34 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Commit boundary:** `test(TASK-025): requalify candidate and repackage archives`.
 
-**Next:** Close EPIC-007 and stop.
+**Next:** [TASK-026](#task-026).
+
+<a id="task-026"></a>
+### TASK-026: Final documentation and archive cleanup
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Two narrow housekeeping findings from the confirmation review of `75e16f5`: a stale progress sentence in this plan, and unintended AppleDouble `._*` sidecar members in the release archives (hidden from the macOS `tar -tzf` listing used by TASK-025, present in the raw member lists). The accepted runtime work is out of scope and untouched.
+
+**Dependency:** TASK-025 complete; no other work reopened.
+
+**Architecture:** [ARCH-13](architecture.md#arch-13).
+
+**Primary requirement ownership:** packaging evidence only; no requirement state changes (REQ-048 stays open).
+
+**Implementation scope:**
+
+- Correct the stale roadmap sentence (original milestones complete; corrective runtime work complete; full release acceptance pending REQ-048 — a live gate, not unfinished implementation).
+- `scripts/build-release.sh` sets `COPYFILE_DISABLE=1` for the archive step: the macOS-bsdtar-supported way to suppress AppleDouble sidecars, inert under GNU tar on Linux.
+- `scripts/archivecheck.go` + tests: a standard-library raw-member gate (exact intended member set, no sidecars, executable bit, byte-identical documents, checksum manifest), validated against synthetic negative fixtures and wired into CI after the release build.
+
+**Acceptance criteria:**
+
+- [x] The corrected script produces archives whose only regular members are the five intended files per target; the raw-member gate passes for all four targets and demonstrably rejects sidecar/missing/unexpected/non-executable/stale-document fixtures; all 16 packaged documents remain byte-identical to the finalized sources; checksums identify the replacement candidate; the script is exercised on macOS and Linux with unavailable environments marked NOT RUN. *(TASK-026 evidence record.)*
+
+**Commit boundary:** `build(TASK-026): strip archive sidecars and verify raw members`.
+
+**Next:** Stop. Runtime corrections stand as accepted; documentation and archive cleanup complete; full v0.1 release acceptance remains pending REQ-048.
 
 <a id="plan-release-gate"></a>
 ## Final release gate

@@ -25,7 +25,10 @@ for target in $TARGETS; do
     -o "${dir}/gaebokchi" ./cmd/gaebokchi
   cp README.md "${dir}/README.md"
   cp docs/requirement.md docs/architecture.md docs/plan.md "${dir}/docs/"
-  tar -czf "${DIST}/${name}.tar.gz" -C "$DIST" "${name}"
+  # COPYFILE_DISABLE keeps macOS tar from embedding AppleDouble ._*
+  # sidecar members for extended attributes; GNU tar on Linux ignores
+  # the variable, so the same invocation is portable.
+  COPYFILE_DISABLE=1 tar -czf "${DIST}/${name}.tar.gz" -C "$DIST" "${name}"
   rm -rf "${dir}"
 done
 
