@@ -1,7 +1,7 @@
 // Command check-docs verifies the cross-document reference graph of
 // the Gaebokchi specification: every local markdown link and fragment
 // anchor must resolve, and the REQ/ARCH/EPIC/TASK identifiers referenced
-// across the three root documents and verification records must exist.
+// across the three canonical documents and verification records must exist.
 package main
 
 import (
@@ -74,8 +74,28 @@ func main() {
 			knownIDs[id] = true
 		}
 	}
+	// Canonical documentation owners are required even when they contain no IDs.
+	requiredDocs := []string{
+		"docs/README.md",
+		"docs/specs/README.md",
+		"docs/architecture/README.md",
+		"docs/architecture-decision-records/README.md",
+		"docs/implementation-tips/README.md",
+		"docs/ops/README.md",
+		"docs/roadmap/README.md",
+		"docs/todo/README.md",
+		"docs/deferred-feedback/README.md",
+		"docs/verification/README.md",
+	}
+	for _, required := range requiredDocs {
+		if _, err := os.Stat(filepath.Join(root, required)); err != nil {
+			fmt.Printf("missing canonical document: %s\n", required)
+			fail = true
+		}
+	}
+
 	// Specification identifiers also come from checkbox/list text.
-	specFiles := []string{"docs/requirement.md", "docs/architecture.md", "docs/plan.md"}
+	specFiles := []string{"docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"}
 	for _, sf := range specFiles {
 		b, err := os.ReadFile(filepath.Join(root, sf))
 		if err != nil {

@@ -9,7 +9,7 @@ Repository and executable: `gaebokchi`
 
 ## Document contract and navigation
 
-[requirement.md](requirement.md) defines acceptance. [plan.md](plan.md) defines the sequential implementation route. This document defines the intended implementation and its boundaries. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them.
+The [requirements](../specs/README.md) define acceptance. The [roadmap](../roadmap/README.md) defines the sequential implementation route. This document defines the intended implementation and its boundaries. Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them.
 
 | Section | Responsibility |
 |---|---|
@@ -32,7 +32,7 @@ Repository and executable: `gaebokchi`
 <a id="arch-01"></a>
 ## ARCH-01: Scope and settled decisions
 
-Related: [REQ-003](requirement.md#req-003), [REQ-004](requirement.md#req-004), [REQ-005](requirement.md#req-005). Implemented across [EPIC-001](plan.md#epic-001) through [EPIC-006](plan.md#epic-006).
+Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req-004), [REQ-005](../specs/README.md#req-005). Implemented across [EPIC-001](../roadmap/README.md#epic-001) through [EPIC-006](../roadmap/README.md#epic-006).
 
 | Decision | v0.1 choice | Consequence |
 |---|---|---|
@@ -59,7 +59,7 @@ Runtime target concurrency is unrelated to development parallelism: implementati
 <a id="arch-02"></a>
 ## ARCH-02: Components and dependency direction
 
-Related: [REQ-001](requirement.md#req-001), [REQ-041](requirement.md#req-041). Owners: [TASK-002](plan.md#task-002), [TASK-012](plan.md#task-012).
+Related: [REQ-001](../specs/README.md#req-001), [REQ-041](../specs/README.md#req-041). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-012](../roadmap/README.md#task-012).
 
 ```text
 cmd/gaebokchi (composition root, flags, signals, exit)
@@ -86,9 +86,9 @@ Two Codex targets share adapter code but not connection state. The shared RPC la
 Suggested layout, with production files added only when their task needs them:
 
 ```text
-requirement.md
-architecture.md
-plan.md
+docs/specs/README.md
+docs/architecture/README.md
+docs/roadmap/README.md
 go.mod
 README.md
 cmd/gaebokchi/main.go
@@ -116,7 +116,7 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](requirement.md#req-002), [REQ-006](requirement.md#req-006), [REQ-007](requirement.md#req-007), [REQ-008](requirement.md#req-008). Owners: [TASK-002](plan.md#task-002), [TASK-010](plan.md#task-010).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010).
 
 | Flag | Default | Rules |
 |---|---|---|
@@ -150,7 +150,7 @@ Each `Target` has a deterministic invocation-local ID (`codex:0`, `codex:1`, `gr
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
 
-Related: [REQ-010](requirement.md#req-010), [REQ-013](requirement.md#req-013), [REQ-014](requirement.md#req-014), [REQ-015](requirement.md#req-015). Owners: [TASK-002](plan.md#task-002), [TASK-006](plan.md#task-006), [TASK-008](plan.md#task-008), [TASK-010](plan.md#task-010).
+Related: [REQ-010](../specs/README.md#req-010), [REQ-013](../specs/README.md#req-013), [REQ-014](../specs/README.md#req-014), [REQ-015](../specs/README.md#req-015). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-006](../roadmap/README.md#task-006), [TASK-008](../roadmap/README.md#task-008), [TASK-010](../roadmap/README.md#task-010).
 
 Conceptual Go model, not a requirement to copy exact field names:
 
@@ -202,7 +202,7 @@ For account labels, Codex email is preferred only when obtained from that target
 <a id="arch-05"></a>
 ## ARCH-05: Execution and process ownership
 
-Related: [REQ-004](requirement.md#req-004), [REQ-009](requirement.md#req-009), [REQ-020](requirement.md#req-020), [REQ-022](requirement.md#req-022), [REQ-023](requirement.md#req-023), [REQ-040](requirement.md#req-040). Owners: [TASK-003](plan.md#task-003), [TASK-009](plan.md#task-009).
+Related: [REQ-004](../specs/README.md#req-004), [REQ-009](../specs/README.md#req-009), [REQ-020](../specs/README.md#req-020), [REQ-022](../specs/README.md#req-022), [REQ-023](../specs/README.md#req-023), [REQ-040](../specs/README.md#req-040). Owners: [TASK-003](../roadmap/README.md#task-003), [TASK-009](../roadmap/README.md#task-009).
 
 ```text
 parse/validate -> build ordered targets -> admit up to 3 targets
@@ -236,7 +236,7 @@ SIGINT/SIGTERM cancel active contexts and mark unstarted targets cancelled. Rend
 <a id="arch-06"></a>
 ## ARCH-06: Shared RPC transport, separate codecs
 
-Related: [REQ-016](requirement.md#req-016) through [REQ-019](requirement.md#req-019), [REQ-043](requirement.md#req-043). Owner: [TASK-004](plan.md#task-004).
+Related: [REQ-016](../specs/README.md#req-016) through [REQ-019](../specs/README.md#req-019), [REQ-043](../specs/README.md#req-043). Owner: [TASK-004](../roadmap/README.md#task-004).
 
 A reusable connection provides newline framing, serialization, request-ID correlation, cancellation, bounded buffers, and terminal transport errors. It does **not** implement a universal Codex/ACP handshake. Prefer one outstanding client request per provider connection; different account processes can run concurrently.
 
@@ -270,7 +270,7 @@ Apply the allowlist at the provider codec boundary and assert actual outbound tr
 <a id="arch-07"></a>
 ## ARCH-07: Codex adapter
 
-Related: [REQ-025](requirement.md#req-025) through [REQ-030](requirement.md#req-030), [REQ-039](requirement.md#req-039). Owners: [TASK-005](plan.md#task-005), [TASK-006](plan.md#task-006).
+Related: [REQ-025](../specs/README.md#req-025) through [REQ-030](../specs/README.md#req-030), [REQ-039](../specs/README.md#req-039). Owners: [TASK-005](../roadmap/README.md#task-005), [TASK-006](../roadmap/README.md#task-006).
 
 Provider CLI invocation: `codex app-server`, with a separately constructed `CODEX_HOME` for each target. Local state may live in the home directory or an OS credential store managed by Codex. The application reads neither. [S-02](#s-02)
 
@@ -315,7 +315,7 @@ Inspecting only an unrelated malformed bucket must not poison a valid selected C
 <a id="arch-08"></a>
 ## ARCH-08: Grok adapter
 
-Related: [REQ-031](requirement.md#req-031) through [REQ-036](requirement.md#req-036). Owners: [TASK-007](plan.md#task-007), [TASK-008](plan.md#task-008).
+Related: [REQ-031](../specs/README.md#req-031) through [REQ-036](../specs/README.md#req-036). Owners: [TASK-007](../roadmap/README.md#task-007), [TASK-008](../roadmap/README.md#task-008).
 
 **Compatibility boundary:** the official source includes a billing extension, but this document does not claim the owner's installed stdio binary has already been tested. The public source revision inspected is recorded in [S-05](#s-05). Do not equate a source handler or in-process TUI call with exposed wire support.
 
@@ -377,7 +377,7 @@ The ACCOUNT column uses `--grok-account`, default `default`. The known billing p
 <a id="arch-09"></a>
 ## ARCH-09: Security and read-only boundary
 
-Related: [REQ-019](requirement.md#req-019), [REQ-021](requirement.md#req-021), [REQ-037](requirement.md#req-037) through [REQ-041](requirement.md#req-041). Owners: [TASK-003](plan.md#task-003), [TASK-004](plan.md#task-004), [TASK-005](plan.md#task-005), [TASK-011](plan.md#task-011).
+Related: [REQ-019](../specs/README.md#req-019), [REQ-021](../specs/README.md#req-021), [REQ-037](../specs/README.md#req-037) through [REQ-041](../specs/README.md#req-041). Owners: [TASK-003](../roadmap/README.md#task-003), [TASK-004](../roadmap/README.md#task-004), [TASK-005](../roadmap/README.md#task-005), [TASK-011](../roadmap/README.md#task-011).
 
 The trust boundary is the user-selected, already installed provider executable. The application is not a sandbox for a malicious binary. It avoids adding credential handling or agent capabilities of its own.
 
@@ -404,7 +404,7 @@ Treat error data as untrusted. Convert only verified structured codes to named s
 <a id="arch-10"></a>
 ## ARCH-10: Table, diagnostics and exit behavior
 
-Related: [REQ-010](requirement.md#req-010) through [REQ-012](requirement.md#req-012), [REQ-024](requirement.md#req-024). Owner: [TASK-010](plan.md#task-010).
+Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024). Owner: [TASK-010](../roadmap/README.md#task-010).
 
 Render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the program must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
 
@@ -442,7 +442,7 @@ A normal missing executable/home is target-specific, not a usage error. Example:
 <a id="arch-11"></a>
 ## ARCH-11: Verification catalog
 
-Related: [REQ-043](requirement.md#req-043) through [REQ-048](requirement.md#req-048). Tests are created with the owning implementation task; [TASK-011](plan.md#task-011) adds cross-component qualification rather than postponing unit tests.
+Related: [REQ-043](../specs/README.md#req-043) through [REQ-048](../specs/README.md#req-048). Tests are created with the owning implementation task; [TASK-011](../roadmap/README.md#task-011) adds cross-component qualification rather than postponing unit tests.
 
 The following identifiers are referenced by individual requirements and tasks. Implementation records exact test names and commands under these IDs.
 
@@ -552,7 +552,7 @@ The implementation may use focused `go test ./internal/provider/codex` or simila
 <a id="arch-12"></a>
 ## ARCH-12: Compatibility gate and evidence policy
 
-Related: [REQ-005](requirement.md#req-005), [REQ-042](requirement.md#req-042), [REQ-048](requirement.md#req-048). Owners: [TASK-001](plan.md#task-001), [TASK-013](plan.md#task-013).
+Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013).
 
 Initial compatibility status:
 
@@ -602,7 +602,7 @@ The early probe validates feasibility; TASK-013 validates the delivered applicat
 <a id="arch-13"></a>
 ## ARCH-13: Build, platform qualification and delivery
 
-Related: [REQ-001](requirement.md#req-001), [REQ-046](requirement.md#req-046), [REQ-047](requirement.md#req-047), [REQ-049](requirement.md#req-049). Owner: [TASK-012](plan.md#task-012).
+Related: [REQ-001](../specs/README.md#req-001), [REQ-046](../specs/README.md#req-046), [REQ-047](../specs/README.md#req-047), [REQ-049](../specs/README.md#req-049). Owner: [TASK-012](../roadmap/README.md#task-012).
 
 Use a maintained Go version selected and recorded during implementation. Pin the tested toolchain in CI and document it; do not assert the latest release number from memory. Prefer standard-library dependencies and `CGO_ENABLED=0` release builds. Go's GOOS/GOARCH target model supplies the build axes; native testing remains separate. [S-10](#s-10)
 
@@ -622,9 +622,9 @@ README startup instructions assume the user installs and logs into the provider 
 <a id="arch-14"></a>
 ## ARCH-14: Change and completion discipline
 
-Related: [REQ-050](requirement.md#req-050). Owner: [TASK-014](plan.md#task-014).
+Related: [REQ-050](../specs/README.md#req-050). Owner: [TASK-014](../roadmap/README.md#task-014).
 
-The three root documents are the specification authority; implementation evidence lives under `docs/verification/`. Do not duplicate competing roadmaps or generate extra dossier/approval frameworks for this small project.
+The three canonical role documents are the specification authority; implementation evidence lives under `docs/verification/`. Do not duplicate competing roadmaps or generate extra dossier/approval frameworks for this small project.
 
 For a contract change, update the relevant requirement, architecture section, task scope/test mapping, and fixtures together. Preserve stable IDs. Do not mark later work complete because a helper exists, and do not reopen a completed epic for unrelated improvements.
 

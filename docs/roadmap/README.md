@@ -9,9 +9,9 @@ Repository and executable: `gaebokchi`
 
 ## How to use this plan
 
-This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against [architecture.md](architecture.md), and verify product coverage against the checkboxes in [requirement.md](requirement.md). The original six epics were implemented and committed with per-task verification records under docs/verification/; a post-closeout audit superseded several acceptance claims, so [EPIC-007](#epic-007) is now the active epic and the affected requirement checkboxes are unchecked pending re-qualification.
+This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; a post-closeout audit superseded several acceptance claims, so [EPIC-007](#epic-007) is now the active epic and the affected requirement checkboxes are unchecked pending re-qualification.
 
-Keep all three documents at the repository root. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
+Keep all three canonical documents under their role directories. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
 
 <a id="plan-execution"></a>
 ## Execution rules
@@ -101,9 +101,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** None. The owner-approved scope is Codex plus Grok, with the two stated Codex homes.
 
-**Architecture:** [ARCH-06](architecture.md#arch-06), [ARCH-07](architecture.md#arch-07), [ARCH-08](architecture.md#arch-08), [ARCH-09](architecture.md#arch-09), [ARCH-12](architecture.md#arch-12), [ARCH-15](architecture.md#arch-15).
+**Architecture:** [ARCH-06](../architecture/README.md#arch-06), [ARCH-07](../architecture/README.md#arch-07), [ARCH-08](../architecture/README.md#arch-08), [ARCH-09](../architecture/README.md#arch-09), [ARCH-12](../architecture/README.md#arch-12), [ARCH-15](../architecture/README.md#arch-15).
 
-**Primary requirement ownership:** [REQ-042](requirement.md#req-042).
+**Primary requirement ownership:** [REQ-042](../specs/README.md#req-042).
 
 **Implementation scope:**
 
@@ -122,7 +122,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Exact envelopes, CLI versions, semantic types, and process ownership are captured without secrets. No prompts, agent sessions, interactive auth, or billing mutations occurred.
 - [x] Future provider tasks can implement one frozen observed contract instead of exploring guessed methods at runtime.
 
-**Verification:** [V-CONTRACT](architecture.md#v-contract), [V-SAFETY](architecture.md#v-safety). Record the exact bounded probe invocations and results. Parse saved JSON fixtures with a local JSON parser and inspect the outgoing allowlist. There is no Go-module test requirement before TASK-002.
+**Verification:** [V-CONTRACT](../architecture/README.md#v-contract), [V-SAFETY](../architecture/README.md#v-safety). Record the exact bounded probe invocations and results. Parse saved JSON fixtures with a local JSON parser and inspect the outgoing allowlist. There is no Go-module test requirement before TASK-002.
 
 **Out of scope / stop conditions:** Do not implement REST/token/browser/PTY fallbacks, broaden the account model, or treat source inspection alone as a live pass. A correctly encoded unsupported Grok endpoint blocks the epic; report the specific prerequisite instead of implementing around it.
 
@@ -139,13 +139,13 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-001 complete, including a successful Grok metadata-only contract gate.
 
-**Architecture:** [ARCH-01](architecture.md#arch-01), [ARCH-02](architecture.md#arch-02), [ARCH-03](architecture.md#arch-03), [ARCH-04](architecture.md#arch-04), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-01](../architecture/README.md#arch-01), [ARCH-02](../architecture/README.md#arch-02), [ARCH-03](../architecture/README.md#arch-03), [ARCH-04](../architecture/README.md#arch-04), [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** [REQ-007](requirement.md#req-007), [REQ-008](requirement.md#req-008).
+**Primary requirement ownership:** [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008).
 
 **Implementation scope:**
 
-- Initialize the module from the actual repository identity, or use a documented local-only module path. Use `gaebokchi` as the repository basename and `cmd/gaebokchi/main.go` as the command entry point, following the [ARCH-01 naming contract](architecture.md#arch-01). Record a maintained tested Go toolchain rather than assuming a version.
+- Initialize the module from the actual repository identity, or use a documented local-only module path. Use `gaebokchi` as the repository basename and `cmd/gaebokchi/main.go` as the command entry point, following the [ARCH-01 naming contract](../architecture/README.md#arch-01). Record a maintained tested Go toolchain rather than assuming a version.
 - Create the domain target/result/status types, constructors or validation helpers, and the one-target Query boundary. Use presence-aware percentage representation.
 - Implement the pure options parser and ordered target construction: default homes, repeatable replacement semantics, binary selection, Grok alias, timeout validation, and path normalization.
 - Validate empty and duplicate homes, including existing symlink aliases. Preserve missing valid paths as target outcomes rather than creating directories.
@@ -160,7 +160,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Target identities, statuses, missing-value semantics and parser errors match architecture.md.
 - [x] No production provider access, transport implementation, cache, or runtime config format has been introduced.
 
-**Verification:** [V-OPTIONS](architecture.md#v-options), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/domain ./internal/options`, `go test ./...`, and `go vet ./...`. Record the selected compiler and module path.
+**Verification:** [V-OPTIONS](../architecture/README.md#v-options), [V-QUOTA](../architecture/README.md#v-quota), [V-IDENTITY](../architecture/README.md#v-identity). Run `go test ./internal/domain ./internal/options`, `go test ./...`, and `go vet ./...`. Record the selected compiler and module path.
 
 **Out of scope / stop conditions:** Do not introduce a plugin framework, configuration-file discovery, a remote module identity not supplied by the repository, or placeholder zero percentages.
 
@@ -192,9 +192,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** EPIC-001 complete. Consume the qualified process-ownership and invocation constraints.
 
-**Architecture:** [ARCH-02](architecture.md#arch-02), [ARCH-05](architecture.md#arch-05), [ARCH-09](architecture.md#arch-09).
+**Architecture:** [ARCH-02](../architecture/README.md#arch-02), [ARCH-05](../architecture/README.md#arch-05), [ARCH-09](../architecture/README.md#arch-09).
 
-**Primary requirement ownership:** [REQ-020](requirement.md#req-020), [REQ-040](requirement.md#req-040).
+**Primary requirement ownership:** [REQ-020](../specs/README.md#req-020), [REQ-040](../specs/README.md#req-040).
 
 **Implementation scope:**
 
@@ -213,7 +213,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Cancellation/timeout cleanup cannot kill the caller’s existing Codex/Grok sessions or a provider-managed shared leader.
 - [x] Process tests operate on test helpers only and need no real credentials or provider installation.
 
-**Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-SAFETY](architecture.md#v-safety). Run `go test ./internal/process` and the focused race/lifecycle tests on the current native host. Cross-platform qualification is owned by TASK-012.
+**Verification:** [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety). Run `go test ./internal/process` and the focused race/lifecycle tests on the current native host. Cross-platform qualification is owned by TASK-012.
 
 **Out of scope / stop conditions:** Do not use `pkill`, shell wrappers, a shared application daemon, parent-environment mutation, or raw provider stderr in diagnostics.
 
@@ -230,9 +230,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-003 complete.
 
-**Architecture:** [ARCH-06](architecture.md#arch-06), [ARCH-09](architecture.md#arch-09), [ARCH-11](architecture.md#arch-11).
+**Architecture:** [ARCH-06](../architecture/README.md#arch-06), [ARCH-09](../architecture/README.md#arch-09), [ARCH-11](../architecture/README.md#arch-11).
 
-**Primary requirement ownership:** [REQ-016](requirement.md#req-016), [REQ-017](requirement.md#req-017), [REQ-018](requirement.md#req-018), [REQ-019](requirement.md#req-019), [REQ-043](requirement.md#req-043).
+**Primary requirement ownership:** [REQ-016](../specs/README.md#req-016), [REQ-017](../specs/README.md#req-017), [REQ-018](../specs/README.md#req-018), [REQ-019](../specs/README.md#req-019), [REQ-043](../specs/README.md#req-043).
 
 **Implementation scope:**
 
@@ -251,7 +251,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Unknown response IDs never satisfy a request and host capability requests cause no execution or data exposure.
 - [x] The transport and process packages pass together without a live provider or an unbounded wait.
 
-**Verification:** [V-RPC](architecture.md#v-rpc), [V-SAFETY](architecture.md#v-safety), [V-LIFECYCLE](architecture.md#v-lifecycle). Run `go test ./internal/rpc ./internal/process`, relevant race tests, and `go test ./...`.
+**Verification:** [V-RPC](../architecture/README.md#v-rpc), [V-SAFETY](../architecture/README.md#v-safety), [V-LIFECYCLE](../architecture/README.md#v-lifecycle). Run `go test ./internal/rpc ./internal/process`, relevant race tests, and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not add an arbitrary-RPC CLI, model/tool functionality, retry/backoff, websocket transport, or a generic agent-session framework.
 
@@ -283,9 +283,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** EPIC-002 complete.
 
-**Architecture:** [ARCH-03](architecture.md#arch-03), [ARCH-05](architecture.md#arch-05), [ARCH-07](architecture.md#arch-07), [ARCH-09](architecture.md#arch-09).
+**Architecture:** [ARCH-03](../architecture/README.md#arch-03), [ARCH-05](../architecture/README.md#arch-05), [ARCH-07](../architecture/README.md#arch-07), [ARCH-09](../architecture/README.md#arch-09).
 
-**Primary requirement ownership:** [REQ-025](requirement.md#req-025), [REQ-026](requirement.md#req-026), [REQ-027](requirement.md#req-027), [REQ-039](requirement.md#req-039).
+**Primary requirement ownership:** [REQ-025](../specs/README.md#req-025), [REQ-026](../specs/README.md#req-026), [REQ-027](../specs/README.md#req-027), [REQ-039](../specs/README.md#req-039).
 
 **Implementation scope:**
 
@@ -304,7 +304,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Account identity and fallback behavior are deterministic and cross-account data cannot mix.
 - [x] Environment filtering rules for both providers are represented/tested as pure construction policy, even though the Grok adapter is not implemented yet.
 
-**Verification:** [V-CODEX](architecture.md#v-codex), [V-IDENTITY](architecture.md#v-identity), [V-SAFETY](architecture.md#v-safety). Run focused `go test ./internal/provider/codex` and environment tests, then `go test ./...`.
+**Verification:** [V-CODEX](../architecture/README.md#v-codex), [V-IDENTITY](../architecture/README.md#v-identity), [V-SAFETY](../architecture/README.md#v-safety). Run focused `go test ./internal/provider/codex` and environment tests, then `go test ./...`.
 
 **Out of scope / stop conditions:** Do not switch accounts inside one process, read auth.json/keychain directly, use the ambient CODEX_HOME as the default selector, or emit an unfinished Query as a success.
 
@@ -321,9 +321,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-005 complete.
 
-**Architecture:** [ARCH-04](architecture.md#arch-04), [ARCH-07](architecture.md#arch-07), [ARCH-11](architecture.md#arch-11).
+**Architecture:** [ARCH-04](../architecture/README.md#arch-04), [ARCH-07](../architecture/README.md#arch-07), [ARCH-11](../architecture/README.md#arch-11).
 
-**Primary requirement ownership:** [REQ-003](requirement.md#req-003), [REQ-028](requirement.md#req-028), [REQ-029](requirement.md#req-029), [REQ-030](requirement.md#req-030).
+**Primary requirement ownership:** [REQ-003](../specs/README.md#req-003), [REQ-028](../specs/README.md#req-028), [REQ-029](../specs/README.md#req-029), [REQ-030](../specs/README.md#req-030).
 
 **Implementation scope:**
 
@@ -342,7 +342,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Missing/null/invalid values remain distinguishable from a real 0.0% result; duplicates/conflicts follow the explicit policy.
 - [x] The complete provider Query passes fake-process tests and uses only the four allowlisted Codex methods.
 
-**Verification:** [V-CODEX](architecture.md#v-codex), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/provider/codex`, relevant race tests with two homes, and `go test ./...`.
+**Verification:** [V-CODEX](../architecture/README.md#v-codex), [V-QUOTA](../architecture/README.md#v-quota), [V-IDENTITY](../architecture/README.md#v-identity). Run `go test ./internal/provider/codex`, relevant race tests with two homes, and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not read session history/token logs, fetch account/usage/read, redeem reset credits, clamp percentages or assume secondary means weekly.
 
@@ -374,9 +374,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** EPIC-003 complete. TASK-001 Grok compatibility evidence must still match the implementation target.
 
-**Architecture:** [ARCH-06](architecture.md#arch-06), [ARCH-08](architecture.md#arch-08), [ARCH-09](architecture.md#arch-09).
+**Architecture:** [ARCH-06](../architecture/README.md#arch-06), [ARCH-08](../architecture/README.md#arch-08), [ARCH-09](../architecture/README.md#arch-09).
 
-**Primary requirement ownership:** [REQ-031](requirement.md#req-031), [REQ-032](requirement.md#req-032), [REQ-033](requirement.md#req-033).
+**Primary requirement ownership:** [REQ-031](../specs/README.md#req-031), [REQ-032](../specs/README.md#req-032), [REQ-033](../specs/README.md#req-033).
 
 **Implementation scope:**
 
@@ -395,7 +395,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Correctly encoded method-not-found maps to UNSUPPORTED and remains a runtime compatibility failure, not a successful positive integration.
 - [x] Authentication and callback failures terminate safely without leaking raw provider data.
 
-**Verification:** [V-GROK](architecture.md#v-grok), [V-RPC](architecture.md#v-rpc), [V-SAFETY](architecture.md#v-safety). Run `go test ./internal/provider/grok ./internal/rpc`, exact-transcript assertions, and `go test ./...`.
+**Verification:** [V-GROK](../architecture/README.md#v-grok), [V-RPC](../architecture/README.md#v-rpc), [V-SAFETY](../architecture/README.md#v-safety). Run `go test ./internal/provider/grok ./internal/rpc`, exact-transcript assertions, and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not assume an internal Rust ExtRequest name is the raw wire method, ship alternate speculative contracts, or automatically upgrade/restart a shared Grok leader.
 
@@ -412,9 +412,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-007 complete.
 
-**Architecture:** [ARCH-04](architecture.md#arch-04), [ARCH-08](architecture.md#arch-08), [ARCH-11](architecture.md#arch-11).
+**Architecture:** [ARCH-04](../architecture/README.md#arch-04), [ARCH-08](../architecture/README.md#arch-08), [ARCH-11](../architecture/README.md#arch-11).
 
-**Primary requirement ownership:** [REQ-013](requirement.md#req-013), [REQ-014](requirement.md#req-014), [REQ-015](requirement.md#req-015), [REQ-034](requirement.md#req-034), [REQ-035](requirement.md#req-035), [REQ-036](requirement.md#req-036).
+**Primary requirement ownership:** [REQ-013](../specs/README.md#req-013), [REQ-014](../specs/README.md#req-014), [REQ-015](../specs/README.md#req-015), [REQ-034](../specs/README.md#req-034), [REQ-035](../specs/README.md#req-035), [REQ-036](../specs/README.md#req-036).
 
 **Implementation scope:**
 
@@ -433,7 +433,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Missing/null/unknown data remain explicit statuses, and valid optional fields do not become mandatory.
 - [x] The full Grok adapter can now be consumed by the application runner without further protocol or authentication work.
 
-**Verification:** [V-GROK](architecture.md#v-grok), [V-QUOTA](architecture.md#v-quota), [V-IDENTITY](architecture.md#v-identity). Run `go test ./internal/provider/grok ./internal/domain` and `go test ./...`.
+**Verification:** [V-GROK](../architecture/README.md#v-grok), [V-QUOTA](../architecture/README.md#v-quota), [V-IDENTITY](../architecture/README.md#v-identity). Run `go test ./internal/provider/grok ./internal/domain` and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not implement an email lookup, auth-file parsing, account discovery, cost conversion, or guessed numeric-enum mapping.
 
@@ -465,9 +465,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** EPIC-004 complete; both providers expose complete Query implementations.
 
-**Architecture:** [ARCH-03](architecture.md#arch-03), [ARCH-04](architecture.md#arch-04), [ARCH-05](architecture.md#arch-05).
+**Architecture:** [ARCH-03](../architecture/README.md#arch-03), [ARCH-04](../architecture/README.md#arch-04), [ARCH-05](../architecture/README.md#arch-05).
 
-**Primary requirement ownership:** [REQ-004](requirement.md#req-004), [REQ-009](requirement.md#req-009), [REQ-022](requirement.md#req-022), [REQ-023](requirement.md#req-023).
+**Primary requirement ownership:** [REQ-004](../specs/README.md#req-004), [REQ-009](../specs/README.md#req-009), [REQ-022](../specs/README.md#req-022), [REQ-023](../specs/README.md#req-023).
 
 **Implementation scope:**
 
@@ -486,7 +486,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] A timeout in one home does not erase or cancel another account’s valid result.
 - [x] Queued/active cancellation and cleanup follow the configured deadline and signal contracts.
 
-**Verification:** [V-RUNNER](architecture.md#v-runner), [V-LIFECYCLE](architecture.md#v-lifecycle). Run `go test ./internal/app`, relevant race tests, and `go test ./...`.
+**Verification:** [V-RUNNER](../architecture/README.md#v-runner), [V-LIFECYCLE](../architecture/README.md#v-lifecycle). Run `go test ./internal/app`, relevant race tests, and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not add a scheduler service, watch loop, progress UI, global CODEX_HOME switching, cache, or background worker that survives the invocation.
 
@@ -503,9 +503,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-009 complete.
 
-**Architecture:** [ARCH-03](architecture.md#arch-03), [ARCH-04](architecture.md#arch-04), [ARCH-10](architecture.md#arch-10).
+**Architecture:** [ARCH-03](../architecture/README.md#arch-03), [ARCH-04](../architecture/README.md#arch-04), [ARCH-10](../architecture/README.md#arch-10).
 
-**Primary requirement ownership:** [REQ-002](requirement.md#req-002), [REQ-006](requirement.md#req-006), [REQ-010](requirement.md#req-010), [REQ-011](requirement.md#req-011), [REQ-012](requirement.md#req-012), [REQ-024](requirement.md#req-024).
+**Primary requirement ownership:** [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-010](../specs/README.md#req-010), [REQ-011](../specs/README.md#req-011), [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024).
 
 **Implementation scope:**
 
@@ -524,7 +524,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Labels cannot inject columns/lines/control sequences and duplicate Codex identities remain distinguishable.
 - [x] Help/version never invoke a provider; stderr/stdout contracts and broken-output behavior are tested.
 
-**Verification:** [V-OPTIONS](architecture.md#v-options), [V-IDENTITY](architecture.md#v-identity), [V-OUTPUT](architecture.md#v-output), [V-EXIT](architecture.md#v-exit). Run `go test ./internal/render ./cmd/gaebokchi` plus options/app tests and `go test ./...`.
+**Verification:** [V-OPTIONS](../architecture/README.md#v-options), [V-IDENTITY](../architecture/README.md#v-identity), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Run `go test ./internal/render ./cmd/gaebokchi` plus options/app tests and `go test ./...`.
 
 **Out of scope / stop conditions:** Do not add reset-time columns, borders, extra titles, totals, color, prompts, JSON mode or interactive account linking.
 
@@ -541,9 +541,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-010 complete.
 
-**Architecture:** [ARCH-05](architecture.md#arch-05), [ARCH-06](architecture.md#arch-06), [ARCH-09](architecture.md#arch-09), [ARCH-10](architecture.md#arch-10), [ARCH-11](architecture.md#arch-11).
+**Architecture:** [ARCH-05](../architecture/README.md#arch-05), [ARCH-06](../architecture/README.md#arch-06), [ARCH-09](../architecture/README.md#arch-09), [ARCH-10](../architecture/README.md#arch-10), [ARCH-11](../architecture/README.md#arch-11).
 
-**Primary requirement ownership:** [REQ-021](requirement.md#req-021), [REQ-037](requirement.md#req-037), [REQ-038](requirement.md#req-038), [REQ-041](requirement.md#req-041), [REQ-044](requirement.md#req-044), [REQ-045](requirement.md#req-045).
+**Primary requirement ownership:** [REQ-021](../specs/README.md#req-021), [REQ-037](../specs/README.md#req-037), [REQ-038](../specs/README.md#req-038), [REQ-041](../specs/README.md#req-041), [REQ-044](../specs/README.md#req-044), [REQ-045](../specs/README.md#req-045).
 
 **Implementation scope:**
 
@@ -562,7 +562,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] No synthetic secret reaches stdout/stderr or saved test evidence and no forbidden outbound method is used.
 - [x] All EPIC-005 local acceptance criteria are satisfied; no product wiring is left for the release epic.
 
-**Verification:** [V-E2E](architecture.md#v-e2e), [V-SAFETY](architecture.md#v-safety), [V-RPC](architecture.md#v-rpc), [V-QUOTA](architecture.md#v-quota), [V-EXIT](architecture.md#v-exit). Run `go test ./test/integration/...`, `go test ./...`, `go vet ./...`, and the supported native race suite.
+**Verification:** [V-E2E](../architecture/README.md#v-e2e), [V-SAFETY](../architecture/README.md#v-safety), [V-RPC](../architecture/README.md#v-rpc), [V-QUOTA](../architecture/README.md#v-quota), [V-EXIT](../architecture/README.md#v-exit). Run `go test ./test/integration/...`, `go test ./...`, `go vet ./...`, and the supported native race suite.
 
 **Out of scope / stop conditions:** Do not replace deterministic tests with live-account calls, add a mandatory external reviewer dependency, or start an unbounded review/repair loop.
 
@@ -594,9 +594,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** EPIC-005 complete.
 
-**Architecture:** [ARCH-02](architecture.md#arch-02), [ARCH-11](architecture.md#arch-11), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-02](../architecture/README.md#arch-02), [ARCH-11](../architecture/README.md#arch-11), [ARCH-13](../architecture/README.md#arch-13), [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** [REQ-001](requirement.md#req-001), [REQ-046](requirement.md#req-046), [REQ-047](requirement.md#req-047), [REQ-049](requirement.md#req-049).
+**Primary requirement ownership:** [REQ-001](../specs/README.md#req-001), [REQ-046](../specs/README.md#req-046), [REQ-047](../specs/README.md#req-047), [REQ-049](../specs/README.md#req-049).
 
 **Implementation scope:**
 
@@ -615,7 +615,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] The README matches the implemented command and labels actual tested versions/platforms without unsupported compatibility claims.
 - [x] The document-link check passes and local release staging requires no signing, upload or publishing permission.
 
-**Verification:** [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-DOCS](architecture.md#v-docs), [V-AUDIT](architecture.md#v-audit). Run the documented build script, native test matrix, `go run scripts/check-docs.go`, README smoke commands and checksum verification.
+**Verification:** [V-BUILD](../architecture/README.md#v-build), [V-PLATFORM](../architecture/README.md#v-platform), [V-DOCS](../architecture/README.md#v-docs), [V-AUDIT](../architecture/README.md#v-audit). Run the documented build script, native test matrix, `go run scripts/check-docs.go`, README smoke commands and checksum verification.
 
 **Out of scope / stop conditions:** Do not create a Homebrew tap, upload releases, choose a project license without authorization, include credentials, or claim all architectures were natively tested.
 
@@ -628,15 +628,15 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] Task complete. **Status: COMPLETE.**
 
-> Supersession note (2026-09-22): the live prompt-free metadata queries recorded in [docs/verification/live-acceptance.md](verification/live-acceptance.md) remain valid evidence for the artifact and source revision tested at that time. However, the provider's own usage-display comparison required by [REQ-048](requirement.md#req-048) was not performed, so the acceptance portion of this task is superseded and reopened under [EPIC-007](#epic-007) (TASK-021) pending a properly authorized comparison. The "Task complete" marker above reflects the historical commit, not current acceptance.
+> Supersession note (2026-09-22): the live prompt-free metadata queries recorded in [docs/verification/live-acceptance.md](../verification/live-acceptance.md) remain valid evidence for the artifact and source revision tested at that time. However, the provider's own usage-display comparison required by [REQ-048](../specs/README.md#req-048) was not performed, so the acceptance portion of this task is superseded and reopened under [EPIC-007](#epic-007) (TASK-021) pending a properly authorized comparison. The "Task complete" marker above reflects the historical commit, not current acceptance.
 
 **Purpose:** Confirm that the completed executable, not just the early probe or fake servers, works with the actual requested account set.
 
 **Dependency:** TASK-012 complete; an authorized host with both Codex homes and an existing Grok login is available.
 
-**Architecture:** [ARCH-07](architecture.md#arch-07), [ARCH-08](architecture.md#arch-08), [ARCH-11](architecture.md#arch-11), [ARCH-12](architecture.md#arch-12), [ARCH-13](architecture.md#arch-13).
+**Architecture:** [ARCH-07](../architecture/README.md#arch-07), [ARCH-08](../architecture/README.md#arch-08), [ARCH-11](../architecture/README.md#arch-11), [ARCH-12](../architecture/README.md#arch-12), [ARCH-13](../architecture/README.md#arch-13).
 
-**Primary requirement ownership:** [REQ-005](requirement.md#req-005), [REQ-048](requirement.md#req-048).
+**Primary requirement ownership:** [REQ-005](../specs/README.md#req-005), [REQ-048](../specs/README.md#req-048).
 
 **Implementation scope:**
 
@@ -655,7 +655,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Provider-display comparisons document period resets, concurrent usage and numeric precision rather than claiming exact simultaneity.
 - [x] The evidence explicitly separates live-tested behavior, fixture-only weekly cases, cross-built targets and untested combinations.
 
-**Verification:** [V-LIVE](architecture.md#v-live), [V-CONTRACT](architecture.md#v-contract), [V-SAFETY](architecture.md#v-safety). Record the exact delivered-binary invocation and safe comparison steps. Run focused deterministic regressions after any discovered defect; do not automatically repeat the entire live campaign.
+**Verification:** [V-LIVE](../architecture/README.md#v-live), [V-CONTRACT](../architecture/README.md#v-contract), [V-SAFETY](../architecture/README.md#v-safety). Record the exact delivered-binary invocation and safe comparison steps. Run focused deterministic regressions after any discovered defect; do not automatically repeat the entire live campaign.
 
 **Out of scope / stop conditions:** Do not run login/logout, open a new model turn to refresh statistics, alter real auth files to simulate failure, auto-upgrade the CLI, or convert a missing environment into a pass.
 
@@ -674,9 +674,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-013 complete and no blocking product defect remains.
 
-**Architecture:** [ARCH-11](architecture.md#arch-11), [ARCH-12](architecture.md#arch-12), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-11](../architecture/README.md#arch-11), [ARCH-12](../architecture/README.md#arch-12), [ARCH-13](../architecture/README.md#arch-13), [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** [REQ-050](requirement.md#req-050).
+**Primary requirement ownership:** [REQ-050](../specs/README.md#req-050).
 
 **Implementation scope:**
 
@@ -695,7 +695,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Required deterministic, native-platform and live-account checks are accurately represented; known limitations are not hidden.
 - [x] The handoff is complete with locally staged artifacts; no remote publication or next-version feature implementation occurred.
 
-**Verification:** [V-AUDIT](architecture.md#v-audit), [V-DOCS](architecture.md#v-docs), [V-BUILD](architecture.md#v-build). Run `go test ./...`, `go vet ./...`, `go run scripts/check-docs.go`, and audit the final evidence matrix. Reuse unchanged valid native/live evidence rather than rerunning it for documentation-only edits.
+**Verification:** [V-AUDIT](../architecture/README.md#v-audit), [V-DOCS](../architecture/README.md#v-docs), [V-BUILD](../architecture/README.md#v-build). Run `go test ./...`, `go vet ./...`, `go run scripts/check-docs.go`, and audit the final evidence matrix. Reuse unchanged valid native/live evidence rather than rerunning it for documentation-only edits.
 
 **Out of scope / stop conditions:** Do not reopen completed epics for cosmetic preferences, regenerate fixtures from a changed upstream without review, or repeat full reviews indefinitely.
 
@@ -731,9 +731,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** Corrective audit accepted; no code changes yet.
 
-**Architecture:** [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** none closed; reopens affected checkboxes in [requirement.md](requirement.md).
+**Primary requirement ownership:** none closed; reopens affected checkboxes in [requirement.md](../specs/README.md).
 
 **Implementation scope:**
 
@@ -748,7 +748,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Historical records, dates, and artifact identities are preserved; corrections appear as explicit supersession notes, not rewrites.
 - [x] The roadmap and document headers state the corrective state without resetting the six original epics' historical milestones.
 
-**Verification:** [V-AUDIT](architecture.md#v-audit). Run `go run scripts/check-docs.go` after the edits.
+**Verification:** [V-AUDIT](../architecture/README.md#v-audit). Run `go run scripts/check-docs.go` after the edits.
 
 **Commit boundary:** `docs(TASK-015): correct acceptance baseline and register remediation`.
 
@@ -763,9 +763,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-015 complete.
 
-**Architecture:** [ARCH-05](architecture.md#arch-05), [ARCH-06](architecture.md#arch-06).
+**Architecture:** [ARCH-05](../architecture/README.md#arch-05), [ARCH-06](../architecture/README.md#arch-06).
 
-**Primary requirement ownership:** re-qualifies [REQ-009](requirement.md#req-009), [REQ-020](requirement.md#req-020), [REQ-023](requirement.md#req-023).
+**Primary requirement ownership:** re-qualifies [REQ-009](../specs/README.md#req-009), [REQ-020](../specs/README.md#req-020), [REQ-023](../specs/README.md#req-023).
 
 **Implementation scope:**
 
@@ -780,7 +780,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Cancellation unblocks a blocked notification write and a blocked callback-rejection write; repeated closure is safe; the direct child is reaped exactly once; unrelated processes and provider-managed leaders survive. *(Follow-up TASK-022: leader/descendant survival is now guaranteed by the direct-child-only policy rather than by the group-kill path this item originally rode on.)*
 - [x] One total cleanup budget is enforced and measured end-to-end (not inferred from stage timers). *(TestCloseHonorsSingleAbsoluteBudgetEndToEnd.)*
 
-**Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-RUNNER](architecture.md#v-runner). Focused race-enabled tests using synchronization and timing margins, not exact scheduler timing.
+**Verification:** [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-RUNNER](../architecture/README.md#v-runner). Focused race-enabled tests using synchronization and timing margins, not exact scheduler timing.
 
 **Commit boundary:** `fix(TASK-016): separate query deadlines from cleanup and harden transport cancellation`.
 
@@ -795,9 +795,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-016 complete.
 
-**Architecture:** [ARCH-03](architecture.md#arch-03), [ARCH-10](architecture.md#arch-10).
+**Architecture:** [ARCH-03](../architecture/README.md#arch-03), [ARCH-10](../architecture/README.md#arch-10).
 
-**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006) (binary-override scope), [REQ-024](requirement.md#req-024), [REQ-039](requirement.md#req-039), [REQ-045](requirement.md#req-045).
+**Primary requirement ownership:** re-qualifies [REQ-006](../specs/README.md#req-006) (binary-override scope), [REQ-024](../specs/README.md#req-024), [REQ-039](../specs/README.md#req-039), [REQ-045](../specs/README.md#req-045).
 
 **Implementation scope:**
 
@@ -810,7 +810,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Absolute and explicit relative binary overrides (including paths with spaces) resolve correctly despite the neutral child cwd; missing and present-but-unexecutable binaries keep their documented statuses. *(Verified by the confirmation review.)*
 - [x] Closed stdout pipe, SIGINT and SIGTERM separately, and each signal combined with unwritable stdout produce the exact documented exit codes with real OS pipes against the actual executable; correct rows, no late launch, and safe diagnostics without raw provider output. *(Verified by the confirmation review.)*
 
-**Verification:** [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e). Executable-level tests with real OS pipes, not `io.Writer` stubs.
+**Verification:** [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e). Executable-level tests with real OS pipes, not `io.Writer` stubs.
 
 **Commit boundary:** `fix(TASK-017): resolve relative executable paths and enforce output signal exit contract`.
 
@@ -825,9 +825,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-017 complete.
 
-**Architecture:** [ARCH-06](architecture.md#arch-06), [ARCH-11](architecture.md#arch-11).
+**Architecture:** [ARCH-06](../architecture/README.md#arch-06), [ARCH-11](../architecture/README.md#arch-11).
 
-**Primary requirement ownership:** re-qualifies [REQ-016](requirement.md#req-016), [REQ-018](requirement.md#req-018).
+**Primary requirement ownership:** re-qualifies [REQ-016](../specs/README.md#req-016), [REQ-018](../specs/README.md#req-018).
 
 **Implementation scope:**
 
@@ -840,7 +840,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Replacing an initialization or authentication response with `error:null`, a both-members or neither-member object, or a mistyped error object yields a safe failure status, never numeric success or unsupported authentication claims. *(Verified by the confirmation review.)*
 - [x] Invalid/incompatible ACP version markers and dialect-inappropriate envelopes are rejected; valid operation-specific null results, additive fields, and unrelated notifications still work; invalid UTF-8, oversize frames, and non-empty unterminated frames keep their terminal handling. *(Verified by the confirmation review.)*
 
-**Verification:** [V-RPC](architecture.md#v-rpc). Framing/dialect matrix extension with malformed-error and envelope cases.
+**Verification:** [V-RPC](../architecture/README.md#v-rpc). Framing/dialect matrix extension with malformed-error and envelope cases.
 
 **Commit boundary:** `fix(TASK-018): reject malformed RPC responses and incompatible envelopes`.
 
@@ -855,9 +855,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-018 complete.
 
-**Architecture:** [ARCH-04](architecture.md#arch-04), [ARCH-08](architecture.md#arch-08), [ARCH-10](architecture.md#arch-10).
+**Architecture:** [ARCH-04](../architecture/README.md#arch-04), [ARCH-08](../architecture/README.md#arch-08), [ARCH-10](../architecture/README.md#arch-10).
 
-**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006) (alias-validation scope), [REQ-010](requirement.md#req-010), [REQ-015](requirement.md#req-015), [REQ-021](requirement.md#req-021), [REQ-032](requirement.md#req-032).
+**Primary requirement ownership:** re-qualifies [REQ-006](../specs/README.md#req-006) (alias-validation scope), [REQ-010](../specs/README.md#req-010), [REQ-015](../specs/README.md#req-015), [REQ-021](../specs/README.md#req-021), [REQ-032](../specs/README.md#req-032).
 
 **Implementation scope:**
 
@@ -871,7 +871,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Blank/whitespace-only aliases and emails, control/format-only labels, Unicode whitespace, sanitization collisions, duplicate emails/basenames, and generated-suffix collisions behave per the normalization policy with no extra rows/columns and no provider launch for invalid aliases. *(Follow-up TASK-023: the Unicode-whitespace clause is satisfied by the complete predicate; ASCII-only cases were already verified by the confirmation review.)*
 - [x] Every branch of the authentication decision table, non-authentication remote errors, monthly provenance, and weekly periods with missing usage are covered by tests; dependency direction stays clean (domain code never imports the renderer). *(Verified by the confirmation review.)*
 
-**Verification:** [V-IDENTITY](architecture.md#v-identity), [V-GROK](architecture.md#v-grok), [V-SAFETY](architecture.md#v-safety).
+**Verification:** [V-IDENTITY](../architecture/README.md#v-identity), [V-GROK](../architecture/README.md#v-grok), [V-SAFETY](../architecture/README.md#v-safety).
 
 **Commit boundary:** `fix(TASK-019): normalize account labels and correct Grok auth classification`.
 
@@ -886,9 +886,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-019 complete.
 
-**Architecture:** [ARCH-11](architecture.md#arch-11), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-11](../architecture/README.md#arch-11), [ARCH-13](../architecture/README.md#arch-13), [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** re-qualifies [REQ-049](requirement.md#req-049).
+**Primary requirement ownership:** re-qualifies [REQ-049](../specs/README.md#req-049).
 
 **Implementation scope:**
 
@@ -902,7 +902,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] `gofmt -l` reports nothing and the workflow fails on formatting drift. *(The CI gofmt gate added in TASK-020.)*
 - [x] Documentation claims are semantically consistent with the recorded evidence and distinguish the four evidence kinds at TASK-020's tree state. *(Follow-up TASK-024: the confirmation review found later drift — roadmap/acceptance/packaging inconsistency at `c340245` — reconciled here and re-packaged in TASK-025.)*
 
-**Verification:** [V-DOCS](architecture.md#v-docs), [V-E2E](architecture.md#v-e2e). `gofmt -l`, `go run scripts/check-docs.go`, integration suite.
+**Verification:** [V-DOCS](../architecture/README.md#v-docs), [V-E2E](../architecture/README.md#v-e2e). `gofmt -l`, `go run scripts/check-docs.go`, integration suite.
 
 **Commit boundary:** `test(TASK-020): fix test hygiene formatting and documentation consistency`.
 
@@ -917,9 +917,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-020 complete.
 
-**Architecture:** [ARCH-11](architecture.md#arch-11), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-11](../architecture/README.md#arch-11), [ARCH-13](../architecture/README.md#arch-13), [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** re-qualifies [REQ-044](requirement.md#req-044), [REQ-050](requirement.md#req-050); records the state of [REQ-048](requirement.md#req-048).
+**Primary requirement ownership:** re-qualifies [REQ-044](../specs/README.md#req-044), [REQ-050](../specs/README.md#req-050); records the state of [REQ-048](../specs/README.md#req-048).
 
 **Implementation scope:**
 
@@ -933,7 +933,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 - [x] Every re-checked requirement has current, tree-matching evidence; requirements still unchecked carry exact reasons and owner actions. *(Follow-up TASK-022/023/024: six of those re-checks were themselves reopened by the confirmation review and are re-qualified against the current tree; REQ-048 remains the only unchecked requirement.)*
 - [x] The final gate results distinguish run, not-run, and blocked checks; v0.1 is not declared fully accepted while a mandatory gate remains open. *(Follow-up: the TASK-021 gate ran against a tree whose packaged documents were stale — re-run with document-freshness verification in TASK-025.)*
 
-**Verification:** [V-AUDIT](architecture.md#v-audit), [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-LIVE](architecture.md#v-live).
+**Verification:** [V-AUDIT](../architecture/README.md#v-audit), [V-BUILD](../architecture/README.md#v-build), [V-PLATFORM](../architecture/README.md#v-platform), [V-LIVE](../architecture/README.md#v-live).
 
 **Commit boundary:** `test(TASK-021): record final qualification and release decision`.
 
@@ -947,9 +947,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-021's record superseded by the confirmation review; no unrelated work reopened.
 
-**Architecture:** [ARCH-05](architecture.md#arch-05) (ownership and cleanup-failure policy rewritten accordingly).
+**Architecture:** [ARCH-05](../architecture/README.md#arch-05) (ownership and cleanup-failure policy rewritten accordingly).
 
-**Primary requirement ownership:** re-qualifies [REQ-020](requirement.md#req-020), [REQ-040](requirement.md#req-040); reopens the acceptance baseline for [REQ-006](requirement.md#req-006), [REQ-010](requirement.md#req-010), [REQ-012](requirement.md#req-012), [REQ-050](requirement.md#req-050) pending TASK-023/TASK-024.
+**Primary requirement ownership:** re-qualifies [REQ-020](../specs/README.md#req-020), [REQ-040](../specs/README.md#req-040); reopens the acceptance baseline for [REQ-006](../specs/README.md#req-006), [REQ-010](../specs/README.md#req-010), [REQ-012](../specs/README.md#req-012), [REQ-050](../specs/README.md#req-050) pending TASK-023/TASK-024.
 
 **Implementation scope:**
 
@@ -962,7 +962,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] A numeric quota plus failed cleanup keeps the percentage, emits exactly one safe diagnostic, and exits 1; cleanup failure in one target leaves healthy siblings untouched; signal codes outrank cleanup failure; repeated closure keeps one outcome; RPC-abort-initiated cleanup failures reach the result; a real permission-based removal failure is reproduced where the environment permits (test-owned directories only, permissions restored). *(TASK-022 evidence record.)*
 
-**Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e).
+**Verification:** [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e).
 
 **Commit boundary:** `fix(TASK-022): propagate cleanup failures and own only direct-child termination`.
 
@@ -975,9 +975,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Purpose:** Execute the confirmation review's findings 3 and 4: whitespace-only labels built from Unicode spaces (U+3000, U+205F, U+1680, ...) must normalize to empty and be rejected or fall back; duplicate-account suffixes must follow the documented `#<target index + 1>` rule.
 
-**Architecture:** [ARCH-04](architecture.md#arch-04).
+**Architecture:** [ARCH-04](../architecture/README.md#arch-04).
 
-**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006), [REQ-010](requirement.md#req-010), [REQ-012](requirement.md#req-012).
+**Primary requirement ownership:** re-qualifies [REQ-006](../specs/README.md#req-006), [REQ-010](../specs/README.md#req-010), [REQ-012](../specs/README.md#req-012).
 
 **Implementation scope:**
 
@@ -988,7 +988,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] U+3000/U+205F/U+1680-only aliases exit 2 before provider launch; a U+3000-only email falls back to its home basename; the `same/other/same` example yields `#3`; labels are deterministic across repeated invocations and completion orders; existing sanitization-collision and lookalike protections still hold. *(TASK-023 evidence record.)*
 
-**Verification:** [V-OPTIONS](architecture.md#v-options), [V-IDENTITY](architecture.md#v-identity).
+**Verification:** [V-OPTIONS](../architecture/README.md#v-options), [V-IDENTITY](../architecture/README.md#v-identity).
 
 **Commit boundary:** `fix(TASK-023): complete unicode label normalization and index suffix rule`.
 
@@ -1001,9 +1001,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Purpose:** Execute the confirmation review's fifth finding: make headers, roadmap rows, epic/task statuses, requirement checkboxes, acceptance checklists, and verification records agree, without bulk-checking or rewriting history.
 
-**Architecture:** [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-14](../architecture/README.md#arch-14).
 
-**Primary requirement ownership:** re-qualifies [REQ-050](requirement.md#req-050); closes the reopened label/cleanup requirements with evidence.
+**Primary requirement ownership:** re-qualifies [REQ-050](../specs/README.md#req-050); closes the reopened label/cleanup requirements with evidence.
 
 **Implementation scope:**
 
@@ -1013,7 +1013,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] Document navigation is consistent; no acceptance checkbox is checked without matching evidence; the final state distinguishes corrective code completion from the pending REQ-048 live gate (candidate live test and provider-display comparison). *(TASK-024 evidence record.)*
 
-**Verification:** [V-AUDIT](architecture.md#v-audit), [V-DOCS](architecture.md#v-docs). `go run scripts/check-docs.go`.
+**Verification:** [V-AUDIT](../architecture/README.md#v-audit), [V-DOCS](../architecture/README.md#v-docs). `go run scripts/check-docs.go`.
 
 **Commit boundary:** `docs(TASK-024): reconcile corrective state and acceptance checklists`.
 
@@ -1026,7 +1026,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Purpose:** Re-qualify the corrected tree end to end and package the candidate with document freshness verified (the previous archives were staged before the final document edits).
 
-**Architecture:** [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+**Architecture:** [ARCH-13](../architecture/README.md#arch-13), [ARCH-14](../architecture/README.md#arch-14).
 
 **Primary requirement ownership:** evidence for all re-qualified requirements; artifact records.
 
@@ -1039,7 +1039,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] Gate green on available platforms with NOT RUN items marked; packaged documents byte-identical to the working tree; checksums recorded; the handoff distinguishes code completion from the open REQ-048 gate. *(TASK-025 evidence record.)*
 
-**Verification:** [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-DOCS](architecture.md#v-docs).
+**Verification:** [V-BUILD](../architecture/README.md#v-build), [V-PLATFORM](../architecture/README.md#v-platform), [V-DOCS](../architecture/README.md#v-docs).
 
 **Commit boundary:** `test(TASK-025): requalify candidate and repackage archives`.
 
@@ -1054,7 +1054,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-025 complete; no other work reopened.
 
-**Architecture:** [ARCH-13](architecture.md#arch-13).
+**Architecture:** [ARCH-13](../architecture/README.md#arch-13).
 
 **Primary requirement ownership:** packaging evidence only; no requirement state changes (REQ-048 stays open).
 
@@ -1081,7 +1081,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Dependency:** TASK-026 complete; no other work reopened.
 
-**Architecture:** [ARCH-13](architecture.md#arch-13).
+**Architecture:** [ARCH-13](../architecture/README.md#arch-13).
 
 **Primary requirement ownership:** packaging evidence only; REQ-048 stays open.
 
@@ -1104,11 +1104,11 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 These are release-level checks, not extra implementation tasks. The checks below were marked passed at commit `f8b180d` (TASK-014); the corrective audit superseded several of them, and they are re-owned by [EPIC-007](#epic-007) / [TASK-021](#task-021):
 
-- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Current: 49 checked after the TASK-022/023/024 re-qualifications; REQ-048 remains unchecked pending the owner-authorized live campaign — both the candidate live test and the provider-display comparison.)*
+- [ ] Every checkbox in [requirement.md](../specs/README.md) has evidence, with live and fixture-only claims distinguished. *(Current: 49 checked after the TASK-022/023/024 re-qualifications; REQ-048 remains unchecked pending the owner-authorized live campaign — both the candidate live test and the provider-display comparison.)*
 - [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-015 through TASK-021 closed EPIC-007; the superseded TASK-013/TASK-014 acceptance portions are re-owned by the still-open REQ-048 gate below.)*
 - [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
 - [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the final corrected candidate (TASK-025 archives) has not been live-tested because owner authorization was unavailable. Offline qualification of the corrected tree is complete on darwin/arm64 and linux/arm64.)*
-- [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](verification/TASK-021.md).)*
+- [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](../verification/TASK-021.md).)*
 - [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced. *(Held.)*
 - [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Artifacts rebuilt from the corrected tree with new SHA-256 checksums; README separates live qualification from offline Linux evidence.)*
 

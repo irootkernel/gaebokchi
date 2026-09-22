@@ -26,7 +26,7 @@ type member struct {
 func writeTestRepo(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, doc := range []string{"README.md", "docs/requirement.md", "docs/architecture.md", "docs/plan.md"} {
+	for _, doc := range []string{"README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
 		p := filepath.Join(root, doc)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
@@ -49,9 +49,12 @@ func intendedLayoutFor(target string) []member {
 		{name: d + "/gaebokchi", mode: 0o755, body: "fake binary"},
 		{name: d + "/README.md", mode: 0o644, body: docBody("README.md")},
 		{name: d + "/docs", dir: true, mode: 0o755},
-		{name: d + "/docs/requirement.md", mode: 0o644, body: docBody("docs/requirement.md")},
-		{name: d + "/docs/architecture.md", mode: 0o644, body: docBody("docs/architecture.md")},
-		{name: d + "/docs/plan.md", mode: 0o644, body: docBody("docs/plan.md")},
+		{name: d + "/docs/specs", dir: true, mode: 0o755},
+		{name: d + "/docs/specs/README.md", mode: 0o644, body: docBody("docs/specs/README.md")},
+		{name: d + "/docs/architecture", dir: true, mode: 0o755},
+		{name: d + "/docs/architecture/README.md", mode: 0o644, body: docBody("docs/architecture/README.md")},
+		{name: d + "/docs/roadmap", dir: true, mode: 0o755},
+		{name: d + "/docs/roadmap/README.md", mode: 0o644, body: docBody("docs/roadmap/README.md")},
 	}
 }
 
@@ -112,7 +115,7 @@ func TestVerifyArchiveRejectsSidecarMembers(t *testing.T) {
 	for _, extra := range []member{
 		{name: "._gaebokchi-darwin-arm64", mode: 0o644, body: "x"},
 		{name: "gaebokchi-darwin-arm64/._gaebokchi", mode: 0o644, body: "x"},
-		{name: "gaebokchi-darwin-arm64/docs/._requirement.md", mode: 0o644, body: "x"},
+		{name: "gaebokchi-darwin-arm64/docs/specs/._README.md", mode: 0o644, body: "x"},
 		{name: "gaebokchi-darwin-arm64/.DS_Store", mode: 0o644, body: "x"},
 	} {
 		path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
@@ -145,7 +148,7 @@ func TestVerifyArchiveRejectsStructuralDefects(t *testing.T) {
 
 	// Stale packaged document.
 	stale := intendedLayoutFor("darwin-arm64")
-	stale[4].body = "stale content\n"
+	stale[5].body = "stale content\n"
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, stale)
 	wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "differs from the finalized source")
@@ -249,6 +252,7 @@ func TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers(t *testing.T) {
 		{"duplicate README with identical content", []member{{name: d + "/README.md", mode: 0o644, body: docBody("README.md")}}, "duplicate member"},
 		{"duplicate binary entry", []member{{name: d + "/gaebokchi", mode: 0o755, body: "fake binary"}}, "duplicate member"},
 		{"duplicate expected directory", []member{{name: d + "/docs", dir: true, mode: 0o755}}, "duplicate directory member"},
+		{"duplicate nested expected directory", []member{{name: d + "/docs/specs", dir: true, mode: 0o755}}, "duplicate directory member"},
 		{"duplicate target directory", []member{{name: d, dir: true, mode: 0o755}}, "duplicate directory member"},
 		{"expected file path presented as directory", []member{{name: d + "/README.md", dir: true, mode: 0o755}}, "unexpected directory member"},
 		{"expected directory path presented as file", []member{{name: d + "/docs", mode: 0o644, body: "x"}}, "unexpected regular member"},

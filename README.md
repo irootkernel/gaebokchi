@@ -41,10 +41,10 @@ identifiers.)
   are self-contained (`CGO_ENABLED=0`).
 
 Protocol compatibility was qualified with live, prompt-free queries
-against `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on macOS/arm64;
-see
-[docs/verification/compatibility.md](docs/verification/compatibility.md)
-for the frozen protocol evidence. Separately, the offline application
+against `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on macOS/arm64.
+In a source checkout, see the
+[compatibility record](docs/verification/compatibility.md) for the frozen
+protocol evidence. Separately, the offline application
 and fake-provider test suites also ran natively on Linux/arm64
 (containerized) — no real provider CLI was exercised on Linux.
 Compatibility is capability-driven:
@@ -53,7 +53,8 @@ report `UNSUPPORTED` or `PROTOCOL ERROR` rather than guess.
 
 ## Install / build
 
-From a release archive: unpack and put `gaebokchi` on your `PATH`.
+From a locally produced release archive: unpack it and put `gaebokchi` on
+your `PATH`.
 
 From source:
 
@@ -61,12 +62,10 @@ From source:
 go build -trimpath -ldflags "-X main.version=0.1.0" -o gaebokchi ./cmd/gaebokchi
 ```
 
-Local release staging for all four targets (darwin/arm64, darwin/amd64,
-linux/arm64, linux/amd64) with checksums:
-
-```sh
-sh scripts/build-release.sh 0.1.0   # artifacts land in dist/, nothing is published
-```
+This repository does not yet declare a remote download URL, package-manager
+channel, or project license. The documented distribution paths are therefore
+local archives and source builds only; do not infer publication from the
+presence of build scripts or verification records.
 
 ## Usage
 
@@ -142,16 +141,11 @@ result is truthful non-applicability, not weekly usage.
   above before upgrading anything.
 - **TIMEOUT** — raise `--timeout` (network-bound quota reads can be slow).
 
-## Development
+## Documentation
 
-```sh
-go vet ./...
-go test ./...                 # fully offline: fake providers, no network
-go test -race ./...
-go run scripts/check-docs.go  # cross-document link/identifier audit
-```
-
-The specification lives in [docs/requirement.md](docs/requirement.md),
-[docs/architecture.md](docs/architecture.md), and
-[docs/plan.md](docs/plan.md); verification evidence under
-[docs/verification/](docs/verification/).
+The packaged product contract is split across the
+[requirements](docs/specs/README.md),
+[architecture](docs/architecture/README.md), and
+[roadmap](docs/roadmap/README.md). In a source checkout, maintainer and
+contributor documentation starts at [docs/README.md](docs/README.md), with
+verification evidence under [docs/verification/](docs/verification/).

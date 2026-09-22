@@ -34,12 +34,15 @@ func intendedFiles(target string) (files []string, dirs []string) {
 	return []string{
 			d + "/gaebokchi",
 			d + "/README.md",
-			d + "/docs/requirement.md",
-			d + "/docs/architecture.md",
-			d + "/docs/plan.md",
+			d + "/docs/specs/README.md",
+			d + "/docs/architecture/README.md",
+			d + "/docs/roadmap/README.md",
 		}, []string{
 			d,
 			d + "/docs",
+			d + "/docs/specs",
+			d + "/docs/architecture",
+			d + "/docs/roadmap",
 		}
 }
 
