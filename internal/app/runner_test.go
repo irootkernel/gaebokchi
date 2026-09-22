@@ -402,3 +402,78 @@ func TestDisambiguationSuffixLookalikeCollision(t *testing.T) {
 		t.Fatalf("unique lookalike label must be preserved: %q", results[2].Account)
 	}
 }
+
+// TestDisambiguationTargetIndexSuffix pins the confirmation review's
+// finding: the suffix is the row's own configured target index
+// (ARCH-04), so the same/other/same example labels the third target
+// "#3" — not a collision ordinal.
+func TestDisambiguationTargetIndexSuffix(t *testing.T) {
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/same", FallbackAccount: "same"},
+		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/other", FallbackAccount: "other"},
+		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/c/same", FallbackAccount: "same"},
+	}
+	email := "fixture@example.test"
+	build := func() []domain.Result {
+		return []domain.Result{
+			{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: email},
+			{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: email},
+			{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: email},
+		}
+	}
+	results := build()
+	DisambiguateCodexAccounts(results, targets)
+	if got := results[0].Account; got != email+" [same]" {
+		t.Fatalf("first row = %q", got)
+	}
+	if got := results[1].Account; got != email+" [other]" {
+		t.Fatalf("second row = %q", got)
+	}
+	if got := results[2].Account; got != email+" [same] #3" {
+		t.Fatalf("third row = %q, want index-based #3", got)
+	}
+
+	// Determinism: repeated invocations produce identical labels, and
+	// completion order cannot matter because disambiguation sees the
+	// configured result order.
+	again := build()
+	DisambiguateCodexAccounts(again, targets)
+	for i := range results {
+		if results[i].Account != again[i].Account {
+			t.Fatalf("nondeterministic label at %d: %q vs %q", i, results[i].Account, again[i].Account)
+		}
+	}
+}
+
+// TestDisambiguationIndexSuffixLookalikeCollision extends the lookalike
+// protection to the index-qualified form: a reserved original label
+// equal to the index suffix gets a deterministic extension that
+// preserves the index component.
+func TestDisambiguationIndexSuffixLookalikeCollision(t *testing.T) {
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
+		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
+		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/d/x", FallbackAccount: "x"},
+	}
+	// codex:2's original label is exactly what codex:1's index-qualified
+	// suffix would generate; it is unique and keeps its label.
+	results := []domain.Result{
+		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "a"},
+		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "a"},
+		{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: "a [b] #2"},
+	}
+	DisambiguateCodexAccounts(results, targets)
+	seen := map[string]bool{}
+	for i, r := range results {
+		if seen[r.Account] {
+			t.Fatalf("rows %d and earlier share visible label %q", i, r.Account)
+		}
+		seen[r.Account] = true
+	}
+	if results[2].Account != "a [b] #2" {
+		t.Fatalf("reserved lookalike must keep its label: %q", results[2].Account)
+	}
+	if got := results[1].Account; got != "a [b] #2-2" {
+		t.Fatalf("index component must be preserved with a deterministic extension: %q", got)
+	}
+}

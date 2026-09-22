@@ -249,3 +249,21 @@ func TestGrokAccountAliasNormalization(t *testing.T) {
 		t.Fatalf("target alias = %q", tgt[len(tgt)-1].FallbackAccount)
 	}
 }
+
+// TestGrokAccountUnicodeWhitespaceRejected pins the confirmation
+// review's finding: aliases built only from Unicode spaces (U+3000,
+// U+205F, U+1680) are usage errors, not silently accepted labels.
+func TestGrokAccountUnicodeWhitespaceRejected(t *testing.T) {
+	mustFail(t, "--grok-account", "\u3000")
+	mustFail(t, "--grok-account", "\u205f")
+	mustFail(t, "--grok-account", "\u1680")
+	mustFail(t, "--grok-account", " \u3000\t\u205f\u1680\n")
+
+	o, err := Parse([]string{"--grok-account", "\u3000계정\u3000"})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if o.GrokAccount != "계정" {
+		t.Fatalf("alias = %q, want trimmed CJK label %q", o.GrokAccount, "계정")
+	}
+}

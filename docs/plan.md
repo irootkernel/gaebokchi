@@ -971,7 +971,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-023"></a>
 ### TASK-023: Complete Unicode label normalization and the target-index suffix rule
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Execute the confirmation review's findings 3 and 4: whitespace-only labels built from Unicode spaces (U+3000, U+205F, U+1680, ...) must normalize to empty and be rejected or fall back; duplicate-account suffixes must follow the documented `#<target index + 1>` rule.
 

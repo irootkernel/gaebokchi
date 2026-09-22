@@ -1,0 +1,15 @@
+# TASK-023: Complete Unicode label normalization and the target-index suffix rule
+
+Task: TASK-023
+Status: COMPLETE
+Goal and implementation scope: Execute confirmation-review findings 3 and 4 — the label policy covers all Unicode whitespace, and duplicate-account suffixes follow the documented `#<target index + 1>` rule.
+Requirements and architecture sections covered: REQ-006, REQ-010, REQ-012 (re-qualification); ARCH-04 (narrow collision rule documented).
+Changed files: internal/domain/label.go (isUnsafeLabelRune uses unicode.IsSpace as the complete whitespace predicate; enumerated ranges removed; the separate ' ' case folded in — behavior identical), internal/app/runner.go (suffix = the row's configured target index + 1; deterministic "-2"/"-3" extension preserves the index component when the index-qualified label is itself occupied), docs/architecture.md (ARCH-04 collision rule), plus tests in internal/domain/label_test.go (new), internal/options, internal/app, internal/provider/codex, cmd/gaebokchi.
+Verification (environment: macOS 26.6.2 arm64, go1.26.6):
+  - V-QUOTA/V-IDENTITY (`go test -count=1 ./internal/domain ./internal/options ./internal/app ./internal/provider/codex ./internal/render`): TestNormalizeLabelUnicodeWhitespace (U+3000/U+205F/U+1680 and mixed whitespace normalize to empty; whitespace between words collapses; Korean and CJK labels and emails preserved verbatim; NBSP, en quad, hair space, narrow no-break space, and format characters all normalize; ordinary text unchanged), TestGrokAccountUnicodeWhitespaceRejected (each Unicode-space-only alias is a usage error; a CJK label with surrounding U+3000 trims to the CJK text), TestDisambiguationTargetIndexSuffix (the same/other/same example yields `fixture@example.test [same]`, `[other]`, and `[same] #3`; repeated invocations identical), TestDisambiguationIndexSuffixLookalikeCollision (a reserved `a [b] #2` label keeps its label; the index-qualified duplicate becomes `a [b] #2-2`, preserving the index component), extended TestAccountEmailNormalizationPolicy (ideographic-space-only and mixed-Unicode-whitespace-only emails fall back to the home alias; surrounding Unicode spaces trim).
+  - Through the actual CLI entry (`go test -count=1 ./cmd/gaebokchi`): TestUnicodeWhitespaceAliasExitsTwoBeforeProviders — each Unicode-whitespace alias exits 2 before any provider launch.
+  - Full regression: `go vet ./...` pass; `go test -count=1 ./...` all 12 packages pass (the prior sanitization-collision and suffix-lookalike protections from TASK-019 still hold; the existing disambiguation suites pass unchanged where the index rule coincides with the old ordinal, and the codex:1 case still yields #2 via index 1+1).
+Fixtures: unchanged.
+Findings and bounded remediation: TASK-019's record gains this follow-up: its enumerated whitespace ranges were incomplete (superseded by the complete predicate); its normalization-ordering and provenance work stands.
+Task commit subject: `fix(TASK-023): complete unicode label normalization and index suffix rule`
+Handoff: proceed to TASK-024 (documentation and acceptance-state reconciliation).

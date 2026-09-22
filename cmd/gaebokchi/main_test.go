@@ -372,3 +372,15 @@ func TestFinalExitPrecedenceWithCleanupFailure(t *testing.T) {
 		t.Fatalf("clean run = %d, want 0", got)
 	}
 }
+
+// TestUnicodeWhitespaceAliasExitsTwoBeforeProviders pins the
+// confirmation review's finding through the actual CLI entry: an alias
+// built only from Unicode spaces is a usage error (exit 2) before any
+// provider can launch.
+func TestUnicodeWhitespaceAliasExitsTwoBeforeProviders(t *testing.T) {
+	for _, alias := range []string{"\u3000", "\u205f", "\u1680", " \u3000\t\u205f"} {
+		if code := run([]string{"--grok-account", alias}); code != 2 {
+			t.Fatalf("alias %q: code = %d, want 2", alias, code)
+		}
+	}
+}

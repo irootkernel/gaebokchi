@@ -196,6 +196,9 @@ func TestAccountEmailNormalizationPolicy(t *testing.T) {
 		// back to the home alias (empty Email here).
 		{"control-only email", "\t\n\x1b", ""},
 		{"whitespace-only email", "   ", ""},
+		{"ideographic-space-only email", "\u3000", ""},
+		{"mixed unicode whitespace-only email", " \u205f\u1680\u3000", ""},
+		{"unicode spaces around email", "\u3000user@example.com\u205f", "user@example.com"},
 		{"format-character-only email", "\u200e\u202e", ""},
 	}
 	for _, tc := range cases {

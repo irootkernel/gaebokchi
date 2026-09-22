@@ -121,13 +121,19 @@ func cancelledResult(tgt domain.Target) domain.Result {
 // distinguishable without merging rows. Labels are normalized through
 // the domain display-label policy first, so counting and suffixing
 // operate on exactly what the table will show; duplicate rows then get
-// " [<home-basename>]" and, if that is still taken (by a unique row's
-// label or an earlier assignment), " #<n>". Rows are never hidden.
+// " [<home-basename>]" and, when that is still occupied (by a unique
+// row's label or an earlier assignment), the documented suffix
+// "#<target index + 1>" based on the row's own configured target
+// index. If the index-qualified label is itself already occupied, a
+// deterministic second counter extends it while preserving the index
+// component ("#3-2", "#3-3", ...). Rows are never hidden.
 func DisambiguateCodexAccounts(results []domain.Result, targets []domain.Target) {
 	homeBase := make(map[string]string, len(targets))
+	targetIndex := make(map[string]int, len(targets))
 	for _, tgt := range targets {
 		if tgt.Provider == domain.ProviderCodex {
 			homeBase[tgt.ID] = domain.NormalizeLabel(baseName(tgt.Home))
+			targetIndex[tgt.ID] = tgt.Index
 		}
 	}
 
@@ -159,8 +165,14 @@ func DisambiguateCodexAccounts(results []domain.Result, targets []domain.Target)
 		}
 		base := results[i].Account + " [" + homeBase[results[i].TargetID] + "]"
 		label := base
-		for n := 2; occupied[label]; n++ {
-			label = base + " #" + itoa(n)
+		if occupied[label] {
+			// ARCH-04: the suffix identifies the target by its
+			// configured index, not by the collision ordinal.
+			indexed := base + " #" + itoa(targetIndex[results[i].TargetID]+1)
+			label = indexed
+			for extra := 2; occupied[label]; extra++ {
+				label = indexed + "-" + itoa(extra)
+			}
 		}
 		occupied[label] = true
 		results[i].Account = label

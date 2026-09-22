@@ -197,7 +197,7 @@ Project percentage policy: accept finite values in `[0,100]`; format once to one
 
 An unknown Codex authentication type maps to `UNSUPPORTED`, not the API-key status. For Grok, absence of `cached_token` with only an API-key method advertised establishes API-key-only non-applicability; interactive methods without cached authentication mean `AUTH REQUIRED`. Unrecognized auth advertisements mean `UNSUPPORTED`.
 
-For account labels, Codex email is preferred only when obtained from that target's protocol session. Otherwise use its home basename. Grok uses its configured alias on every outcome. After collecting results, disambiguate duplicate Codex account labels by appending `[home-basename]`; append `#<target index + 1>` if that is still ambiguous. Never hide or merge a row. Labels are identifiers for display, not authentication selectors.
+For account labels, Codex email is preferred only when obtained from that target's protocol session. Otherwise use its home basename. Grok uses its configured alias on every outcome. After collecting results, disambiguate duplicate Codex account labels by appending `[home-basename]`; append `#<target index + 1>` if that is still ambiguous — the suffix is the row's own configured target index, not a collision ordinal, so the same/other/same example labels its third target `#3`. If the index-qualified label is itself already occupied (for example by an unrelated row whose original label merely resembles a generated suffix), extend it with a deterministic second counter that preserves the index component (`#3-2`, `#3-3`, ...). Never hide or merge a row. Labels are identifiers for display, not authentication selectors.
 
 <a id="arch-05"></a>
 ## ARCH-05: Execution and process ownership
