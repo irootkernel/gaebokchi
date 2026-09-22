@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: COMPLETE — implemented, offline-qualified, natively tested on darwin/arm64 and linux/arm64, and live-accepted on the owner accounts (darwin/arm64); every checkbox below links its evidence  
+Status: CORRECTIVE — implemented and offline-qualified, but a 2026-09-22 post-closeout audit superseded the COMPLETE claim: executable-level defects and one unperformed acceptance check (REQ-048's provider-display comparison) require re-qualification under EPIC-007; affected checkboxes are unchecked below with supersession notes  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -13,7 +13,7 @@ This document owns **what must be delivered**. [architecture.md](architecture.md
 
 The three documents belong together at the repository root. Explicit anchors and IDs are stable. An implementation AI must not weaken a requirement merely because an upstream CLI is unsupported. Resolve contradictions across the three documents in the same task-scoped change.
 
-All 50 requirements are checked with linked evidence from the owning tasks; the release audit (TASK-014) rechecked the full set against the delivered tree.
+The original campaign checked all 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`. A later adversarial audit of executable-level behavior superseded that result: requirements whose full acceptance scope is affected by verified findings are unchecked, each with a supersession note naming the defect and the re-qualifying task under [EPIC-007](plan.md#epic-007). Unaffected requirements keep their original evidence. Before restoring a checkbox, verify its full acceptance scope against the corrected tree, not just the specific helper changed by a fix.
 
 ## Product outcome
 
@@ -63,8 +63,9 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### CLI and output
 
 <a id="req-006"></a>
-- [x] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
+- [ ] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
   - - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) parser matrix plus TASK-010 help/version/no-launch and exit-code tests.
+  - Superseded 2026-09-22 by the corrective audit: binary overrides given as explicit relative paths fail from the neutral child cwd, and a whitespace-only `--grok-account` alias is accepted. Re-qualification: [TASK-017](plan.md#task-017) (path resolution) and [TASK-019](plan.md#task-019) (alias validation).
 
 <a id="req-007"></a>
 - [x] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
@@ -75,12 +76,14 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (tilde-only expansion, `~user` rejected, relative resolution, normalization, duplicate/symlink rejection, missing homes never created).
 
 <a id="req-009"></a>
-- [x] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.
+- [ ] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every query RPC in that single budget. Bound cleanup separately to at most 2 seconds.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (1s–120s validation, 20s default), TASK-009 (admission-time budget covering startup and every RPC), TASK-003 (separate 2s cleanup bound).
+  - Superseded 2026-09-22 by the corrective audit: a valid result established within the query budget is discarded when deferred cleanup crosses the deadline, and cleanup consumes up to twice the documented 2s bound (separate shutdown/finish budgets). Re-qualification: [TASK-016](plan.md#task-016).
 
 <a id="req-010"></a>
-- [x] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
+- [ ] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
   - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-010](plan.md#task-010). Verification: [V-IDENTITY](architecture.md#v-identity). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) and TASK-006/008 identity suites — protocol email preferred, home-basename fallback, Grok alias, duplicate disambiguation.
+  - Superseded 2026-09-22 by the corrective audit: whitespace-only protocol emails are adopted as labels instead of falling back to the home basename, and duplicate disambiguation runs on raw labels before sanitization. Re-qualification: [TASK-019](plan.md#task-019).
 
 <a id="req-011"></a>
 - [x] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
@@ -101,46 +104,53 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) — defined unavailable/non-applicable statuses for every unestablishable weekly value; no averaging/extrapolation anywhere.
 
 <a id="req-015"></a>
-- [x] **REQ-015: Window provenance.** Keep the selected quota identifier, period kind, source, and optional reset time in the in-memory result. Reset metadata is not an additional output column and must not be required when the source makes it optional.
+- [ ] **REQ-015: Window provenance.** Keep the selected quota identifier, period kind, source, and optional reset time in the in-memory result. Reset metadata is not an additional output column and must not be required when the source makes it optional.
   - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) and TASK-008 — quota id, period kind, source, and optional reset preserved in domain results and never rendered as columns.
+  - Superseded 2026-09-22 by the corrective audit: the Grok monthly billing branch drops the established period kind from the in-memory result. Re-qualification: [TASK-019](plan.md#task-019).
 
 ### Protocol and execution
 
 <a id="req-016"></a>
-- [x] **REQ-016: Separate wire dialects.** Use stdio JSON messages with the correct provider-specific envelopes and initialization rules. Codex App Server and Grok ACP must not be treated as one interchangeable protocol. Freeze Grok extension wire encoding from an actual installed-binary probe.
+- [ ] **REQ-016: Separate wire dialects.** Use stdio JSON messages with the correct provider-specific envelopes and initialization rules. Codex App Server and Grok ACP must not be treated as one interchangeable protocol. Freeze Grok extension wire encoding from an actual installed-binary probe.
   - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) plus frozen live encoding `_x.ai/billing` from [compatibility.md](verification/compatibility.md).
+  - Superseded 2026-09-22 by the corrective audit: inbound responses are not validated per dialect — `error:null` without `result` satisfies a pending call, handshake results are accepted without shape validation, and inbound jsonrpc version markers are unchecked. Re-qualification: [TASK-018](plan.md#task-018).
 
 <a id="req-017"></a>
 - [x] **REQ-017: Bounded framing.** Support fragmented and coalesced newline-delimited UTF-8 JSON, with a 4 MiB maximum frame. Reject malformed/oversized frames and unsupported batches; bound buffered stderr to 64 KiB while continuing to drain excess bytes.
   - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (framing matrix incl. boundary sizes; 64 KiB stderr drain in TASK-003).
 
 <a id="req-018"></a>
-- [x] **REQ-018: Response correlation.** Correlate responses by request ID, tolerate unrelated well-formed notifications, and never use the first received JSON object as the response. Unknown/duplicate response IDs cannot satisfy a pending request. Fail a pending call on EOF or malformed matching responses.
+- [ ] **REQ-018: Response correlation.** Correlate responses by request ID, tolerate unrelated well-formed notifications, and never use the first received JSON object as the response. Unknown/duplicate response IDs cannot satisfy a pending request. Fail a pending call on EOF or malformed matching responses.
   - Architecture: [ARCH-06](architecture.md#arch-06). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md).
+  - Superseded 2026-09-22 by the corrective audit: a matching response with `error:null` and no `result` is accepted as successful instead of failing the pending call as malformed. Re-qualification: [TASK-018](plan.md#task-018).
 
 <a id="req-019"></a>
 - [x] **REQ-019: No host capability execution.** Advertise no filesystem, terminal, or tool execution capability to Grok. Never execute server-initiated requests, approve tools, answer elicitation with secrets, or service token-refresh callbacks requiring application-held credentials. Reject unexpected requests and close the affected query safely.
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (server requests rejected with exact id and connection aborted; Grok false capabilities declared in TASK-007 wire tests).
 
 <a id="req-020"></a>
-- [x] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
+- [ ] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-003.md](verification/TASK-003.md) — stdin close, exactly-once wait, EOF/SIGTERM/SIGKILL stages within budget, unrelated-process survival, owned-group-only kills.
+  - Superseded 2026-09-22 by the corrective audit: cleanup grants `finish` a fresh full budget after `shutdown` (violating the single bounded allowance), and the direct child exiting early can leave application-owned descendants unsignalled. Re-qualification: [TASK-016](plan.md#task-016).
 
 <a id="req-021"></a>
-- [x] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
+- [ ] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
   - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — fixed application-owned messages only; secret markers and raw provider output never reach stdout/stderr.
+  - Superseded 2026-09-22 by the corrective audit: every remote error from Grok `authenticate`, including internal errors, is reported as "cached token rejected" — a guessed detail, not a verified structured authentication failure. Re-qualification: [TASK-019](plan.md#task-019).
 
 <a id="req-022"></a>
 - [x] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-RUNNER](architecture.md#v-runner). Evidence: [docs/verification/TASK-009.md](verification/TASK-009.md) — ≤3 active, isolated envs/slots, sibling preservation under failure/hang, configured order.
 
 <a id="req-023"></a>
-- [x] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Do not start targets still queued after cancellation.
+- [ ] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Do not start targets still queued after cancellation.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-009](plan.md#task-009). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-009.md](verification/TASK-009.md) (queued cancellation, no late launch), TASK-010 (130/143 + CANCELLED table), TASK-011 (SIGINT end-to-end).
+  - Superseded 2026-09-22 by the corrective audit: signal cancellation cannot unblock a blocked notification write, so a wedged provider can defeat cancellation and owned-process cleanup. Re-qualification: [TASK-016](plan.md#task-016).
 
 <a id="req-024"></a>
-- [x] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
+- [ ] **REQ-024: Exit contract.** Implement exit codes 0, 1, 2, 130, and 143 exactly as ARCH-10 defines. Keep partial results visible even when exit code 1 is returned. Explicit monthly/API-key non-applicability is not an operational failure; missing data and unsupported methods are incomplete results.
   - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-EXIT](architecture.md#v-exit). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) — codes 0/1/2/130 exercised end-to-end; 143 shares the SIGTERM path; non-applicability is clean.
+  - Superseded 2026-09-22 by the corrective audit: a closed stdout pipe terminates the executable via SIGPIPE instead of exit 1, and an output failure after a handled signal returns 1 instead of 130/143. Re-qualification: [TASK-017](plan.md#task-017).
 
 ### Codex provider
 
@@ -175,8 +185,9 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-007.md](verification/TASK-007.md) — exact `--no-auto-update agent stdio` invocation asserted from the child argv; no TUI/PTY/REST anywhere (TASK-011 static scan).
 
 <a id="req-032"></a>
-- [x] **REQ-032: Cached login without new auth.** Select `cached_token` only when advertised and authenticate with headless metadata. Do not choose an API key because it exists in the environment, launch a browser, run `grok login`, or initiate device-code/OIDC login.
+- [ ] **REQ-032: Cached login without new auth.** Select `cached_token` only when advertised and authenticate with headless metadata. Do not choose an API key because it exists in the environment, launch a browser, run `grok login`, or initiate device-code/OIDC login.
   - - Architecture: [ARCH-08](architecture.md#arch-08). Owner: [TASK-007](plan.md#task-007). Verification: [V-GROK](architecture.md#v-grok). Evidence: [docs/verification/TASK-007.md](verification/TASK-007.md) — cached_token selected only when advertised, headless _meta, API-key env never selects auth, no browser/login/device flows.
+  - Superseded 2026-09-22 by the corrective audit: an advertisement offering both `api_key` and `grok.com` without `cached_token` is classified `N/A (API key)` instead of requiring authentication for the interactive subscription path. Re-qualification: [TASK-019](plan.md#task-019).
 
 <a id="req-033"></a>
 - [x] **REQ-033: Qualified billing extension.** Call the source-backed billing extension using the captured ACP wire contract. Distinguish the internal `x.ai/billing` name from its wire representation. A valid method-not-found response produces `UNSUPPORTED`, not fabricated usage or an automatic alternate transport.
@@ -205,8 +216,9 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — allowlisted metadata methods only; no prompts/sessions/mutations; static capability scan.
 
 <a id="req-039"></a>
-- [x] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
+- [ ] **REQ-039: Isolated child environments.** Use explicit executable paths/argument arrays without a shell. Copy and filter each child environment; replace Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve required home/keychain/proxy context.
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-005](plan.md#task-005). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-005.md](verification/TASK-005.md) (envfilter policy: drops + per-target CODEX_HOME replacement, HOME/proxy preserved, parent untouched; argv-only child start from TASK-003).
+  - Superseded 2026-09-22 by the corrective audit: explicit relative executable paths are not resolved against the invocation environment before the child working directory changes, so they fail from the neutral child cwd. Re-qualification: [TASK-017](plan.md#task-017).
 
 <a id="req-040"></a>
 - [x] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
@@ -227,12 +239,14 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-004](plan.md#task-004). Verification: [V-RPC](architecture.md#v-rpc). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) — the entire suite runs against in-memory pipes and the compiled fake-child harness; no live CLI is invoked by `go test ./...`.
 
 <a id="req-044"></a>
-- [x] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
+- [ ] **REQ-044: Parser and edge-case coverage.** Cover the quota, authentication, dialect, account-isolation, malformed-input, and semantic edge cases listed in ARCH-11. Unknown additive fields must not break an otherwise valid response.
   - - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-006.md](verification/TASK-006.md) (Codex matrix), TASK-008 (Grok matrix), TASK-004 (framing/dialects) — unknown additive fields ignored throughout.
+  - Superseded 2026-09-22 by the corrective audit: malformed-input edge cases (error:null, mistyped error members, incompatible version markers, label-normalization collisions) were not covered and were in fact accepted by the implementation. Re-qualification: [TASK-018](plan.md#task-018) and [TASK-019](plan.md#task-019); final re-check at [TASK-021](plan.md#task-021).
 
 <a id="req-045"></a>
-- [x] **REQ-045: End-to-end failure isolation.** Verify stdout, stderr, exit status, row count/order, callback rejection, timeout, signal handling, and cleanup through the actual CLI executable with scripted fake providers.
+- [ ] **REQ-045: End-to-end failure isolation.** Verify stdout, stderr, exit status, row count/order, callback rejection, timeout, signal handling, and cleanup through the actual CLI executable with scripted fake providers.
   - - Architecture: [ARCH-11](architecture.md#arch-11). Owner: [TASK-011](plan.md#task-011). Verification: [V-E2E](architecture.md#v-e2e). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — executable-level suite with fake providers covering stdout/stderr/exit/rows/callbacks/timeouts/signals/cleanup.
+  - Superseded 2026-09-22 by the corrective audit: the executable-level coverage used in-process writer stubs for output failure; real broken-pipe and signal-plus-output-failure behavior was untested and violates the contract. Re-qualification: [TASK-017](plan.md#task-017).
 
 <a id="req-046"></a>
 - [x] **REQ-046: Build artifacts.** Produce binaries for darwin/arm64, darwin/amd64, linux/arm64, and linux/amd64, with version metadata and checksums. Do not bundle third-party provider binaries or automatically publish a release.
@@ -243,16 +257,19 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-PLATFORM](architecture.md#v-platform). Evidence: [docs/verification/TASK-012.md](verification/TASK-012.md) — native darwin/arm64 and linux/arm64 (containerized) full suites; darwin/amd64 and linux/amd64 labelled cross-build-only.
 
 <a id="req-048"></a>
-- [x] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
+- [ ] **REQ-048: Owner-account live acceptance.** Perform an explicit live campaign against the owner’s two distinct Codex homes and existing Grok account on at least one supported host. Compare with the respective provider’s own usage display within the same quota period, without generating a model turn.
   - - Architecture: [ARCH-12](architecture.md#arch-12). Owner: [TASK-013](plan.md#task-013). Verification: [V-LIVE](architecture.md#v-live). Evidence: [docs/verification/live-acceptance.md](verification/live-acceptance.md) — both Codex homes plus the existing Grok login on darwin/arm64, live weekly values on all rows, window-boundary comparison with the headless-display limitation recorded.
+  - Superseded 2026-09-22 by the corrective audit: the provider's own usage display was never compared; the recorded campaign substituted a second metadata probe while the evidence itself recorded the omission as a limitation. The live metadata-query evidence for the tested artifact is preserved; only the provider-display comparison portion is reopened. Re-qualification: owner-authorized comparison recorded at [TASK-021](plan.md#task-021); blocked while authorization or display access is unavailable — not waivable on the owner's behalf.
 
 <a id="req-049"></a>
-- [x] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.
+- [ ] **REQ-049: Usage and troubleshooting guide.** Ship a README covering install/build, exact flags, existing-login prerequisite, quota meaning, statuses, exit codes, supported/tested versions, platform evidence, and known limitations. Explain that a Grok alias is not a verified email and a monthly result is not weekly usage.
   - - Architecture: [ARCH-13](architecture.md#arch-13). Owner: [TASK-012](plan.md#task-012). Verification: [V-DOCS](architecture.md#v-docs). Evidence: README.md — install/build, exact flags, login prerequisite, quota meaning, all statuses, exit codes, tested versions/platforms, limitations incl. alias-not-email and monthly-not-weekly; smoke-checked against the binary.
+  - Superseded 2026-09-22 by the corrective audit: README wording conflates Linux fake-provider offline testing with live provider qualification. Re-qualification: [TASK-020](plan.md#task-020).
 
 <a id="req-050"></a>
-- [x] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
+- [ ] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
   - - Architecture: [ARCH-14](architecture.md#arch-14). Owner: [TASK-014](plan.md#task-014). Verification: [V-AUDIT](architecture.md#v-audit). Evidence: this audit — every REQ carries architecture/owner/verification/evidence links, fourteen task-scoped commits in plan order (git log), live evidence distinguished from fixtures throughout.
+  - Superseded 2026-09-22 by the corrective audit: 17 requirements were checked without their full acceptance scope being verified, and plan/requirement statuses contradicted each other. Re-qualification: [TASK-021](plan.md#task-021).
 
 ## Completion rules
 
@@ -282,5 +299,12 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-012](plan.md#task-012) | [REQ-001](#req-001), [REQ-046](#req-046), [REQ-047](#req-047), [REQ-049](#req-049) |
 | [TASK-013](plan.md#task-013) | [REQ-005](#req-005), [REQ-048](#req-048) |
 | [TASK-014](plan.md#task-014) | [REQ-050](#req-050) |
+| [TASK-015](plan.md#task-015) | Acceptance-baseline correction only; reopens the checkboxes listed below, closes none |
+| [TASK-016](plan.md#task-016) | Re-qualifies [REQ-009](#req-009), [REQ-020](#req-020), [REQ-023](#req-023) |
+| [TASK-017](plan.md#task-017) | Re-qualifies [REQ-006](#req-006) (binary overrides), [REQ-024](#req-024), [REQ-039](#req-039), [REQ-045](#req-045) |
+| [TASK-018](plan.md#task-018) | Re-qualifies [REQ-016](#req-016), [REQ-018](#req-018) |
+| [TASK-019](plan.md#task-019) | Re-qualifies [REQ-006](#req-006) (alias validation), [REQ-010](#req-010), [REQ-015](#req-015), [REQ-021](#req-021), [REQ-032](#req-032) |
+| [TASK-020](plan.md#task-020) | Re-qualifies [REQ-049](#req-049) |
+| [TASK-021](plan.md#task-021) | Re-qualifies [REQ-044](#req-044), [REQ-048](#req-048), [REQ-050](#req-050) |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [plan.md](plan.md#plan-roadmap).

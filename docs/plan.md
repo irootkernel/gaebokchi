@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: COMPLETE — all six epics and fourteen tasks closed in order; release artifacts staged locally in dist/  
+Status: CORRECTIVE — the original six epics and fourteen tasks were implemented and committed, but a 2026-09-22 post-closeout audit superseded part of the recorded acceptance; [EPIC-007](#epic-007) (TASK-015 through TASK-021) re-qualifies the affected scope before v0.1 can be accepted  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -9,7 +9,7 @@ Repository and executable: `gaebokchi`
 
 ## How to use this plan
 
-This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against [architecture.md](architecture.md), and verify product coverage against the checkboxes in [requirement.md](requirement.md). All work is complete; each task below links its verification record under docs/verification/.
+This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against [architecture.md](architecture.md), and verify product coverage against the checkboxes in [requirement.md](requirement.md). The original six epics were implemented and committed with per-task verification records under docs/verification/; a post-closeout audit superseded several acceptance claims, so [EPIC-007](#epic-007) is now the active epic and the affected requirement checkboxes are unchecked pending re-qualification.
 
 Keep all three documents at the repository root. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
 
@@ -31,7 +31,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Initial status |
@@ -42,8 +42,11 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006
 | 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | NOT STARTED |
 | 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | NOT STARTED |
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | NOT STARTED |
+| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) | [EPIC-006](#epic-006) implemented | IN PROGRESS |
 
-The task order is globally sequential: TASK-001 through TASK-014. Runtime account queries may be concurrent; development tasks may not.
+The `Initial status` column is historical: it records the state when the plan was authored. All six original epics subsequently reached their implementation milestones and their task commits exist in repository history. However, the corrective audit that opened [EPIC-007](#epic-007) superseded acceptance claims recorded at TASK-013 and TASK-014, so those gates are pending re-qualification and v0.1 is not currently fully accepted.
+
+The task order is globally sequential: TASK-001 through TASK-021. Runtime account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -625,6 +628,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] Task complete. **Status: COMPLETE.**
 
+> Supersession note (2026-09-22): the live prompt-free metadata queries recorded in [docs/verification/live-acceptance.md](verification/live-acceptance.md) remain valid evidence for the artifact and source revision tested at that time. However, the provider's own usage-display comparison required by [REQ-048](requirement.md#req-048) was not performed, so the acceptance portion of this task is superseded and reopened under [EPIC-007](#epic-007) (TASK-021) pending a properly authorized comparison. The "Task complete" marker above reflects the historical commit, not current acceptance.
+
 **Purpose:** Confirm that the completed executable, not just the early probe or fake servers, works with the actual requested account set.
 
 **Dependency:** TASK-012 complete; an authorized host with both Codex homes and an existing Grok login is available.
@@ -663,6 +668,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 - [x] Task complete. **Status: COMPLETE.**
 
+> Supersession note (2026-09-22): a post-closeout adversarial audit of commit `f8b180d` found executable-level correctness defects the recorded test gates did not catch (valid results discarded as timeouts, malformed RPC responses such as `error:null` accepted as success, exit-contract violations on broken stdout and signal combinations, relative executable paths unresolvable from the neutral child cwd, Grok authentication misclassification, label-normalization ordering, double cleanup budgets, and 14 files differing from `gofmt`), plus acceptance claims beyond the recorded evidence (REQ-048's provider-display comparison). The "all 50 requirements have valid evidence" claim recorded here is therefore superseded. Requirement re-qualification is tracked in [EPIC-007](#epic-007). The marker above reflects the historical commit, not current acceptance.
+
 **Purpose:** Finish the project with complete traceability and truthful evidence, without turning closeout into another redesign cycle.
 
 **Dependency:** TASK-013 complete and no blocking product defect remains.
@@ -696,18 +703,254 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Next:** Close EPIC-006 and stop. Return the final verified handoff; do not implement another provider automatically.
 
+> Historical note: EPIC-006 was closed at commit `f8b180d` (TASK-014). The corrective audit superseded its final acceptance claims; see the supersession notes above and [EPIC-007](#epic-007).
+
+<a id="epic-007"></a>
+## EPIC-007: Corrective remediation and re-acceptance
+
+- [ ] Epic complete. **Status: IN PROGRESS.**
+
+**Goal:** Correct the executable-level defects found by the 2026-09-22 adversarial audit of commit `f8b180d`, restore the documented contracts with regression coverage, and make the recorded acceptance state truthful again. This is a bounded remediation of the existing v0.1 implementation, not a redesign: the product scope, architecture, and the original six epics' IDs and commits are preserved.
+
+**Entry:** EPIC-001 through EPIC-006 implemented (historical commits preserved); corrective audit findings accepted.
+
+**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021)
+
+**Local epic acceptance:** Every audit finding is either fixed with focused regression coverage or explicitly recorded as an owner action (REQ-048's provider-display comparison). The affected requirement checkboxes are re-checked only against the corrected tree. A mandatory gate that cannot be run in this environment is reported as blocked, never waived.
+
+**Handoff:** Stop implementation. Report corrected behavior with trustworthy evidence, the requirements still unchecked and why, and any owner action needed to complete REQ-048.
+
+**Non-negotiable boundaries:** Keep Gaebokchi a small, one-shot, read-only Go CLI. No Claude support, watch mode, retries, daemons, persistence, credential parsing, custom OAuth, REST fallback, provider installation/login/logout, remote publication, or architectural rewrite. Normal tests remain offline with synthetic accounts and fake providers. Requirements are not weakened to make tests pass.
+
+<a id="task-015"></a>
+### TASK-015: Correct the acceptance-state baseline and register this remediation
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Make the recorded acceptance state truthful before any code is changed: uncheck the requirements whose acceptance scope the audit superseded, and register this corrective epic with the next available IDs.
+
+**Dependency:** Corrective audit accepted; no code changes yet.
+
+**Architecture:** [ARCH-14](architecture.md#arch-14).
+
+**Primary requirement ownership:** none closed; reopens affected checkboxes in [requirement.md](requirement.md).
+
+**Implementation scope:**
+
+- Change the overall completion claims in `requirement.md` and `plan.md` from COMPLETE to the corrective state.
+- Uncheck exactly the requirements whose full acceptance scope is affected by verified audit findings (REQ-006, REQ-009, REQ-010, REQ-015, REQ-016, REQ-018, REQ-020, REQ-021, REQ-023, REQ-024, REQ-032, REQ-039, REQ-044, REQ-045, REQ-048, REQ-049, REQ-050), each with a supersession note naming the defect and the re-qualifying task. Leave unaffected, adequately supported requirements checked.
+- Add supersession notes to TASK-013/TASK-014 (preserving their historical records and commit identities) and reconcile the roadmap overview with the current state.
+- Register EPIC-007 and TASK-015 through TASK-021 with this scope.
+
+**Acceptance criteria:**
+
+- [x] No requirement remains checked whose full acceptance scope is superseded by a verified audit finding; every unchecked box names its defect and re-qualifying task.
+- [x] Historical records, dates, and artifact identities are preserved; corrections appear as explicit supersession notes, not rewrites.
+- [x] The roadmap and document headers state the corrective state without resetting the six original epics' historical milestones.
+
+**Verification:** [V-AUDIT](architecture.md#v-audit). Run `go run scripts/check-docs.go` after the edits.
+
+**Commit boundary:** `docs(TASK-015): correct acceptance baseline and register remediation`.
+
+**Next:** [TASK-016](#task-016).
+
+<a id="task-016"></a>
+### TASK-016: Fix query deadlines, transport cancellation, and owned-process cleanup
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** A valid result established within the query budget must survive bounded cleanup; cancellation and terminal failure must unblock owned I/O exactly once within one cleanup budget.
+
+**Dependency:** TASK-015 complete.
+
+**Architecture:** [ARCH-05](architecture.md#arch-05), [ARCH-06](architecture.md#arch-06).
+
+**Primary requirement ownership:** re-qualifies [REQ-009](requirement.md#req-009), [REQ-020](requirement.md#req-020), [REQ-023](requirement.md#req-023).
+
+**Implementation scope:**
+
+- Separate the point at which a query result becomes valid from the completion of deferred cleanup in the provider `Query` paths and the runner's post-hoc deadline check. A result established within the query budget survives subsequent bounded cleanup; a response first established after the query deadline must not become a clean result.
+- Make notification writes cancellable (`Notify` currently writes synchronously without a context) so a blocked write or write lock cannot defeat the target deadline or signal cancellation; reconcile `die`/`Close`/`sendRejection` so terminal failure, explicit closure, and cancellation abort owned I/O safely and exactly once, without reentrant-close deadlocks, double waits, or abandoned writer goroutines.
+- Pass one absolute cleanup deadline through `shutdown` and `finish` instead of granting `finish` a fresh full budget; audit pipe closure, drain completion, and temporary-directory removal so incomplete cleanup is not hidden behind an unconditional success result.
+- Investigate the descendant/shared-process boundary: where a descendant is proven application-owned and disposable, clean it up; where ownership is provider-managed or uncertain, preserve it and document the boundary. No indiscriminate descendant or process-group killing.
+
+**Acceptance criteria:**
+
+- [ ] A valid response before the deadline remains numeric after slower cleanup; a response arriving only after the deadline does not become successful; startup, handshake, account/authentication, and quota reads share one query budget while cleanup uses its separate budget.
+- [ ] Cancellation unblocks a blocked notification write and a blocked callback-rejection write; repeated closure is safe; the direct child is reaped exactly once; unrelated processes and provider-managed leaders survive.
+- [ ] One total cleanup budget is enforced and measured end-to-end (not inferred from stage timers).
+
+**Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-RUNNER](architecture.md#v-runner). Focused race-enabled tests using synchronization and timing margins, not exact scheduler timing.
+
+**Commit boundary:** `fix(TASK-016): separate query deadlines from cleanup and harden transport cancellation`.
+
+**Next:** [TASK-017](#task-017).
+
+<a id="task-017"></a>
+### TASK-017: Fix executable-path resolution and CLI output/signal behavior
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Explicit relative executable paths must work from the neutral child cwd, and the executable must implement the documented output and signal exit contract.
+
+**Dependency:** TASK-016 complete.
+
+**Architecture:** [ARCH-03](architecture.md#arch-03), [ARCH-10](architecture.md#arch-10).
+
+**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006) (binary-override scope), [REQ-024](requirement.md#req-024), [REQ-039](requirement.md#req-039), [REQ-045](requirement.md#req-045).
+
+**Implementation scope:**
+
+- Resolve explicit relative executable paths against the invocation environment (make them absolute) before the child's working directory changes; retain Go's unsafe-current-directory PATH-lookup protection and once-per-invocation resolution; no shell expansion or command splitting.
+- Implement an explicit SIGPIPE policy so a closed stdout pipe yields the documented output-failure exit code 1 rather than signal death; centralize final exit-code precedence so the first handled cancellation signal (130/143) takes precedence over output failure and partial provider failure.
+- On writable stdout, retain completed results and render unresolved rows as `CANCELLED`; never launch queued targets after cancellation; release signal-related goroutines when execution finishes; handle output failures consistently on help/version paths.
+
+**Acceptance criteria:**
+
+- [ ] Absolute and explicit relative binary overrides (including paths with spaces) resolve correctly despite the neutral child cwd; missing and present-but-unexecutable binaries keep their documented statuses.
+- [ ] Closed stdout pipe, SIGINT and SIGTERM separately, and each signal combined with unwritable stdout produce the exact documented exit codes with real OS pipes against the actual executable; correct rows, no late launch, and safe diagnostics without raw provider output.
+
+**Verification:** [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e). Executable-level tests with real OS pipes, not `io.Writer` stubs.
+
+**Commit boundary:** `fix(TASK-017): resolve relative executable paths and enforce output signal exit contract`.
+
+**Next:** [TASK-018](#task-018).
+
+<a id="task-018"></a>
+### TASK-018: Harden inbound RPC validation
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Malformed or incompatible inbound responses must fail safely; only a structurally valid response alternative may satisfy a pending call.
+
+**Dependency:** TASK-017 complete.
+
+**Architecture:** [ARCH-06](architecture.md#arch-06), [ARCH-11](architecture.md#arch-11).
+
+**Primary requirement ownership:** re-qualifies [REQ-016](requirement.md#req-016), [REQ-018](requirement.md#req-018).
+
+**Implementation scope:**
+
+- Require exactly one valid response alternative: `result` (with explicit null permitted only where the operation's schema allows it) or a structurally valid `error` object with correctly typed required fields. `error:null`, incomplete error objects, and missing results must not satisfy a pending call.
+- Validate the Codex initialization response and the Grok authenticate response against their dialects; validate the ACP envelope (including inbound jsonrpc version markers) without imposing ACP-required fields on Codex's distinct dialect.
+- Preserve forward compatibility for unknown additive fields and well-formed unrelated notifications; keep unknown/duplicate response IDs from satisfying pending calls (already safe — pin with tests).
+
+**Acceptance criteria:**
+
+- [ ] Replacing an initialization or authentication response with `error:null`, a both-members or neither-member object, or a mistyped error object yields a safe failure status, never numeric success or unsupported authentication claims.
+- [ ] Invalid/incompatible ACP version markers and dialect-inappropriate envelopes are rejected; valid operation-specific null results, additive fields, and unrelated notifications still work; invalid UTF-8, oversize frames, and non-empty unterminated frames keep their terminal handling.
+
+**Verification:** [V-RPC](architecture.md#v-rpc). Framing/dialect matrix extension with malformed-error and envelope cases.
+
+**Commit boundary:** `fix(TASK-018): reject malformed RPC responses and incompatible envelopes`.
+
+**Next:** [TASK-019](#task-019).
+
+<a id="task-019"></a>
+### TASK-019: Fix identity handling, Grok authentication classification, and provenance
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Account labels must be normalized before validation and disambiguation, and Grok authentication/provenance must be classified from verified structure rather than guesses.
+
+**Dependency:** TASK-018 complete.
+
+**Architecture:** [ARCH-04](architecture.md#arch-04), [ARCH-08](architecture.md#arch-08), [ARCH-10](architecture.md#arch-10).
+
+**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006) (alias-validation scope), [REQ-010](requirement.md#req-010), [REQ-015](requirement.md#req-015), [REQ-021](requirement.md#req-021), [REQ-032](requirement.md#req-032).
+
+**Implementation scope:**
+
+- Establish one display-label normalization policy applied before validity checks and duplicate disambiguation: a Grok alias that is empty after normalization is a usage error before provider launch; an unusable Codex protocol email falls back to the configured home basename; disambiguation operates on final display identities, produces unique visible labels without merging rows, and handles collisions with labels that already resemble generated suffixes.
+- Implement the Grok authentication advertisement decision table: advertised cached-token support wins; a genuinely API-key-only advertisement can be non-applicable; a recognized interactive subscription path without cached authentication requires authentication; unknown combinations are not declared clean without a qualified basis; never initiate interactive authentication as a fallback.
+- Map only verified structured authentication failures to `AUTH REQUIRED`; use safe generic provider/protocol/unsupported classifications for other remote errors; never infer expired credentials from arbitrary error text or the RPC method name alone.
+- Preserve established period information and applicable source/reset/quota provenance in the in-memory result (the monthly branch currently drops `PeriodMonthly`); never invent an upstream quota identifier.
+
+**Acceptance criteria:**
+
+- [ ] Blank/whitespace-only aliases and emails, control/format-only labels, Unicode whitespace, sanitization collisions, duplicate emails/basenames, and generated-suffix collisions behave per the normalization policy with no extra rows/columns and no provider launch for invalid aliases.
+- [ ] Every branch of the authentication decision table, non-authentication remote errors, monthly provenance, and weekly periods with missing usage are covered by tests; dependency direction stays clean (domain code never imports the renderer).
+
+**Verification:** [V-IDENTITY](architecture.md#v-identity), [V-GROK](architecture.md#v-grok), [V-SAFETY](architecture.md#v-safety).
+
+**Commit boundary:** `fix(TASK-019): normalize account labels and correct Grok auth classification`.
+
+**Next:** [TASK-020](#task-020).
+
+<a id="task-020"></a>
+### TASK-020: Fix test hygiene, formatting, and documentation inconsistencies
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Test-owned cleanup must not delete unrelated directories, formatting must be verifiable rather than assumed, and the documentation must state exactly what was verified.
+
+**Dependency:** TASK-019 complete.
+
+**Architecture:** [ARCH-11](architecture.md#arch-11), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+
+**Primary requirement ownership:** re-qualifies [REQ-049](requirement.md#req-049).
+
+**Implementation scope:**
+
+- Track and remove only directories created by the current integration-test invocation; add a regression proving a similarly named unrelated directory survives.
+- Apply `gofmt` to all Go files (formatting only, no style refactoring); make the verification workflow check formatting rather than assume it.
+- Correct documentation inconsistencies: roadmap/task/epic status contradictions, obsolete fixture filenames in compatibility.md, README wording that conflates Linux fake-provider tests with live provider qualification, stale COMPLETE/no-outstanding-findings claims, and evidence links/requirement mappings affected by the fixes. Distinguish cross-build, native offline, real-provider acceptance, and provider-display comparison evidence.
+
+**Acceptance criteria:**
+
+- [ ] Integration cleanup removes only owned directories; the unrelated-directory survival regression exists and passes.
+- [ ] `gofmt -l` reports nothing and the workflow fails on formatting drift.
+- [ ] Documentation claims are semantically consistent with the recorded evidence and distinguish the four evidence kinds.
+
+**Verification:** [V-DOCS](architecture.md#v-docs), [V-E2E](architecture.md#v-e2e). `gofmt -l`, `go run scripts/check-docs.go`, integration suite.
+
+**Commit boundary:** `test(TASK-020): fix test hygiene formatting and documentation consistency`.
+
+**Next:** [TASK-021](#task-021).
+
+<a id="task-021"></a>
+### TASK-021: Perform final qualification and record the release decision truthfully
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Qualify the corrected candidate tree end-to-end and record a truthful release decision, keeping code-remediation completion distinct from full release acceptance.
+
+**Dependency:** TASK-020 complete.
+
+**Architecture:** [ARCH-11](architecture.md#arch-11), [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+
+**Primary requirement ownership:** re-qualifies [REQ-044](requirement.md#req-044), [REQ-050](requirement.md#req-050); records the state of [REQ-048](requirement.md#req-048).
+
+**Implementation scope:**
+
+- Re-verify the full acceptance scope of every requirement unchecked in TASK-015 against the corrected tree; re-check only those whose scope is now satisfied with current evidence.
+- Run the final integration gate: formatting check, `go vet ./...`, `go test -count=1 ./...`, `go test -race -count=1 ./...` where supported, `go run scripts/check-docs.go`, four CGO-disabled target builds, archive contents/version output/SHA-256 checksums, and native macOS/Linux offline qualification where available.
+- Run explicit authorized live acceptance where available: compare each relevant provider's own quota display with the candidate binary in the same quota period without submitting prompts or changing account/billing state, recording timestamps, period boundaries, and legitimate precision/consumption differences. When authorization, display access, or the required environment is unavailable, mark the remaining checks NOT RUN/blocked and report the acceptance gap without waiving the criterion on the owner's behalf.
+- Record exact commands, outcomes, OS/architecture, toolchain, and source/artifact identity. Historical Linux success or earlier live acceptance of the old binary is not evidence for the corrected candidate; distinguish artifacts by checksum and source revision.
+
+**Acceptance criteria:**
+
+- [ ] Every re-checked requirement has current, tree-matching evidence; requirements still unchecked carry exact reasons and owner actions.
+- [ ] The final gate results distinguish run, not-run, and blocked checks; v0.1 is not declared fully accepted while a mandatory gate remains open.
+
+**Verification:** [V-AUDIT](architecture.md#v-audit), [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-LIVE](architecture.md#v-live).
+
+**Commit boundary:** `test(TASK-021): record final qualification and release decision`.
+
+**Next:** Close EPIC-007 and stop. Return the corrected-behavior handoff with trustworthy evidence; do not start another feature automatically.
+
 <a id="plan-release-gate"></a>
 ## Final release gate
 
-These are release-level checks, not extra implementation tasks:
+These are release-level checks, not extra implementation tasks. The checks below were marked passed at commit `f8b180d` (TASK-014); the corrective audit superseded several of them, and they are re-owned by [EPIC-007](#epic-007) / [TASK-021](#task-021):
 
-- [x] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished.
-- [x] All six epics and fourteen tasks have completed their stated local acceptance criteria in sequence.
-- [x] Default output is exactly three columns and four logical lines, including on partial provider failure.
-- [x] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol.
-- [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully.
-- [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced.
-- [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication.
+- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Superseded: 17 requirements were unchecked in TASK-015 pending re-qualification.)*
+- [ ] All epics and tasks have completed their stated local acceptance criteria in sequence. *(Superseded: EPIC-007, TASK-015 through TASK-021, is in progress; TASK-013/TASK-014 acceptance claims were superseded.)*
+- [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
+- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(Superseded: the recorded live evidence belongs to the pre-remediation artifact; the corrected candidate requires re-qualification, and Grok authentication classification defects must not survive into it.)*
+- [ ] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Superseded: owner-account acceptance lacks the provider-display comparison, and Linux/native checks must be re-run against the corrected tree or marked NOT RUN.)*
+- [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced. *(Held.)*
+- [ ] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Superseded: README conflates Linux offline testing with live qualification; artifacts must be rebuilt from the corrected tree.)*
 
 A missing live environment is a real qualification gap, not a reason to invent evidence. Stop with a precise incomplete-gate report instead of asking an implementation AI to loop until an unavailable service becomes available.
 
