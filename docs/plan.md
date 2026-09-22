@@ -34,17 +34,17 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 ```
 
-| Order | Epic | Tasks, executed left to right | Entry dependency | Initial status |
+| Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
 |---|---|---|---|---|
-| 1 | [EPIC-001: Contract qualification and foundation](#epic-001) | [TASK-001](#task-001) -> [TASK-002](#task-002) | None | NOT STARTED |
-| 2 | [EPIC-002: Safe subprocess and RPC foundation](#epic-002) | [TASK-003](#task-003) -> [TASK-004](#task-004) | [EPIC-001](#epic-001) complete | NOT STARTED |
-| 3 | [EPIC-003: Codex multi-account provider](#epic-003) | [TASK-005](#task-005) -> [TASK-006](#task-006) | [EPIC-002](#epic-002) complete | NOT STARTED |
-| 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | NOT STARTED |
-| 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | NOT STARTED |
-| 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | NOT STARTED |
-| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) | [EPIC-006](#epic-006) implemented | IN PROGRESS (residual findings) |
+| 1 | [EPIC-001: Contract qualification and foundation](#epic-001) | [TASK-001](#task-001) -> [TASK-002](#task-002) | None | COMPLETE (implementation milestone) |
+| 2 | [EPIC-002: Safe subprocess and RPC foundation](#epic-002) | [TASK-003](#task-003) -> [TASK-004](#task-004) | [EPIC-001](#epic-001) complete | COMPLETE (implementation milestone) |
+| 3 | [EPIC-003: Codex multi-account provider](#epic-003) | [TASK-005](#task-005) -> [TASK-006](#task-006) | [EPIC-002](#epic-002) complete | COMPLETE (implementation milestone) |
+| 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | COMPLETE (implementation milestone) |
+| 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | COMPLETE (implementation milestone) |
+| 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | COMPLETE (implementation milestone) |
+| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) | [EPIC-006](#epic-006) implemented | COMPLETE (residual findings re-owned by EPIC-007) |
 
-The `Initial status` column is historical: it records the state when the plan was authored. All six original epics subsequently reached their implementation milestones and their task commits exist in repository history. However, the corrective audit that opened [EPIC-007](#epic-007) superseded acceptance claims recorded at TASK-013 and TASK-014, so those gates are pending re-qualification and v0.1 is not currently fully accepted.
+Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the six original epics keep their implementation milestones and task commits, with EPIC-006's final acceptance superseded by EPIC-007 (the TASK-013/TASK-014 supersession notes record this); EPIC-007 is in progress with only its final gate task remaining. v0.1 is not fully release-accepted while REQ-048 stays open.
 
 The task order is globally sequential: TASK-001 through TASK-025. Runtime account queries may be concurrent; development tasks may not.
 
@@ -708,7 +708,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-007"></a>
 ## EPIC-007: Corrective remediation and re-acceptance
 
-- [ ] Epic complete. **Status: IN PROGRESS (residual findings).** *Supersession note (2026-09-22): the confirmation review of `c340245` verified most TASK-015..021 fixes but found five residual defects, reopening this epic through TASK-022..025. The completion claim above was premature; the historical work itself stands.*
+- [ ] Epic complete. **Status: IN PROGRESS** — TASK-022 and TASK-023 fixed the residual cleanup/ownership and label/suffix defects with regression coverage; TASK-024 reconciles this documentation; only TASK-025 (final gate and candidate packaging) remains. *Supersession note (2026-09-22): the confirmation review of `c340245` had found five residual defects, reopening the earlier completion claim; the historical TASK-015..021 work itself stands.*
 
 **Goal:** Correct the executable-level defects found by the 2026-09-22 adversarial audit of commit `f8b180d`, restore the documented contracts with regression coverage, and make the recorded acceptance state truthful again. This is a bounded remediation of the existing v0.1 implementation, not a redesign: the product scope, architecture, and the original six epics' IDs and commits are preserved.
 
@@ -776,9 +776,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] A valid response before the deadline remains numeric after slower cleanup; a response arriving only after the deadline does not become successful; startup, handshake, account/authentication, and quota reads share one query budget while cleanup uses its separate budget.
-- [ ] Cancellation unblocks a blocked notification write and a blocked callback-rejection write; repeated closure is safe; the direct child is reaped exactly once; unrelated processes and provider-managed leaders survive.
-- [ ] One total cleanup budget is enforced and measured end-to-end (not inferred from stage timers).
+- [x] A valid response before the deadline remains numeric after slower cleanup; a response arriving only after the deadline does not become successful; startup, handshake, account/authentication, and quota reads share one query budget while cleanup uses its separate budget. *(Verified by the confirmation review and the TASK-016 regressions.)*
+- [x] Cancellation unblocks a blocked notification write and a blocked callback-rejection write; repeated closure is safe; the direct child is reaped exactly once; unrelated processes and provider-managed leaders survive. *(Follow-up TASK-022: leader/descendant survival is now guaranteed by the direct-child-only policy rather than by the group-kill path this item originally rode on.)*
+- [x] One total cleanup budget is enforced and measured end-to-end (not inferred from stage timers). *(TestCloseHonorsSingleAbsoluteBudgetEndToEnd.)*
 
 **Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-RUNNER](architecture.md#v-runner). Focused race-enabled tests using synchronization and timing margins, not exact scheduler timing.
 
@@ -807,8 +807,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Absolute and explicit relative binary overrides (including paths with spaces) resolve correctly despite the neutral child cwd; missing and present-but-unexecutable binaries keep their documented statuses.
-- [ ] Closed stdout pipe, SIGINT and SIGTERM separately, and each signal combined with unwritable stdout produce the exact documented exit codes with real OS pipes against the actual executable; correct rows, no late launch, and safe diagnostics without raw provider output.
+- [x] Absolute and explicit relative binary overrides (including paths with spaces) resolve correctly despite the neutral child cwd; missing and present-but-unexecutable binaries keep their documented statuses. *(Verified by the confirmation review.)*
+- [x] Closed stdout pipe, SIGINT and SIGTERM separately, and each signal combined with unwritable stdout produce the exact documented exit codes with real OS pipes against the actual executable; correct rows, no late launch, and safe diagnostics without raw provider output. *(Verified by the confirmation review.)*
 
 **Verification:** [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e). Executable-level tests with real OS pipes, not `io.Writer` stubs.
 
@@ -837,8 +837,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Replacing an initialization or authentication response with `error:null`, a both-members or neither-member object, or a mistyped error object yields a safe failure status, never numeric success or unsupported authentication claims.
-- [ ] Invalid/incompatible ACP version markers and dialect-inappropriate envelopes are rejected; valid operation-specific null results, additive fields, and unrelated notifications still work; invalid UTF-8, oversize frames, and non-empty unterminated frames keep their terminal handling.
+- [x] Replacing an initialization or authentication response with `error:null`, a both-members or neither-member object, or a mistyped error object yields a safe failure status, never numeric success or unsupported authentication claims. *(Verified by the confirmation review.)*
+- [x] Invalid/incompatible ACP version markers and dialect-inappropriate envelopes are rejected; valid operation-specific null results, additive fields, and unrelated notifications still work; invalid UTF-8, oversize frames, and non-empty unterminated frames keep their terminal handling. *(Verified by the confirmation review.)*
 
 **Verification:** [V-RPC](architecture.md#v-rpc). Framing/dialect matrix extension with malformed-error and envelope cases.
 
@@ -868,8 +868,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Blank/whitespace-only aliases and emails, control/format-only labels, Unicode whitespace, sanitization collisions, duplicate emails/basenames, and generated-suffix collisions behave per the normalization policy with no extra rows/columns and no provider launch for invalid aliases.
-- [ ] Every branch of the authentication decision table, non-authentication remote errors, monthly provenance, and weekly periods with missing usage are covered by tests; dependency direction stays clean (domain code never imports the renderer).
+- [x] Blank/whitespace-only aliases and emails, control/format-only labels, Unicode whitespace, sanitization collisions, duplicate emails/basenames, and generated-suffix collisions behave per the normalization policy with no extra rows/columns and no provider launch for invalid aliases. *(Follow-up TASK-023: the Unicode-whitespace clause is satisfied by the complete predicate; ASCII-only cases were already verified by the confirmation review.)*
+- [x] Every branch of the authentication decision table, non-authentication remote errors, monthly provenance, and weekly periods with missing usage are covered by tests; dependency direction stays clean (domain code never imports the renderer). *(Verified by the confirmation review.)*
 
 **Verification:** [V-IDENTITY](architecture.md#v-identity), [V-GROK](architecture.md#v-grok), [V-SAFETY](architecture.md#v-safety).
 
@@ -898,9 +898,9 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Integration cleanup removes only owned directories; the unrelated-directory survival regression exists and passes.
-- [ ] `gofmt -l` reports nothing and the workflow fails on formatting drift.
-- [ ] Documentation claims are semantically consistent with the recorded evidence and distinguish the four evidence kinds.
+- [x] Integration cleanup removes only owned directories; the unrelated-directory survival regression exists and passes.
+- [x] `gofmt -l` reports nothing and the workflow fails on formatting drift. *(The CI gofmt gate added in TASK-020.)*
+- [x] Documentation claims are semantically consistent with the recorded evidence and distinguish the four evidence kinds at TASK-020's tree state. *(Follow-up TASK-024: the confirmation review found later drift — roadmap/acceptance/packaging inconsistency at `c340245` — reconciled here and re-packaged in TASK-025.)*
 
 **Verification:** [V-DOCS](architecture.md#v-docs), [V-E2E](architecture.md#v-e2e). `gofmt -l`, `go run scripts/check-docs.go`, integration suite.
 
@@ -930,8 +930,8 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Every re-checked requirement has current, tree-matching evidence; requirements still unchecked carry exact reasons and owner actions.
-- [ ] The final gate results distinguish run, not-run, and blocked checks; v0.1 is not declared fully accepted while a mandatory gate remains open.
+- [x] Every re-checked requirement has current, tree-matching evidence; requirements still unchecked carry exact reasons and owner actions. *(Follow-up TASK-022/023/024: six of those re-checks were themselves reopened by the confirmation review and are re-qualified against the current tree; REQ-048 remains the only unchecked requirement.)*
+- [x] The final gate results distinguish run, not-run, and blocked checks; v0.1 is not declared fully accepted while a mandatory gate remains open. *(Follow-up: the TASK-021 gate ran against a tree whose packaged documents were stale — re-run with document-freshness verification in TASK-025.)*
 
 **Verification:** [V-AUDIT](architecture.md#v-audit), [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-LIVE](architecture.md#v-live).
 
@@ -960,7 +960,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] A numeric quota plus failed cleanup keeps the percentage, emits exactly one safe diagnostic, and exits 1; cleanup failure in one target leaves healthy siblings untouched; signal codes outrank cleanup failure; repeated closure keeps one outcome; RPC-abort-initiated cleanup failures reach the result; a real permission-based removal failure is reproduced where the environment permits (test-owned directories only, permissions restored).
+- [x] A numeric quota plus failed cleanup keeps the percentage, emits exactly one safe diagnostic, and exits 1; cleanup failure in one target leaves healthy siblings untouched; signal codes outrank cleanup failure; repeated closure keeps one outcome; RPC-abort-initiated cleanup failures reach the result; a real permission-based removal failure is reproduced where the environment permits (test-owned directories only, permissions restored). *(TASK-022 evidence record.)*
 
 **Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e).
 
@@ -986,7 +986,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] U+3000/U+205F/U+1680-only aliases exit 2 before provider launch; a U+3000-only email falls back to its home basename; the `same/other/same` example yields `#3`; labels are deterministic across repeated invocations and completion orders; existing sanitization-collision and lookalike protections still hold.
+- [x] U+3000/U+205F/U+1680-only aliases exit 2 before provider launch; a U+3000-only email falls back to its home basename; the `same/other/same` example yields `#3`; labels are deterministic across repeated invocations and completion orders; existing sanitization-collision and lookalike protections still hold. *(TASK-023 evidence record.)*
 
 **Verification:** [V-OPTIONS](architecture.md#v-options), [V-IDENTITY](architecture.md#v-identity).
 
@@ -997,7 +997,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-024"></a>
 ### TASK-024: Reconcile current documentation and acceptance state
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Execute the confirmation review's fifth finding: make headers, roadmap rows, epic/task statuses, requirement checkboxes, acceptance checklists, and verification records agree, without bulk-checking or rewriting history.
 
@@ -1011,7 +1011,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Document navigation is consistent; no acceptance checkbox is checked without matching evidence; the final state distinguishes corrective code completion from the pending REQ-048 live gate (candidate live test and provider-display comparison).
+- [x] Document navigation is consistent; no acceptance checkbox is checked without matching evidence; the final state distinguishes corrective code completion from the pending REQ-048 live gate (candidate live test and provider-display comparison). *(TASK-024 evidence record.)*
 
 **Verification:** [V-AUDIT](architecture.md#v-audit), [V-DOCS](architecture.md#v-docs). `go run scripts/check-docs.go`.
 
@@ -1050,7 +1050,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 These are release-level checks, not extra implementation tasks. The checks below were marked passed at commit `f8b180d` (TASK-014); the corrective audit superseded several of them, and they are re-owned by [EPIC-007](#epic-007) / [TASK-021](#task-021):
 
-- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Re-owned by TASK-021: 16 of the 17 reopened requirements are re-checked with corrected-tree evidence; REQ-048 remains unchecked pending the owner-authorized provider-display comparison.)*
+- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Current: 49 checked after the TASK-022/023/024 re-qualifications; REQ-048 remains unchecked pending the owner-authorized live campaign — both the candidate live test and the provider-display comparison.)*
 - [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-015 through TASK-021 closed EPIC-007; the superseded TASK-013/TASK-014 acceptance portions are re-owned by the still-open REQ-048 gate below.)*
 - [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
 - [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the corrected candidate has not been live-tested because owner authorization was unavailable in this environment. Offline qualification of the corrected tree is complete.)*

@@ -1,5 +1,7 @@
 # TASK-020: Fix test hygiene, formatting, and documentation inconsistencies
 
+> Follow-up note (2026-09-22, TASK-024): the confirmation review found later state drift (roadmap row, acceptance checkboxes, and packaged documents inconsistent at `c340245`) despite this task's own scope being correct at its tree state; reconciled by TASK-024 with packaging freshness re-verified in TASK-025.
+
 Task: TASK-020
 Status: COMPLETE
 Goal and implementation scope: Test-owned cleanup removes only directories the current invocation created; formatting is applied and enforced by the verification workflow rather than assumed; documentation states exactly what was verified, distinguishing the four evidence kinds.

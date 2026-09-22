@@ -1,5 +1,7 @@
 # TASK-016: Fix query deadlines, transport cancellation, and owned-process cleanup
 
+> Follow-up note (2026-09-22, TASK-022): the confirmation review found this task's stage-3 escalation still SIGKILLed the whole private group without proven ownership, and its cleanup-error plumbing stopped at child.Close. Both are superseded by the direct-child-only policy and the cleanup-failure propagation in TASK-022; this record's deadline, cancellation, and single-budget work stands.
+
 Task: TASK-016
 Status: COMPLETE
 Goal and implementation scope: Separate the point at which a query result becomes valid from the completion of deferred cleanup; make notification writes and terminal failure unblock owned I/O exactly once; enforce one absolute cleanup budget end to end; document the descendant/shared-process ownership boundary.

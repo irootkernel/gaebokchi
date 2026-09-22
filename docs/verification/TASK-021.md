@@ -1,5 +1,7 @@
 # TASK-021: Perform final qualification and record the release decision truthfully
 
+> Follow-up note (2026-09-22, TASK-024/TASK-025): the corrective-completion claim recorded here was superseded by the confirmation review's five residual findings; additionally, the archives staged by this task were built before the final document edits, so their packaged documents were stale. Re-qualified and re-packaged by TASK-022 through TASK-025.
+
 Task: TASK-021
 Status: COMPLETE
 Goal and implementation scope: Qualify the corrected candidate tree end to end, re-verify every requirement unchecked in TASK-015, and record a release decision that keeps code-remediation completion distinct from full release acceptance.

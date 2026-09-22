@@ -1,5 +1,7 @@
 # TASK-019: Fix identity handling, Grok authentication classification, and provenance
 
+> Follow-up note (2026-09-22, TASK-023): this task's normalization enumerated only some Unicode whitespace ranges (U+3000/U+205F/U+1680 passed validation) and its duplicate suffix used a collision counter rather than the documented target-index rule. Both are superseded by TASK-023; this record's ordering, authentication-classification, and provenance work stands.
+
 Task: TASK-019
 Status: COMPLETE
 Goal and implementation scope: One display-label normalization policy applied before validity checks and duplicate disambiguation; an explicit Grok authentication advertisement decision table; authenticate errors mapped only from verified structure; period/source/reset provenance preserved in every established Grok branch.
