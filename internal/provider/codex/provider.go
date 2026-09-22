@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -331,8 +332,11 @@ func isUsableEmail(email string) bool {
 }
 
 // ResolveBin resolves the configured executable once per invocation.
-// Relative explicit paths are honored only when they are not the
-// unsafe-current-directory lookup Go protects against.
+// An explicit relative path is made absolute against the invocation
+// environment before the child's private working directory can change
+// its meaning. Go's unsafe-current-directory PATH lookup protection is
+// a different case: an implicit lookup that found the current directory
+// fails with exec.ErrDot and stays an error.
 func ResolveBin(bin string) (string, error) {
 	if bin == "" {
 		return "", errors.New("codex: empty executable")
@@ -340,6 +344,13 @@ func ResolveBin(bin string) (string, error) {
 	resolved, err := exec.LookPath(bin)
 	if err != nil {
 		return "", err
+	}
+	if !filepath.IsAbs(resolved) {
+		abs, err := filepath.Abs(resolved)
+		if err != nil {
+			return "", err
+		}
+		resolved = abs
 	}
 	return resolved, nil
 }

@@ -3,7 +3,9 @@ package codex
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -246,4 +248,56 @@ func TestQueryProtocolErrorClassification(t *testing.T) {
 
 func containsStr(haystack, needle string) bool {
 	return strings.Contains(haystack, needle)
+}
+
+// TestResolveBinRelativeMadeAbsolute pins the audit fix: an explicit
+// relative executable path is absolutized against the invocation cwd so
+// it survives the child's private working directory.
+func TestResolveBinRelativeMadeAbsolute(t *testing.T) {
+	dir := t.TempDir()
+	name := "fake provider" // includes a space
+	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	got, err := ResolveBin("./" + name)
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	want, err := filepath.Abs(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("resolved = %q, want absolute %q", got, want)
+	}
+}
+
+// TestResolveBinErrDotProtectionPreserved pins that an implicit
+// current-directory PATH lookup stays an error rather than being
+// silently absolutized.
+func TestResolveBinErrDotProtectionPreserved(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "dotbin"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	t.Setenv("PATH", ".")
+	if _, err := ResolveBin("dotbin"); !errors.Is(err, exec.ErrDot) {
+		t.Fatalf("err = %v, want exec.ErrDot", err)
+	}
+}
+
+func TestResolveBinMissingAndUnexecutable(t *testing.T) {
+	if _, err := ResolveBin("./definitely-not-here"); err == nil {
+		t.Fatal("missing binary must not resolve")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "noexec"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	if _, err := ResolveBin("./noexec"); err == nil {
+		t.Fatal("present-but-unexecutable binary must not resolve")
+	}
 }

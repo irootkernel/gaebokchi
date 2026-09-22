@@ -66,33 +66,59 @@ type codexQuerier = app.Querier
 type grokQuerier = app.Querier
 
 // execute runs the snapshot and implements the exit contract of
-// ARCH-10. The first handled signal determines the cancellation exit
-// code and takes precedence over partial provider failure.
+// ARCH-10. Exit-code precedence is centralized in finalExit: the first
+// handled cancellation signal outranks an output failure, which
+// outranks partial provider failure. A closed stdout reader is an
+// output failure (exit 1), never SIGPIPE signal death: SIGPIPE is
+// notified below so the runtime delivers it harmlessly while the
+// failing write itself returns an error the output-failure path acts
+// on.
 func execute(opts options.Options, stdout, stderr io.Writer, newProviders providers) int {
-	// Help and version never launch a provider process.
-	if opts.Help {
-		_, _ = io.WriteString(stdout, usage)
-		return 0
-	}
-	if opts.Version {
-		fmt.Fprintf(stdout, "gaebokchi %s\n", version)
-		return 0
-	}
-
-	// Signal setup precedes any child so an early interrupt cannot
-	// bypass cancellation.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var signalNum atomic.Int64
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigCh)
+	// Explicit SIGPIPE policy (see the comment above).
+	pipeCh := make(chan os.Signal, 1)
+	signal.Notify(pipeCh, syscall.SIGPIPE)
+	defer signal.Stop(pipeCh)
+	watchDone := make(chan struct{})
+	defer close(watchDone)
 	go func() {
-		if sig, ok := <-sigCh; ok {
-			signalNum.Store(int64(sig.(syscall.Signal)))
-			cancel()
+		defer signal.Stop(sigCh)
+		select {
+		case sig, ok := <-sigCh:
+			if ok {
+				signalNum.Store(int64(sig.(syscall.Signal)))
+				cancel()
+			}
+		case <-watchDone:
+			// Execution finished; release the signal watcher.
 		}
 	}()
+
+	writeOut := func(s string) bool {
+		_, err := io.WriteString(stdout, s)
+		return err == nil
+	}
+
+	// Help and version never launch a provider process; their output
+	// failures are output failures all the same.
+	if opts.Help {
+		if !writeOut(usage) {
+			fmt.Fprintln(stderr, "gaebokchi: cannot write help to stdout")
+			return finalExit(signalNum.Load(), true, nil)
+		}
+		return finalExit(signalNum.Load(), false, nil)
+	}
+	if opts.Version {
+		if !writeOut(fmt.Sprintf("gaebokchi %s\n", version)) {
+			fmt.Fprintln(stderr, "gaebokchi: cannot write version to stdout")
+			return finalExit(signalNum.Load(), true, nil)
+		}
+		return finalExit(signalNum.Load(), false, nil)
+	}
 
 	targets := opts.Targets()
 	cx, gk := newProviders()
@@ -101,21 +127,33 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 	app.DisambiguateCodexAccounts(results, targets)
 
 	table := render.Table(results)
-	if _, err := io.WriteString(stdout, table); err != nil {
+	outputOK := writeOut(table)
+	if !outputOK {
 		// Without a writable stdout a complete table cannot be
-		// guaranteed; write only a safe diagnostic where possible.
+		// guaranteed; write only safe diagnostics where possible.
 		fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
-		return 1
 	}
 	render.WriteDiagnostics(stderr, results)
+	return finalExit(signalNum.Load(), !outputOK, results)
+}
 
-	if n := signalNum.Load(); n != 0 {
-		if n == int64(syscall.SIGINT) {
-			return 130
-		}
+// finalExit picks the process exit code by the documented precedence:
+// 130/143 for the first handled cancellation signal, then 1 for an
+// output failure, then the row-based 0/1 contract. results is nil for
+// the help/version paths.
+func finalExit(sigNum int64, outputFailed bool, results []domain.Result) int {
+	switch {
+	case sigNum == int64(syscall.SIGINT):
+		return 130
+	case sigNum != 0:
 		return 143
+	case outputFailed:
+		return 1
+	case results == nil:
+		return 0
+	default:
+		return exitCode(results)
 	}
-	return exitCode(results)
 }
 
 // exitCode computes the non-signal exit code: 0 when every row is

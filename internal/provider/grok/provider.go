@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -63,13 +64,27 @@ func (p *Provider) resolveBin(bin string) (string, error) {
 	return p.binPath, p.binErr
 }
 
-// ResolveBin resolves the configured executable; ErrDot protection is
-// respected and shell aliases are not executable.
+// ResolveBin resolves the configured executable once per invocation.
+// An explicit relative path is made absolute against the invocation
+// environment before the child's private working directory can change
+// its meaning; ErrDot protection for implicit current-directory PATH
+// lookups is respected and shell aliases are not executable.
 func ResolveBin(bin string) (string, error) {
 	if bin == "" {
 		return "", errors.New("grok: empty executable")
 	}
-	return exec.LookPath(bin)
+	resolved, err := exec.LookPath(bin)
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(resolved) {
+		abs, err := filepath.Abs(resolved)
+		if err != nil {
+			return "", err
+		}
+		resolved = abs
+	}
+	return resolved, nil
 }
 
 // session is one Grok ACP connection.
