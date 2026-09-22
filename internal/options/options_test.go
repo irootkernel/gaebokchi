@@ -168,6 +168,7 @@ func TestTimeoutValidation(t *testing.T) {
 func TestUnknownFlagAndPositional(t *testing.T) {
 	mustFail(t, "--provider", "codex")
 	mustFail(t, "--json")
+	mustFail(t, "--version")
 	mustFail(t, "extra-arg")
 	mustFail(t, "--codex-home", "/a", "extra")
 	mustFail(t, "-x")
@@ -179,7 +180,6 @@ func TestScalarFlagsOnlyOnce(t *testing.T) {
 	mustFail(t, "--timeout", "30s", "--timeout", "40s")
 	mustFail(t, "--grok-account", "a", "--grok-account", "b")
 	mustFail(t, "--codex-bin", "codex2", "--codex-bin", "codex3")
-	mustFail(t, "--version", "--version")
 	mustFail(t, "--help", "--help")
 }
 
@@ -191,23 +191,14 @@ func TestEqualsForm(t *testing.T) {
 	mustFail(t, "--help=true")
 }
 
-func TestHelpAndVersion(t *testing.T) {
+func TestHelp(t *testing.T) {
 	o := mustParse(t, "--help")
-	if !o.Help || o.Version {
+	if !o.Help {
 		t.Error("help not parsed")
-	}
-	o = mustParse(t, "--version")
-	if !o.Version || o.Help {
-		t.Error("version not parsed")
 	}
 	o = mustParse(t, "-h")
 	if !o.Help {
 		t.Error("-h not parsed as help")
-	}
-	// Both supplied: help wins, but syntactic validity is still required.
-	o = mustParse(t, "--version", "--help")
-	if !o.Help || !o.Version {
-		t.Error("help+version combination broken")
 	}
 	mustFail(t, "--help", "--timeout", "bogus")
 	mustFail(t, "--help", "--unknown")

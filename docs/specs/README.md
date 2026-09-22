@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: CORRECTIVE-COMPLETE (code) — the confirmation review's residual findings are fixed and re-qualified (TASK-022 through TASK-025); the final offline gate is green on darwin/arm64 and linux/arm64 and the candidate archives carry byte-verified documents. REQ-048 remains the only unchecked requirement: the corrected candidate has not been live-tested and the provider-display comparison was never performed  
+Status: VERSION-CONTRACT COMPLETE — TASK-028 implemented and verified `version [--json]`, build metadata resolution, and v-prefixed release staging. REQ-048 remains the only unchecked requirement and needs separate owner-authorized live acceptance
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -13,7 +13,7 @@ This document owns **what must be delivered**. The [architecture](../architectur
 
 The three canonical documents live in role directories below `docs/` and are indexed by `docs/README.md`. Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. Explicit anchors and IDs are stable. An implementation AI must not weaken a requirement merely because an upstream CLI is unsupported. Resolve contradictions across the three documents in the same task-scoped change.
 
-The original campaign checked all 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`. A later adversarial audit of executable-level behavior superseded that result: 17 requirements were unchecked in TASK-015 with supersession notes naming the defect and the re-qualifying task under [EPIC-007](../roadmap/README.md#epic-007). TASK-021 re-verified each full acceptance scope against the corrected tree and restored 16 of them with re-qualification notes; REQ-048 remains open because the provider-display comparison requires owner authorization that was not available. Unaffected requirements kept their original evidence throughout.
+The original campaign checked 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`. A later adversarial audit of executable-level behavior superseded that result: 17 requirements were unchecked in TASK-015 with supersession notes naming the defect and the re-qualifying task under [EPIC-007](../roadmap/README.md#epic-007). TASK-021 re-verified each full acceptance scope against the corrected tree and restored 16 of them. TASK-028 added and closed REQ-051 for the approved version-command contract. REQ-048 remains open because the provider-display comparison requires owner authorization that was not available. Unaffected requirements kept their original evidence throughout.
 
 ## Product outcome
 
@@ -63,7 +63,7 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### CLI and output
 
 <a id="req-006"></a>
-- [x] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
+- [x] **REQ-006: Small documented command surface.** Implement only the v0.1 surface in ARCH-03: help; the `version [--json]` command; repeatable Codex home overrides; binary overrides; Grok display alias; and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and unsupported positional arguments, including the removed `--version` form.
   - - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [docs/verification/TASK-002.md](../verification/TASK-002.md) parser matrix plus TASK-010 help/version/no-launch and exit-code tests.
   - Superseded 2026-09-22 by the corrective audit: binary overrides given as explicit relative paths fail from the neutral child cwd, and a whitespace-only `--grok-account` alias is accepted. Re-qualification: [TASK-017](../roadmap/README.md#task-017) (path resolution) and [TASK-019](../roadmap/README.md#task-019) (alias validation).
   - Re-qualified 2026-09-22 under EPIC-007: explicit relative binary overrides resolve against the invocation cwd (unit + end-to-end wrapper-script test), and aliases normalize before validation with blank-after-normalization rejected as a usage error before launch. Checkbox restored.
@@ -299,6 +299,10 @@ Provider compatibility is an implementation gate. Published documentation/source
 
   - Reopened 2026-09-22 by the confirmation review of `c340245`: roadmap/acceptance-checkbox/packaged-document states were inconsistent with the recorded completion claims. Re-qualification: [TASK-024](../roadmap/README.md#task-024).
   - Re-qualified 2026-09-22 under EPIC-007 follow-up (TASK-024): roadmap rows, epic/task statuses, requirement checkboxes, acceptance checklists, and verification records agree; each acceptance checkbox is checked only with matching evidence; packaged-document freshness is verified by TASK-025 before the candidate is staged. Checkbox restored.
+
+<a id="req-051"></a>
+- [x] **REQ-051: Stable executable version contract.** Provide the project-independent commands `gaebokchi version` and `gaebokchi version --json`. Human output is `gaebokchi <version>`; JSON contains exactly `name` and `version`. Release versions and versioned staging paths use a `v` prefix, source builds without release metadata report `(devel)`, and `--version` is rejected. Version lookup must not launch providers or depend on HOME, the working directory, or project state.
+  - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-13](../architecture/README.md#arch-13). Owner: [TASK-028](../roadmap/README.md#task-028). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-BUILD](../architecture/README.md#v-build). Evidence: [TASK-028](../verification/TASK-028.md) records exact human/JSON behavior, development and release metadata, invalid syntax, output failure, full offline/race gates, four target builds, document-fresh archives, checksums, and native darwin/arm64 smoke.
 ## Completion rules
 
 A percentage is not required when the provider explicitly reports a monthly allowance or the account uses an out-of-scope API-key mode. Those are supported, truthful **non-applicable** outcomes. An unsupported method, missing weekly metadata, absent login, timeout, or missing executable is a supported **failure/unavailable presentation**, not evidence that the positive provider integration is complete.
@@ -338,5 +342,6 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-023](../roadmap/README.md#task-023) | Re-qualifies [REQ-006](#req-006), [REQ-010](#req-010), [REQ-012](#req-012) |
 | [TASK-024](../roadmap/README.md#task-024) | Re-qualifies [REQ-050](#req-050) |
 | [TASK-025](../roadmap/README.md#task-025) | Final gate and candidate packaging evidence |
+| [TASK-028](../roadmap/README.md#task-028) | [REQ-051](#req-051) |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [plan.md](../roadmap/README.md#plan-roadmap).

@@ -170,7 +170,7 @@ func TestSignalMixedCompletionKeepsNumericRow(t *testing.T) {
 // TestHelpVersionBrokenPipeExitsOne covers output failures on the
 // help/version paths, which never launch providers.
 func TestHelpVersionBrokenPipeExitsOne(t *testing.T) {
-	for _, args := range [][]string{{"--help"}, {"--version"}} {
+	for _, args := range [][]string{{"--help"}, {"version"}} {
 		w := brokenStdoutPipe(t)
 		var errBuf bytes.Buffer
 		cmd := exec.Command(gaebokchiBin(t), args...)

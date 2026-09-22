@@ -59,7 +59,7 @@ your `PATH`.
 From source:
 
 ```sh
-go build -trimpath -ldflags "-X main.version=0.1.0" -o gaebokchi ./cmd/gaebokchi
+go build -trimpath -ldflags "-X main.buildVersion=v0.1.0" -o gaebokchi ./cmd/gaebokchi
 ```
 
 This repository does not yet declare a remote download URL, package-manager
@@ -75,7 +75,13 @@ gaebokchi --timeout 40s                              # longer query budget
 gaebokchi --codex-home ~/.codex-work                 # one custom home (replaces defaults)
 gaebokchi --codex-home ~/.codex-work --codex-home ~/.codex-personal
 gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
+gaebokchi version
+gaebokchi version --json
 ```
+
+Release builds print `gaebokchi v0.1.0`; ordinary source builds without an
+explicit version override print `gaebokchi (devel)`. The JSON form is exactly
+`{"name":"gaebokchi","version":"v0.1.0"}` for the v0.1.0 release build.
 
 ### Flags
 
@@ -86,7 +92,10 @@ gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
 | `--grok-bin PATH` | `grok` | grok executable path or name |
 | `--grok-account LABEL` | `default` | Display alias for the Grok row (not an email) |
 | `--timeout DURATION` | `20s` | Per-target query budget, 1s–120s |
-| `-h`, `--help` / `--version` | — | Print help/version without launching providers |
+| `-h`, `--help` | — | Print help without launching providers |
+
+`version [--json]` is a project-independent command and never launches a
+provider. The former `--version` flag is not supported.
 
 The ambient `CODEX_HOME` environment variable does not change the default
 account list. Unknown flags, positional arguments, empty values, invalid

@@ -19,13 +19,18 @@ import (
 	"gaebokchi/internal/render"
 )
 
-// version is overridden at release-build time via -ldflags.
-var version = "0.1.0"
+// buildVersion is overridden at release-build time via -ldflags.
+var buildVersion string
 
-const usage = `Usage: gaebokchi [flags]
+const usage = `Usage:
+  gaebokchi [flags]
+  gaebokchi version [--json]
 
 Show weekly subscription usage for Codex (ChatGPT) and Grok accounts using
 the existing provider CLI logins. One snapshot, then exit.
+
+Commands:
+  version               print version and exit; use --json for JSON
 
 Flags:
   --codex-home PATH     Codex home directory; repeatable. Supplying any
@@ -35,7 +40,6 @@ Flags:
   --grok-account LABEL  display alias for the Grok row (default "default")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
   -h, --help            show this help and exit
-  --version             print version and exit
 
 Exit codes: 0 ok, 1 incomplete rows, 2 usage error, 130 SIGINT, 143 SIGTERM.
 
@@ -49,14 +53,25 @@ func main() {
 
 // run returns the process exit code for one invocation.
 func run(args []string) int {
-	opts, err := options.Parse(args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "gaebokchi: %v\n\n%s", err, usage)
-		return 2
-	}
-	return execute(opts, os.Stdout, os.Stderr, func() (app.Querier, app.Querier) {
+	return runWithIO(args, os.Stdout, os.Stderr, func() (app.Querier, app.Querier) {
 		return codex.New(), grok.New()
 	})
+}
+
+// runWithIO keeps early command dispatch and provider construction testable.
+func runWithIO(args []string, stdout, stderr io.Writer, newProviders providers) int {
+	// Broken stdout/stderr pipes are reported through write errors instead of
+	// terminating the process before the command can apply its exit contract.
+	signal.Ignore(syscall.SIGPIPE)
+	if handled, exitCode := handleVersion(args, stdout, stderr, currentVersion()); handled {
+		return exitCode
+	}
+	opts, err := options.Parse(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "gaebokchi: %v\n\n%s", err, usage)
+		return 2
+	}
+	return execute(opts, stdout, stderr, newProviders)
 }
 
 // providers is the seam through which tests inject fake providers.
@@ -79,7 +94,8 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 	var signalNum atomic.Int64
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	// Explicit SIGPIPE policy (see the comment above).
+	// Explicit SIGPIPE notification preserves the existing snapshot-command
+	// behavior while run's process-wide policy protects the early version path.
 	pipeCh := make(chan os.Signal, 1)
 	signal.Notify(pipeCh, syscall.SIGPIPE)
 	defer signal.Stop(pipeCh)
@@ -103,8 +119,8 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 		return err == nil
 	}
 
-	// Help and version never launch a provider process; their output
-	// failures are output failures all the same.
+	// Help never launches a provider process; its output failure is an
+	// output failure all the same.
 	if opts.Help {
 		if !writeOut(usage) {
 			fmt.Fprintln(stderr, "gaebokchi: cannot write help to stdout")
@@ -112,14 +128,6 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 		}
 		return finalExit(signalNum.Load(), false, nil)
 	}
-	if opts.Version {
-		if !writeOut(fmt.Sprintf("gaebokchi %s\n", version)) {
-			fmt.Fprintln(stderr, "gaebokchi: cannot write version to stdout")
-			return finalExit(signalNum.Load(), true, nil)
-		}
-		return finalExit(signalNum.Load(), false, nil)
-	}
-
 	targets := opts.Targets()
 	cx, gk := newProviders()
 	runner := &app.Runner{Codex: cx, Grok: gk}
@@ -140,7 +148,7 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 // finalExit picks the process exit code by the documented precedence:
 // 130/143 for the first handled cancellation signal, then 1 for an
 // output failure, then the row-based 0/1 contract. results is nil for
-// the help/version paths.
+// the help path.
 func finalExit(sigNum int64, outputFailed bool, results []domain.Result) int {
 	switch {
 	case sigNum == int64(syscall.SIGINT):

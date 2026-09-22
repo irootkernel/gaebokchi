@@ -19,11 +19,11 @@ or perform real-account queries.
 ## Local release staging
 
 ```sh
-sh scripts/build-release.sh 0.1.0
+sh scripts/build-release.sh v0.1.0
 GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go test ./scripts/ -count=1
 ```
 
-The build script replaces `dist/gaebokchi-0.1.0` and stages four platform
+The build script replaces `dist/gaebokchi-v0.1.0` and stages four platform
 archives plus checksums. Inspect any existing local staging before running it.
 These commands do not publish, sign, tag, choose a license, or grant authority
 to perform those operations.

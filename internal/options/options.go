@@ -34,7 +34,6 @@ type Options struct {
 	GrokAccount string
 	Timeout     time.Duration
 	Help        bool
-	Version     bool
 }
 
 // UsageError marks parse failures that must exit with code 2 before any
@@ -110,8 +109,7 @@ func specs() map[string]*flagSpec {
 			o.Timeout = d
 			return nil
 		}},
-		"help":    {name: "help", kind: kindBool, set: func(o *Options, _ string) error { o.Help = true; return nil }},
-		"version": {name: "version", kind: kindBool, set: func(o *Options, _ string) error { o.Version = true; return nil }},
+		"help": {name: "help", kind: kindBool, set: func(o *Options, _ string) error { o.Help = true; return nil }},
 	}
 }
 

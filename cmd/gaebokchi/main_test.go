@@ -69,11 +69,37 @@ func parse(t *testing.T, args ...string) options.Options {
 }
 
 func TestUsageErrorsExitTwo(t *testing.T) {
-	if code := run([]string{"--bogus"}); code != 2 {
+	var stdout, stderr bytes.Buffer
+	if code := runWithIO([]string{"--bogus"}, &stdout, &stderr, fakes); code != 2 {
 		t.Fatalf("code = %d, want 2", code)
 	}
-	if code := run([]string{"extra-arg"}); code != 2 {
+	stdout.Reset()
+	stderr.Reset()
+	if code := runWithIO([]string{"extra-arg"}, &stdout, &stderr, fakes); code != 2 {
 		t.Fatalf("positional code = %d, want 2", code)
+	}
+}
+
+func TestVersionDispatchPrecedesOptionsAndProviders(t *testing.T) {
+	bomb := &fakeProv{results: map[string]domain.Result{"codex:0": {Status: domain.StatusProtocolError}}}
+	newProviders := func() (codexQuerier, grokQuerier) { return bomb, bomb }
+	var stdout, stderr bytes.Buffer
+	code := runWithIO([]string{"version", "--json"}, &stdout, &stderr, newProviders)
+	if code != 0 || stdout.String() != "{\"name\":\"gaebokchi\",\"version\":\"(devel)\"}\n" || stderr.Len() != 0 {
+		t.Fatalf("version dispatch: code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if len(bomb.calls) != 0 {
+		t.Fatal("version command launched a provider")
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	code = runWithIO([]string{"--version"}, &stdout, &stderr, newProviders)
+	if code != 2 || !strings.Contains(stderr.String(), `unknown flag "--version"`) {
+		t.Fatalf("removed flag: code=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if len(bomb.calls) != 0 {
+		t.Fatal("removed version flag launched a provider")
 	}
 }
 
@@ -163,26 +189,18 @@ func TestMonthlyAndAPIKeyAreCleanExitZero(t *testing.T) {
 	}
 }
 
-func TestHelpAndVersionLaunchNoProviders(t *testing.T) {
+func TestHelpLaunchesNoProviders(t *testing.T) {
 	// The fake providers fail the test if queried.
 	bomb := &fakeProv{results: map[string]domain.Result{
 		"codex:0": {Status: domain.StatusProtocolError},
 	}}
 	var out, errBuf bytes.Buffer
 	code := execute(parse(t, "--help"), &out, &errBuf, func() (codexQuerier, grokQuerier) { return bomb, bomb })
-	if code != 0 || !strings.HasPrefix(out.String(), "Usage: gaebokchi") {
+	if code != 0 || !strings.HasPrefix(out.String(), "Usage:\n  gaebokchi") {
 		t.Fatalf("help: code=%d out=%q", code, out.String())
 	}
 	if len(bomb.calls) != 0 {
 		t.Fatal("help must not launch providers")
-	}
-	out.Reset()
-	code = execute(parse(t, "--version"), &out, &errBuf, func() (codexQuerier, grokQuerier) { return bomb, bomb })
-	if code != 0 || !strings.Contains(out.String(), "gaebokchi") {
-		t.Fatalf("version: code=%d out=%q", code, out.String())
-	}
-	if len(bomb.calls) != 0 {
-		t.Fatal("version must not launch providers")
 	}
 }
 

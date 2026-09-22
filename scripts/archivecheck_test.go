@@ -223,7 +223,7 @@ func TestStagedReleaseArchives(t *testing.T) {
 	root := repoRoot(t)
 	dist := os.Getenv("GAEBOKCHI_STAGED_RELEASE_DIR") // test-only staging override
 	if dist == "" {
-		dist = filepath.Join(root, "dist", "gaebokchi-0.1.0")
+		dist = filepath.Join(root, "dist", "gaebokchi-v0.1.0")
 	}
 	require := os.Getenv("GAEBOKCHI_REQUIRE_STAGED_RELEASE") == "1"
 	err := checkStagedRelease(root, dist, require)

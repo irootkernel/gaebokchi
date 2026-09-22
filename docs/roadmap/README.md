@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: CORRECTIVE-COMPLETE (code) — the confirmation review's five residual findings are fixed and re-qualified (TASK-022 through TASK-025), the final offline gate is green on darwin/arm64 and linux/arm64, and the candidate archives are rebuilt with packaged-document freshness verified. v0.1 release acceptance remains pending REQ-048: the corrected candidate has not been live-tested and the provider-display comparison was never performed  
+Status: VERSION-CONTRACT COMPLETE — TASK-028 implemented and verified the approved v0.1 version-command and release-metadata contract. REQ-048 remains the only open requirement and requires a separate owner-authorized live campaign
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -9,7 +9,7 @@ Repository and executable: `gaebokchi`
 
 ## How to use this plan
 
-This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; a post-closeout audit superseded several acceptance claims, so [EPIC-007](#epic-007) is now the active epic and the affected requirement checkboxes are unchecked pending re-qualification.
+This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; EPIC-007 completed the post-closeout corrective work. [EPIC-008](#epic-008) now owns the approved version-command contract.
 
 Keep all three canonical documents under their role directories. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
 
@@ -31,7 +31,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -43,10 +43,11 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | COMPLETE (implementation milestone) |
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | COMPLETE (implementation milestone) |
 | 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027) | [EPIC-006](#epic-006) implemented | COMPLETE (final release acceptance pending REQ-048) |
+| 8 | [EPIC-008: Version command and release identity](#epic-008) | [TASK-028](#task-028) | [EPIC-007](#epic-007) complete | COMPLETE (final release acceptance pending REQ-048) |
 
-Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the original six epics keep their implementation milestones and task commits (with EPIC-006's final acceptance superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record); the corrective runtime work of EPIC-007, including the TASK-026 documentation-and-archive follow-up and the TASK-027 archive-validation follow-up, is complete. Full v0.1 release acceptance alone remains pending REQ-048 — an owner-authorized live gate (candidate live test plus the provider-display comparison), not unfinished implementation work.
+Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the original six epics keep their implementation milestones and task commits (with EPIC-006's final acceptance superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record); the corrective runtime work of EPIC-007, including the TASK-026 documentation-and-archive follow-up and the TASK-027 archive-validation follow-up, is complete. EPIC-008 is a separately approved v0.1 contract extension. Full live release acceptance also remains pending REQ-048 — an owner-authorized live gate, not part of TASK-028.
 
-The task order is globally sequential: TASK-001 through TASK-027. Runtime account queries may be concurrent; development tasks may not.
+The task order is globally sequential: TASK-001 through TASK-028. Runtime account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -1099,13 +1100,78 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Next:** Stop. Runtime corrections remain accepted; archive validation and the roadmap follow-up are complete; full v0.1 release acceptance remains pending REQ-048.
 
+<a id="epic-008"></a>
+## EPIC-008: Version command and release identity
+
+- [x] Epic complete. **Status: COMPLETE.**
+
+**Goal:** Replace the legacy version flag with a project-independent Mulgae-style
+version command, a minimal machine-readable projection, and one canonical
+v-prefixed release identity without changing quota behavior.
+
+**Entry:** EPIC-007 complete; owner approved the breaking removal of
+`--version`, retention of product version v0.1.0, and v-prefixed staging paths.
+
+**Task sequence:** [TASK-028](#task-028).
+
+**Local epic acceptance:** TASK-028 is committed with focused CLI/build tests,
+the full offline gate, and document-fresh release artifacts. REQ-048 remains an
+independent live gate and is neither run nor waived by this epic.
+
+<a id="task-028"></a>
+### TASK-028: Implement the stable version command and release identity
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Align Gaebokchi's public version surface and build metadata flow
+with the approved Mulgae-style contract while keeping public JSON minimal.
+
+**Dependency:** TASK-027 complete.
+
+**Architecture:** [ARCH-03](../architecture/README.md#arch-03),
+[ARCH-13](../architecture/README.md#arch-13),
+[ARCH-14](../architecture/README.md#arch-14).
+
+**Primary requirement ownership:** [REQ-051](../specs/README.md#req-051).
+
+**Implementation scope:**
+
+- Dispatch `version` and `version --json` before general option, HOME, cwd, or
+  provider handling; reject the legacy `--version` form and all unsupported
+  version arguments.
+- Emit `gaebokchi v0.1.0` for release builds and exactly `name` plus `version`
+  in JSON. Resolve linker override before Go build information and use
+  `(devel)` when neither supplies a release version.
+- Make the release linker value and staging directory v-prefixed, update CI and
+  archive validation, and synchronize the public README and canonical contract.
+- Preserve historical evidence records and the unrelated REQ-048 state. Do not
+  tag, publish, install, or run live provider queries.
+
+**Acceptance criteria:**
+
+- [x] Exact human and JSON outputs, development fallback, metadata precedence,
+  invalid syntax, removed `--version`, output failure, and no-provider behavior
+  have focused regression coverage. *(Verified on the TASK-028 working tree.)*
+- [x] Formatting, vet, full offline tests, race tests, documentation validation,
+  four target builds, archive membership/document freshness, checksums, and a
+  native version smoke pass on the finalized tree. *(Verified on darwin/arm64;
+  the other three artifacts are cross-build evidence.)*
+- [x] The task-scoped commit is identified by its unique commit subject and
+  [TASK-028 evidence](../verification/TASK-028.md) records exact outcomes and
+  unavailable environments.
+
+**Commit boundary:** `feat(TASK-028): align version command and release identity`.
+
+**Next:** Stop. EPIC-008 is closed. REQ-048 remains open unless a separate
+owner-authorized live campaign is performed.
+
 <a id="plan-release-gate"></a>
 ## Final release gate
 
 These are release-level checks, not extra implementation tasks. The checks below were marked passed at commit `f8b180d` (TASK-014); the corrective audit superseded several of them, and they are re-owned by [EPIC-007](#epic-007) / [TASK-021](#task-021):
 
-- [ ] Every checkbox in [requirement.md](../specs/README.md) has evidence, with live and fixture-only claims distinguished. *(Current: 49 checked after the TASK-022/023/024 re-qualifications; REQ-048 remains unchecked pending the owner-authorized live campaign — both the candidate live test and the provider-display comparison.)*
-- [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-015 through TASK-021 closed EPIC-007; the superseded TASK-013/TASK-014 acceptance portions are re-owned by the still-open REQ-048 gate below.)*
+- [ ] Every checkbox in [requirement.md](../specs/README.md) has evidence, with live and fixture-only claims distinguished. *(Current: REQ-048 alone remains pending the owner-authorized live campaign.)*
+- [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-028 closed EPIC-008 with working-tree evidence and its task-scoped commit subject.)*
 - [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
 - [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the final corrected candidate (TASK-025 archives) has not been live-tested because owner authorization was unavailable. Offline qualification of the corrected tree is complete on darwin/arm64 and linux/arm64.)*
 - [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](../verification/TASK-021.md).)*
@@ -1118,4 +1184,6 @@ A missing live environment is a real qualification gap, not a reason to invent e
 
 Return the implemented scope, task commit references, verification summary, local artifact locations/checksums, and remaining compatibility limitations. Explain any live monthly Grok result explicitly. Report failures or unrun environments without presenting them as completed support.
 
-The next version is outside this plan. In particular, Claude support, machine-readable JSON output, persistent configuration, reset-time columns, additional Grok accounts, and watch mode require separate scope decisions.
+Further product expansion remains outside this plan. In particular, Claude
+support, persistent configuration, reset-time columns, additional Grok
+accounts, and watch mode require separate scope decisions.

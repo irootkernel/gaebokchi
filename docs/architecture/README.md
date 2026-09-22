@@ -116,7 +116,7 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008), [REQ-051](../specs/README.md#req-051). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010), [TASK-028](../roadmap/README.md#task-028).
 
 | Flag | Default | Rules |
 |---|---|---|
@@ -126,9 +126,19 @@ Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req
 | `--grok-account LABEL` | `default` | Display alias only; does not switch Grok login |
 | `--timeout DURATION` | `20s` | 1s through 120s inclusive; one query budget per target |
 | `--help`, `-h` | Off | Print help and return 0 without provider execution |
-| `--version` | Off | Print application version and return 0 without provider execution |
 
-No positional arguments, provider filter, output-format flag, configuration file, or implicit account discovery in v0.1. Each non-repeatable flag may occur once; ambiguous repeated scalar options are usage errors. Help/version still require syntactically valid input; when both are supplied, help wins. They do not validate provider installation or account-directory existence.
+The sole subcommand is `version [--json]`. Human output is `<name> <version>`;
+JSON output contains exactly the string fields `name` and `version` followed by
+a newline. A release build uses a `v`-prefixed version such as `v0.1.0`, while
+an ordinary source build without release metadata reports `(devel)`. The former
+`--version` flag is unsupported.
+
+No other positional arguments, provider filter, global output-format flag,
+configuration file, or implicit account discovery exists in v0.1. Each
+non-repeatable flag may occur once; ambiguous repeated scalar options are usage
+errors. Help and version do not validate provider installation or
+account-directory existence. Version dispatch occurs before resolving HOME or
+the invocation directory, and never launches a provider.
 
 Examples:
 
@@ -137,6 +147,8 @@ gaebokchi
 gaebokchi --timeout 40s
 gaebokchi --codex-home "$HOME/.codex-work" --codex-home "$HOME/.codex-personal"
 gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
+gaebokchi version
+gaebokchi version --json
 ```
 
 Resolve the invoking user's home through `os.UserHomeDir`. Ambient `CODEX_HOME` does not change the default account list. Preserve the caller's actual HOME for provider-managed login/keychain lookup; Codex's separate CODEX_HOME is not a replacement for HOME.
@@ -602,7 +614,7 @@ The early probe validates feasibility; TASK-013 validates the delivered applicat
 <a id="arch-13"></a>
 ## ARCH-13: Build, platform qualification and delivery
 
-Related: [REQ-001](../specs/README.md#req-001), [REQ-046](../specs/README.md#req-046), [REQ-047](../specs/README.md#req-047), [REQ-049](../specs/README.md#req-049). Owner: [TASK-012](../roadmap/README.md#task-012).
+Related: [REQ-001](../specs/README.md#req-001), [REQ-046](../specs/README.md#req-046), [REQ-047](../specs/README.md#req-047), [REQ-049](../specs/README.md#req-049), [REQ-051](../specs/README.md#req-051). Owners: [TASK-012](../roadmap/README.md#task-012), [TASK-028](../roadmap/README.md#task-028).
 
 Use a maintained Go version selected and recorded during implementation. Pin the tested toolchain in CI and document it; do not assert the latest release number from memory. Prefer standard-library dependencies and `CGO_ENABLED=0` release builds. Go's GOOS/GOARCH target model supplies the build axes; native testing remains separate. [S-10](#s-10)
 
@@ -614,6 +626,12 @@ Use a maintained Go version selected and recorded during implementation. Pin the
 | linux/amd64 | Cross/native build succeeds | Native Linux evidence on available runner architecture |
 
 Native macOS and native Linux tests are mandatory, but native execution on all four CPU/OS combinations is not. Keep a per-target matrix so users can see the difference. Live provider acceptance must cover the owner account set on at least one supported host; do not imply live support was tested on the other host or every version.
+
+Resolve executable version metadata in this order: explicit release linker
+override, Go main-module build information, then `(devel)`. Release linker
+metadata and versioned staging paths use the canonical `v` prefix; the v0.1.0
+staging directory is `dist/gaebokchi-v0.1.0`. Public version JSON does not
+expose commit, revision, module checksum, or build date.
 
 Produce versioned local archives with the `gaebokchi` prefix and SHA-256 checksums, containing the `gaebokchi` executable, README, and the three specification documents. Include a license only after the actual project license is chosen; do not invent a company licensing decision. No publishing, package-manager tap, signing credential use, external release upload, or provider binary redistribution is authorized by this plan.
 

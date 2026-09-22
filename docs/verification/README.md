@@ -8,7 +8,7 @@ current merely because a later tree retains the record.
   qualification and sanitized fixture provenance.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
-- `TASK-001.md` through `TASK-027.md` record task-scoped checks, findings,
+- `TASK-001.md` through `TASK-028.md` record task-scoped checks, findings,
   supersessions, and platform limitations.
 
 The canonical lifecycle state remains in [the roadmap](../roadmap/README.md),
