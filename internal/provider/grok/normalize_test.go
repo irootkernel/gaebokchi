@@ -154,7 +154,7 @@ func TestQueryWeeklyFromCapturedFixture(t *testing.T) {
 }
 
 func TestQueryMonthlyNonApplicable(t *testing.T) {
-	monthly := billingConfig("USAGE_PERIOD_TYPE_MONTHLY", 88, nil)
+	monthly := billingConfig("USAGE_PERIOD_TYPE_MONTHLY", 88, map[string]any{"periodEnd": "2026-10-19T15:52:30Z"})
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Emit: initReplyWith(1, "cached_token") + "\n"},
@@ -174,6 +174,45 @@ func TestQueryMonthlyNonApplicable(t *testing.T) {
 	}
 	if res.Status.ExitClass() != domain.ExitClean {
 		t.Fatalf("monthly non-applicability must be exit-clean")
+	}
+	// The audit's provenance finding: the established monthly period
+	// must survive in the in-memory result even without a percentage.
+	if res.Period != domain.PeriodMonthly {
+		t.Fatalf("period = %v, want monthly", res.Period)
+	}
+	if res.Source != domain.SourceGrokACPBilling {
+		t.Fatalf("source = %v", res.Source)
+	}
+	if res.ResetAt == nil {
+		t.Fatal("monthly period end must be preserved as reset metadata")
+	}
+}
+
+// TestWeeklyMissingUsageKeepsPeriodProvenance pins that an established
+// weekly window keeps its period provenance when usage is missing.
+func TestWeeklyMissingUsageKeepsPeriodProvenance(t *testing.T) {
+	noUsage := map[string]any{"currentPeriod": map[string]any{
+		"type": "USAGE_PERIOD_TYPE_WEEKLY",
+		"end":  "2026-09-26T15:52:30Z",
+	}}
+	steps := []testutil.Step{
+		{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
+		{Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{}}}}},
+		{Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, Result: map[string]any{"config": noUsage}}}},
+	}
+	child := testutil.StartFake(t, steps)
+	res := providerOver(child).Query(context.Background(), grokTarget("default"))
+	if res.Status != domain.StatusUnavailableNoData {
+		t.Fatalf("status = %v, want no_data", res.Status)
+	}
+	if res.Period != domain.PeriodWeekly {
+		t.Fatalf("period = %v, want weekly provenance retained", res.Period)
+	}
+	if res.Source != domain.SourceGrokACPBilling {
+		t.Fatalf("source = %v", res.Source)
+	}
+	if res.UsedPercent != nil {
+		t.Fatal("missing usage must not invent a percentage")
 	}
 }
 
@@ -195,16 +234,38 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v", res.Status)
 		}
 	})
-	t.Run("authenticate rejected", func(t *testing.T) {
+	t.Run("authenticate server error is generic", func(t *testing.T) {
+		code := -32000
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1},
-			{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, ErrCode: &code, ErrMsg: "no"}}},
+			{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, ErrCode: &code, ErrMsg: "internal error"}}},
 		}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
-		if res.Status != domain.StatusAuthRequired {
-			t.Fatalf("status = %v", res.Status)
+		// The audit's finding: an internal error is not a verified
+		// authentication rejection and must not claim the cached token
+		// was rejected.
+		if res.Status != domain.StatusProviderError {
+			t.Fatalf("status = %v (%s), want provider_error", res.Status, res.Diagnostic.Message)
+		}
+		if res.Diagnostic.Code != "remote_error" {
+			t.Fatalf("diagnostic code = %q", res.Diagnostic.Code)
+		}
+		if strings.Contains(res.Diagnostic.Message, "cached token") {
+			t.Fatalf("guessed authentication detail: %q", res.Diagnostic.Message)
+		}
+	})
+	t.Run("authenticate method not found is unsupported", func(t *testing.T) {
+		steps := []testutil.Step{
+			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
+			{Wait: 1},
+			{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, ErrCode: &code, ErrMsg: "method not found"}}},
+		}
+		child := testutil.StartFake(t, steps)
+		res := providerOver(child).Query(context.Background(), grokTarget("default"))
+		if res.Status != domain.StatusUnsupported {
+			t.Fatalf("status = %v (%s), want unsupported", res.Status, res.Diagnostic.Message)
 		}
 	})
 	t.Run("billing method not found", func(t *testing.T) {

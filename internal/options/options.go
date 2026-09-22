@@ -88,9 +88,20 @@ func specs() map[string]*flagSpec {
 			o.CodexHomes = append(o.CodexHomes, v)
 			return nil
 		}},
-		"codex-bin":    {name: "codex-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
-		"grok-bin":     {name: "grok-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
-		"grok-account": {name: "grok-account", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokAccount }, "grok-account")},
+		"codex-bin": {name: "codex-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
+		"grok-bin":  {name: "grok-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
+		"grok-account": {name: "grok-account", kind: kindString, set: func(o *Options, v string) error {
+			// The alias is validated through the display-label policy
+			// before any provider can launch: an alias with no
+			// displayable characters is a usage error, and the stored
+			// value is the normalized label the table will show.
+			normalized := domain.NormalizeLabel(v)
+			if normalized == "" {
+				return usagef("--grok-account must not be blank: it contains no displayable characters")
+			}
+			o.GrokAccount = normalized
+			return nil
+		}},
 		"timeout": {name: "timeout", kind: kindDuration, set: func(o *Options, v string) error {
 			d, err := parseTimeout(v)
 			if err != nil {

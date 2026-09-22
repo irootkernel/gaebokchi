@@ -181,35 +181,55 @@ func TestAccountMappingVariants(t *testing.T) {
 	}
 }
 
-func TestAccountEmailWithControlCharactersRejected(t *testing.T) {
-	payload, _ := json.Marshal(map[string]any{
-		"id": 2,
-		"result": map[string]any{
-			"account": map[string]any{"type": "chatgpt", "email": "user@example.com\n\t\x1b"},
-		},
-	})
-	steps := []testutil.Step{
-		{Wait: 1},
-		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
-		{Wait: 1},
-		{Emit: string(payload) + "\n"},
+func TestAccountEmailNormalizationPolicy(t *testing.T) {
+	cases := []struct {
+		name  string
+		email string
+		want  string
+	}{
+		// Trailing/leading control junk normalizes away; the label is
+		// usable through the display policy.
+		{"trailing control characters", "user@example.com\n\t\x1b", "user@example.com"},
+		{"leading and surrounding spaces", "  spaced@example.com  ", "spaced@example.com"},
+		{"NBSP becomes a space", "a\u00a0b@example.com", "a b@example.com"},
+		// A value with nothing displayable left is unusable and falls
+		// back to the home alias (empty Email here).
+		{"control-only email", "\t\n\x1b", ""},
+		{"whitespace-only email", "   ", ""},
+		{"format-character-only email", "\u200e\u202e", ""},
 	}
-	child := testutil.StartFake(t, steps)
-	conn := newTestConn(child)
-	handshake(t, conn)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	info, err := readAccount(ctx, &session{child: child, conn: conn})
-	if err != nil {
-		t.Fatal(err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, _ := json.Marshal(map[string]any{
+				"id": 2,
+				"result": map[string]any{
+					"account": map[string]any{"type": "chatgpt", "email": tc.email},
+				},
+			})
+			steps := []testutil.Step{
+				{Wait: 1},
+				{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
+				{Wait: 1},
+				{Emit: string(payload) + "\n"},
+			}
+			child := testutil.StartFake(t, steps)
+			conn := newTestConn(child)
+			handshake(t, conn)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			info, err := readAccount(ctx, &session{child: child, conn: conn})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Email != tc.want {
+				t.Fatalf("email = %q, want %q", info.Email, tc.want)
+			}
+			if info.AuthStatus != AuthChatGPT {
+				t.Fatalf("auth status = %v", info.AuthStatus)
+			}
+			child.Close()
+		})
 	}
-	if info.Email != "" {
-		t.Fatalf("control-character email accepted: %q", info.Email)
-	}
-	if info.AuthStatus != AuthChatGPT {
-		t.Fatalf("auth status = %v", info.AuthStatus)
-	}
-	child.Close()
 }
 
 // Two sessions over two homes keep independent identity: each

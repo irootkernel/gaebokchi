@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -343,5 +344,61 @@ func TestDisambiguateDifferentHomesNotMerged(t *testing.T) {
 	}
 	if len(results) != 2 {
 		t.Fatal("row count changed")
+	}
+}
+
+// TestDisambiguationOperatesOnNormalizedLabels pins the audit's
+// ordering finding: distinct raw labels that normalize to the same
+// visible label (NBSP vs space) must be disambiguated, not merged into
+// identical visible rows.
+func TestDisambiguationOperatesOnNormalizedLabels(t *testing.T) {
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/one", FallbackAccount: "one"},
+		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/two", FallbackAccount: "two"},
+	}
+	results := []domain.Result{
+		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "user\u00a0x@example.com"},
+		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "user x@example.com"},
+	}
+	DisambiguateCodexAccounts(results, targets)
+	if results[0].Account == results[1].Account {
+		t.Fatalf("normalized duplicates not disambiguated: %q", results[0].Account)
+	}
+	if !strings.Contains(results[0].Account, "user x@example.com [") {
+		t.Fatalf("unexpected label: %q", results[0].Account)
+	}
+	if len(results) != 2 {
+		t.Fatal("row count changed")
+	}
+}
+
+// TestDisambiguationSuffixLookalikeCollision pins the audit's generated-
+// suffix finding: a duplicate's generated label that collides with an
+// unrelated row's existing label (which merely resembles a generated
+// suffix) must be further suffixed instead of merging rows.
+func TestDisambiguationSuffixLookalikeCollision(t *testing.T) {
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
+		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
+		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/d/other", FallbackAccount: "other"},
+	}
+	// codex:2's raw label literally equals what codex:0/codex:1's
+	// disambiguation would generate; it is unique, so it keeps its
+	// label and the generated ones must move aside.
+	results := []domain.Result{
+		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "a"},
+		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "a"},
+		{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: "a [b]"},
+	}
+	DisambiguateCodexAccounts(results, targets)
+	seen := map[string]bool{}
+	for i, r := range results {
+		if seen[r.Account] {
+			t.Fatalf("rows %d and earlier share visible label %q", i, r.Account)
+		}
+		seen[r.Account] = true
+	}
+	if results[2].Account != "a [b]" {
+		t.Fatalf("unique lookalike label must be preserved: %q", results[2].Account)
 	}
 }

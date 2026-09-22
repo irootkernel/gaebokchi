@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
-	"unicode"
 
 	"gaebokchi/internal/domain"
 )
@@ -21,49 +20,12 @@ const (
 	HeadingUsage    = "WEEKLY USAGE"
 )
 
-// SanitizeLabel makes an externally supplied label safe for the table:
-// control and format characters (including bidi controls) and non-space
-// whitespace become spaces, runs collapse to one space, and the result
-// is trimmed. Ordinary printable Unicode is preserved.
+// SanitizeLabel applies the domain display-label normalization policy
+// to an externally supplied label. The policy itself lives in
+// domain.NormalizeLabel so validity checks and disambiguation share the
+// exact semantics; this wrapper keeps the renderer's call sites stable.
 func SanitizeLabel(s string) string {
-	var b strings.Builder
-	spacePending := false
-	wroteAny := false
-	for _, r := range s {
-		switch {
-		case isUnsafeRune(r):
-			spacePending = wroteAny
-		case r == ' ':
-			spacePending = wroteAny
-		default:
-			if spacePending {
-				b.WriteByte(' ')
-				spacePending = false
-			}
-			b.WriteRune(r)
-			wroteAny = true
-		}
-	}
-	return b.String()
-}
-
-func isUnsafeRune(r rune) bool {
-	if r == unicode.ReplacementChar {
-		// Invalid UTF-8 bytes surface as U+FFFD; they cannot stay in a
-		// rendered cell.
-		return true
-	}
-	if r == '\t' || r == '\n' || r == '\r' || r == 0x7f {
-		return true
-	}
-	if r < 0x20 || (r >= 0x80 && r <= 0x9f) {
-		return true
-	}
-	if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
-		return true
-	}
-	// Non-space whitespace (NBSP, line separators, bidi spaces).
-	return r == 0xa0 || (r >= 0x2000 && r <= 0x200f) || (r >= 0x2028 && r <= 0x202f)
+	return domain.NormalizeLabel(s)
 }
 
 // UsageCell renders the WEEKLY USAGE cell for one result.

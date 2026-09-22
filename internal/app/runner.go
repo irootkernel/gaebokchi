@@ -118,13 +118,22 @@ func cancelledResult(tgt domain.Target) domain.Result {
 }
 
 // DisambiguateCodexAccounts makes duplicate visible Codex labels
-// distinguishable without merging rows: append " [<home-basename>]",
-// then "#<index+1>" if that is still ambiguous. Rows are never hidden.
+// distinguishable without merging rows. Labels are normalized through
+// the domain display-label policy first, so counting and suffixing
+// operate on exactly what the table will show; duplicate rows then get
+// " [<home-basename>]" and, if that is still taken (by a unique row's
+// label or an earlier assignment), " #<n>". Rows are never hidden.
 func DisambiguateCodexAccounts(results []domain.Result, targets []domain.Target) {
 	homeBase := make(map[string]string, len(targets))
 	for _, tgt := range targets {
 		if tgt.Provider == domain.ProviderCodex {
-			homeBase[tgt.ID] = baseName(tgt.Home)
+			homeBase[tgt.ID] = domain.NormalizeLabel(baseName(tgt.Home))
+		}
+	}
+
+	for i := range results {
+		if results[i].Provider == domain.ProviderCodex {
+			results[i].Account = domain.NormalizeLabel(results[i].Account)
 		}
 	}
 
@@ -134,16 +143,26 @@ func DisambiguateCodexAccounts(results []domain.Result, targets []domain.Target)
 			counts[results[i].Account]++
 		}
 	}
-	seen := make(map[string]int)
+
+	// Unique rows occupy their labels; generated labels must not collide
+	// with them (including labels that merely resemble generated ones).
+	occupied := make(map[string]bool)
+	for i := range results {
+		if results[i].Provider == domain.ProviderCodex && counts[results[i].Account] < 2 {
+			occupied[results[i].Account] = true
+		}
+	}
+
 	for i := range results {
 		if results[i].Provider != domain.ProviderCodex || counts[results[i].Account] < 2 {
 			continue
 		}
-		label := results[i].Account + " [" + homeBase[results[i].TargetID] + "]"
-		seen[label]++
-		if seen[label] > 1 {
-			label = label + " #" + itoa(seen[label])
+		base := results[i].Account + " [" + homeBase[results[i].TargetID] + "]"
+		label := base
+		for n := 2; occupied[label]; n++ {
+			label = base + " #" + itoa(n)
 		}
+		occupied[label] = true
 		results[i].Account = label
 	}
 }

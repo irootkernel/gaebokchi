@@ -134,6 +134,13 @@ func TestAuthNegotiationMatrix(t *testing.T) {
 		{"cached token advertised", initReplyWith(1, "cached_token", "grok.com"), planCachedToken, false},
 		{"api key only", initReplyWith(1, "api_key"), planAPIKeyOnly, false},
 		{"interactive only", initReplyWith(1, "grok.com"), planInteractiveOnly, false},
+		// The audit's misclassification: an API-key method advertised
+		// alongside the interactive subscription path must require
+		// authentication, not declare the target API-key-only.
+		{"api key plus interactive", initReplyWith(1, "api_key", "grok.com"), planInteractiveOnly, false},
+		{"api key with unrecognized method", initReplyWith(1, "api_key", "device_code"), planUnknownMethods, false},
+		{"interactive with unrecognized method", initReplyWith(1, "grok.com", "device_code"), planUnknownMethods, false},
+		{"cached token with others", initReplyWith(1, "cached_token", "api_key", "grok.com", "device_code"), planCachedToken, false},
 		{"unrecognized only", initReplyWith(1, "device_code"), planUnknownMethods, false},
 		{"no methods", initReplyWith(1), planUnknownMethods, false},
 		{"protocol version mismatch", initReplyWith(2, "cached_token"), planVersionMismatch, false},

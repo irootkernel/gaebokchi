@@ -243,15 +243,22 @@ func classifyInitialize(raw json.RawMessage) (authPlan, error) {
 			hasOther = true
 		}
 	}
+	// Explicit decision table. Cached-token support wins whenever
+	// advertised. An API-key method advertised alongside an interactive
+	// subscription path does NOT make the target API-key-only (the
+	// audit's misclassification). Unrecognized methods never become the
+	// basis for a clean outcome.
 	switch {
 	case hasCached:
 		return planCachedToken, nil
-	case hasAPIKey:
-		return planAPIKeyOnly, nil
-	case hasInteractive:
+	case hasInteractive && !hasOther:
+		// Recognized interactive subscription path without cached
+		// authentication: the account must authenticate through the
+		// provider CLI; gaebokchi never initiates it.
 		return planInteractiveOnly, nil
-	case hasOther:
-		return planUnknownMethods, nil
+	case hasAPIKey && !hasOther:
+		// Genuinely API-key-only: no subscription billing quota exists.
+		return planAPIKeyOnly, nil
 	default:
 		return planUnknownMethods, nil
 	}
@@ -359,8 +366,19 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
 	if err := authenticateCached(ctx, s); err != nil {
 		var rce *rpcCallError
 		if errors.As(err, &rce) {
-			res.Status = domain.StatusAuthRequired
-			res.Diagnostic = domain.Diagnostic{Code: "auth_required", Message: tgt.ID + ": cached token rejected; re-authenticate with the provider CLI"}
+			// No authentication-rejection error code was qualified
+			// during TASK-001, so no remote error is mapped to an
+			// authentication claim: "cached token rejected" would be a
+			// guess for internal errors and every other failure alike.
+			// Only the advertisement itself (interactive path without
+			// cached_token) establishes AUTH REQUIRED.
+			if rce.remote.Code == rpc.MethodNotFoundCode {
+				res.Status = domain.StatusUnsupported
+				res.Diagnostic = domain.Diagnostic{Code: "method_not_found", Message: tgt.ID + ": installed grok does not support headless cached-token authentication"}
+			} else {
+				res.Status = domain.StatusProviderError
+				res.Diagnostic = domain.Diagnostic{Code: "remote_error", Message: tgt.ID + ": provider rejected the authentication read"}
+			}
 			return res
 		}
 		return classifyTransportFailure(res, err)
@@ -386,6 +404,10 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
 	res.Status = out.Status
 	res.Source = domain.SourceGrokACPBilling
 	res.Period = out.Period
+	if res.Period == "" {
+		// Nothing about the window was established.
+		res.Period = domain.PeriodUnknown
+	}
 	res.ResetAt = out.ResetAt
 	if out.Percent != nil {
 		v := domain.NormalizePercentSignedZero(*out.Percent)

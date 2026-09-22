@@ -336,24 +336,16 @@ func readAccount(ctx context.Context, s *session) (*AccountInfo, error) {
 	default:
 		info.AuthStatus = AuthUnknownType
 	}
-	if w.Account.Email != nil && isUsableEmail(*w.Account.Email) {
-		info.Email = *w.Account.Email
-	}
-	return info, nil
-}
-
-// isUsableEmail rejects blank or control-character-laden values that
-// cannot serve as a display label.
-func isUsableEmail(email string) bool {
-	if email == "" {
-		return false
-	}
-	for _, r := range email {
-		if r < 0x20 || r == 0x7f {
-			return false
+	if w.Account.Email != nil {
+		// The email is a display label: accept it only through the
+		// normalization policy, and only when something displayable
+		// remains. A value that normalizes to empty (whitespace-only,
+		// control/format-only) falls back to the home alias.
+		if normalized := domain.NormalizeLabel(*w.Account.Email); normalized != "" {
+			info.Email = normalized
 		}
 	}
-	return true
+	return info, nil
 }
 
 // ResolveBin resolves the configured executable once per invocation.

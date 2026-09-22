@@ -226,3 +226,26 @@ func TestParseFromEnvironment(t *testing.T) {
 		t.Fatalf("public Parse tilde expansion = %q", o.CodexHomes[0])
 	}
 }
+
+// TestGrokAccountAliasNormalization pins the audit's finding: an alias
+// with no displayable characters is a usage error before any provider
+// launch, and a padded alias is stored as its normalized label.
+func TestGrokAccountAliasNormalization(t *testing.T) {
+	mustFail(t, "--grok-account", "   ")
+	mustFail(t, "--grok-account", "\t\n")
+	mustFail(t, "--grok-account", "\u200e\u202e")
+
+	o, err := Parse([]string{"--grok-account", "  my\u00a0grok  "})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if o.GrokAccount != "my grok" {
+		t.Fatalf("alias = %q, want normalized %q", o.GrokAccount, "my grok")
+	}
+	// The normalized alias is what targets carry; no provider is
+	// launched during parsing by construction.
+	tgt := o.Targets()
+	if tgt[len(tgt)-1].FallbackAccount != "my grok" {
+		t.Fatalf("target alias = %q", tgt[len(tgt)-1].FallbackAccount)
+	}
+}

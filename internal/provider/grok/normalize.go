@@ -93,8 +93,14 @@ func normalizeBilling(raw json.RawMessage) billingOutcome {
 	switch periodType {
 	case periodMonthly:
 		// An explicit monthly enum is truthful non-applicability; its
-		// percentage must never occupy the weekly cell.
-		return outcome(domain.StatusNotApplicableMonthly)
+		// percentage must never occupy the weekly cell. The established
+		// period kind and the optional period end stay in the result as
+		// provenance.
+		return billingOutcome{
+			Status:  domain.StatusNotApplicableMonthly,
+			Period:  domain.PeriodMonthly,
+			ResetAt: optionalRFC3339(period.End),
+		}
 	case periodWeekly:
 		return weeklyResult(cfg, period)
 	default:
@@ -104,26 +110,30 @@ func normalizeBilling(raw json.RawMessage) billingOutcome {
 }
 
 func weeklyResult(cfg configWire, period periodWire) billingOutcome {
+	// The weekly enum was established before any percentage was read,
+	// so period provenance survives even when usage is missing or
+	// malformed.
+	established := billingOutcome{Period: domain.PeriodWeekly, ResetAt: optionalRFC3339(period.End)}
 	if cfg.CreditUsagePercent == nil || string(*cfg.CreditUsagePercent) == "null" {
-		return outcome(domain.StatusUnavailableNoData)
+		established.Status = domain.StatusUnavailableNoData
+		return established
 	}
 	if !isJSONNumber(*cfg.CreditUsagePercent) {
-		return outcome(domain.StatusProtocolError)
+		established.Status = domain.StatusProtocolError
+		return established
 	}
 	var percent float64
 	if err := json.Unmarshal(*cfg.CreditUsagePercent, &percent); err != nil {
-		return outcome(domain.StatusProtocolError)
+		established.Status = domain.StatusProtocolError
+		return established
 	}
 	if !domain.ValidatePercent(percent) {
-		return outcome(domain.StatusProtocolError)
+		established.Status = domain.StatusProtocolError
+		return established
 	}
-	out := billingOutcome{
-		Status:  domain.StatusOK,
-		Percent: &percent,
-		Period:  domain.PeriodWeekly,
-		ResetAt: optionalRFC3339(period.End),
-	}
-	return out
+	established.Status = domain.StatusOK
+	established.Percent = &percent
+	return established
 }
 
 // optionalRFC3339 parses an optional period end; a malformed optional
