@@ -233,8 +233,9 @@ func openSession(ctx context.Context, bin, home string, start process.Factory) (
 		return nil, &rpcCallError{method: "initialize", remote: resp.Err}
 	}
 	// Wait for the initialize response before sending initialized, per
-	// the qualified handshake order.
-	if err := conn.Notify("initialized", struct{}{}); err != nil {
+	// the qualified handshake order. A blocked write is cancellable so a
+	// wedged provider cannot defeat the query deadline.
+	if err := conn.Notify(ctx, "initialized", struct{}{}); err != nil {
 		s.close()
 		return nil, err
 	}

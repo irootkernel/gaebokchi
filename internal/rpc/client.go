@@ -51,6 +51,11 @@ func (r *Response) RemoteError() *RPCError { return r.Err }
 
 type pendingReply struct {
 	resp Response
+	// at records when the reply was routed off the wire. A response
+	// first established after the caller's deadline must not become a
+	// clean result, while one established in time survives any later
+	// cleanup delay.
+	at time.Time
 }
 
 // Conn is a correlated stdio JSON connection using one dialect codec.
@@ -93,7 +98,8 @@ func NewConn(w io.Writer, r io.Reader, codec Codec, abort func()) *Conn {
 }
 
 // Close stops the connection from accepting new work. Pending calls are
-// failed; the transport itself is torn down via the abort hook.
+// failed and the transport is torn down via the abort hook exactly once;
+// Close blocks for at most the abort hook's bounded cleanup.
 func (c *Conn) Close() {
 	c.die(ErrConnDead)
 }
@@ -104,6 +110,10 @@ func (c *Conn) die(err error) {
 		c.dead = err
 		c.mu.Unlock()
 		close(c.deadCh)
+		// Terminal failure tears the owned transport down so blocked
+		// readers and writers are unblocked. The hook must be idempotent
+		// and must not call back into this Conn.
+		c.abort()
 	})
 }
 
@@ -220,13 +230,16 @@ func (c *Conn) route(idRaw json.RawMessage, resp Response) error {
 	if !ok {
 		return nil
 	}
-	ch <- pendingReply{resp: resp}
+	ch <- pendingReply{resp: resp, at: time.Now()}
 	return nil
 }
 
 // Call sends one request and waits for its correlated response, context
 // cancellation, or connection death. One outstanding request per
-// connection is enforced.
+// connection is enforced. A response counts as established at the moment
+// it is routed off the wire: one routed after the context deadline fails
+// the call even if it wins the wake-up race, while one routed in time is
+// returned regardless of how long later processing takes.
 func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, error) {
 	c.mu.Lock()
 	if c.dead != nil {
@@ -250,6 +263,12 @@ func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, 
 		c.busy = false
 		c.mu.Unlock()
 	}
+	rejectLate := func() (*Response, error) {
+		// The response was first established after the deadline.
+		unregister()
+		c.abort()
+		return nil, ctx.Err()
+	}
 
 	payload, err := c.codec.EncodeRequest(id, method, params)
 	if err != nil {
@@ -262,6 +281,8 @@ func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, 
 		writeDone <- c.writeLine(payload)
 	}()
 
+	deadline, hasDeadline := ctx.Deadline()
+
 	// Wait for the write, the correlated reply, cancellation, or
 	// connection death. When the connection dies after the reply was
 	// routed (e.g. a server that closes stdout right after answering),
@@ -270,6 +291,9 @@ func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, 
 	for {
 		select {
 		case reply := <-ch:
+			if hasDeadline && reply.at.After(deadline) {
+				return rejectLate()
+			}
 			c.mu.Lock()
 			c.busy = false
 			c.mu.Unlock()
@@ -287,6 +311,9 @@ func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, 
 		case <-c.deadCh:
 			select {
 			case reply := <-ch:
+				if hasDeadline && reply.at.After(deadline) {
+					return rejectLate()
+				}
 				c.mu.Lock()
 				c.busy = false
 				c.mu.Unlock()
@@ -300,12 +327,26 @@ func (c *Conn) Call(ctx context.Context, method string, params any) (*Response, 
 }
 
 // Notify sends a notification the dialect codec renders without an id.
-func (c *Conn) Notify(method string, params any) error {
+// A blocked write is cancellable: on context termination the transport is
+// aborted so an owned writer can never wedge the caller past its budget.
+func (c *Conn) Notify(ctx context.Context, method string, params any) error {
 	payload, err := c.codec.EncodeNotification(method, params)
 	if err != nil {
 		return err
 	}
-	return c.writeLine(payload)
+	writeDone := make(chan error, 1)
+	go func() {
+		writeDone <- c.writeLine(payload)
+	}()
+	select {
+	case err := <-writeDone:
+		return err
+	case <-ctx.Done():
+		c.abort()
+		return ctx.Err()
+	case <-c.deadCh:
+		return c.deadError()
+	}
 }
 
 // rejectionWriteBudget bounds the attempt to deliver a dialect-correct
@@ -325,6 +366,10 @@ func (c *Conn) sendRejection(id json.RawMessage) {
 	select {
 	case <-done:
 	case <-time.After(rejectionWriteBudget):
+		// The writer stays blocked on a full pipe. The die() that
+		// follows this rejection in the read loop aborts the transport,
+		// which unblocks and releases the abandoned writer; it cannot
+		// hold the write lock indefinitely.
 	}
 }
 

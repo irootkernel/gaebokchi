@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -75,6 +76,30 @@ func TestHelperProcess(t *testing.T) {
 		gc.Stdout = os.Stdout
 		gc.Stderr = os.Stderr
 		_ = gc.Start()
+		os.Exit(0)
+	case "spawn-grandchild-pid":
+		// Like spawn-grandchild, but report the descendant's pid first.
+		gc := exec.Command(args[1], args[2:]...)
+		gc.Stdout = os.Stdout
+		gc.Stderr = os.Stderr
+		_ = gc.Start()
+		os.Stdout.WriteString("grandchild-pid=" + itoa(int64(gc.Process.Pid)) + "\n")
+		os.Exit(0)
+	case "ignore-term-grandchild":
+		// Ignores SIGTERM and keeps a descendant alive in the private
+		// group: only the stage-3 group kill can clean both up.
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGTERM)
+		go func() {
+			<-sig
+			os.Stdout.WriteString("still-alive\n")
+		}()
+		gc := exec.Command(args[1], args[2:]...)
+		gc.Stdout = os.Stdout
+		gc.Stderr = os.Stderr
+		_ = gc.Start()
+		os.Stdout.WriteString("grandchild-pid=" + itoa(int64(gc.Process.Pid)) + "\n")
+		time.Sleep(5 * time.Minute)
 		os.Exit(0)
 	default:
 		os.Exit(9)
@@ -304,6 +329,120 @@ func TestCloseIsIdempotent(t *testing.T) {
 	case <-c.Done():
 	default:
 		t.Fatal("exactly-once wait violated: child not reaped")
+	}
+}
+
+// TestCloseHonorsSingleAbsoluteBudgetEndToEnd measures the whole Close
+// against the one absolute cleanup budget (EOF + SIGTERM + SIGKILL +
+// drain + temp-dir removal), not a sum of stage timers: the audit found
+// finish granting itself a fresh full budget after shutdown.
+func TestCloseHonorsSingleAbsoluteBudgetEndToEnd(t *testing.T) {
+	c := startHelper(t, "ignore-term")
+	start := time.Now()
+	if err := c.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	elapsed := time.Since(start)
+	if elapsed > DefaultCleanupBudget+750*time.Millisecond {
+		t.Fatalf("close took %v end-to-end; single budget is %v", elapsed, DefaultCleanupBudget)
+	}
+	select {
+	case <-c.Done():
+	default:
+		t.Fatal("child not reaped after close")
+	}
+}
+
+// readGrandchildPID reads the helper's reported descendant pid without
+// waiting for EOF (the descendant inherits stdout, so EOF only arrives
+// when it exits).
+func readGrandchildPID(t *testing.T, c *Child) int {
+	t.Helper()
+	pidLine := make(chan string, 1)
+	go func() {
+		var buf []byte
+		one := make([]byte, 1)
+		for {
+			n, err := c.Stdout().Read(one)
+			if n > 0 {
+				if one[0] == '\n' {
+					pidLine <- string(buf)
+					return
+				}
+				buf = append(buf, one[0])
+			}
+			if err != nil {
+				pidLine <- string(buf)
+				return
+			}
+		}
+	}()
+	select {
+	case line := <-pidLine:
+		p := strings.TrimSpace(strings.TrimPrefix(line, "grandchild-pid="))
+		v, err := strconv.Atoi(p)
+		if err != nil {
+			t.Fatalf("grandchild pid line %q: %v", line, err)
+		}
+		return v
+	case <-time.After(5 * time.Second):
+		t.Fatal("no grandchild pid reported")
+		return 0
+	}
+}
+
+// TestDescendantsPreservedWhenDirectChildExits pins the qualified
+// ownership boundary: a descendant surviving the direct child's clean
+// exit is preserved by cleanup. Group membership alone does not prove a
+// descendant is disposable — a provider-managed shared leader can be a
+// descendant — so stages 1 and 2 must not signal it.
+func TestDescendantsPreservedWhenDirectChildExits(t *testing.T) {
+	c := startHelper(t, "spawn-grandchild-pid", "sleep", "30")
+	pid := readGrandchildPID(t, c)
+
+	<-c.Done()
+	if err := c.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if err := syscall.Kill(pid, 0); err != nil {
+		t.Fatalf("descendant killed by cleanup despite preserved boundary: %v", err)
+	}
+	// The descendant is the test's own helper process: end it explicitly
+	// rather than leaving it to its 30s sleep.
+	_ = syscall.Kill(pid, syscall.SIGKILL)
+}
+
+// TestStuckDescendantsKilledWithStuckChild covers the disposable side of
+// the boundary: when the direct child we started refuses to exit, the
+// escalation to its private process group takes the stuck descendants
+// with it, so bounded cleanup is actually achieved.
+func TestStuckDescendantsKilledWithStuckChild(t *testing.T) {
+	c := startHelper(t, "ignore-term-grandchild", "sleep", "30")
+	pid := readGrandchildPID(t, c)
+
+	start := time.Now()
+	if err := c.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > DefaultCleanupBudget+750*time.Millisecond {
+		t.Fatalf("close took %v end-to-end; single budget is %v", elapsed, DefaultCleanupBudget)
+	}
+	select {
+	case <-c.Done():
+	default:
+		t.Fatal("direct child not reaped after group kill")
+	}
+	// The descendant dies with the group; allow a short grace for the
+	// kernel to reap the orphan.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		if err := syscall.Kill(pid, 0); err != nil {
+			return // gone: group escalation cleaned the descendant
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("stuck descendant %d survived group kill", pid)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 

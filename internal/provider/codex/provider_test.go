@@ -63,7 +63,7 @@ func handshake(t *testing.T, conn *rpc.Conn) {
 	if resp.Err != nil {
 		t.Fatalf("initialize rejected: %v", resp.Err)
 	}
-	if err := conn.Notify("initialized", struct{}{}); err != nil {
+	if err := conn.Notify(ctx, "initialized", struct{}{}); err != nil {
 		t.Fatalf("initialized: %v", err)
 	}
 }

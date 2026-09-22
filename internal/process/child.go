@@ -28,6 +28,11 @@ const (
 // ErrNotStarted is returned by Close for children that never started.
 var ErrNotStarted = errors.New("process: child not started")
 
+// ErrCleanupIncomplete reports that cleanup could not finish within its
+// single absolute budget (drain not joined or child not reaped). The
+// child, pipes, and temporary directory were still handled best-effort.
+var ErrCleanupIncomplete = errors.New("process: cleanup incomplete within budget")
+
 // Config describes one owned child. Env is used verbatim: callers apply
 // provider environment policy before calling Start.
 type Config struct {
@@ -210,12 +215,14 @@ func (c *Child) drainStderr() {
 	}
 }
 
-// Close terminates and reaps the child within the cleanup budget:
-// stdin EOF, then SIGTERM to the direct child, then SIGKILL to the
-// private process group owned by this child. It unblocks pipe readers,
-// joins the drain goroutine, and removes the temporary directory. Safe
-// to call more than once; shared provider leaders outside this child's
-// process group are never signalled.
+// Close terminates and reaps the child within one absolute cleanup
+// budget: stdin EOF, then SIGTERM to the direct child, then SIGKILL to
+// the private process group owned by this child. It unblocks pipe
+// readers, joins the drain goroutine, and removes the temporary
+// directory, all against that same deadline. Safe to call more than
+// once. Descendants that outlive a cleanly exiting child are preserved
+// (see shutdown); shared provider leaders outside this child's process
+// group are never signalled.
 func (c *Child) Close() error {
 	c.closeOnce.Do(func() {
 		c.closeErr = c.shutdown()
@@ -224,12 +231,20 @@ func (c *Child) Close() error {
 }
 
 func (c *Child) shutdown() error {
+	// One absolute deadline bounds the whole sequence, including finish;
+	// no stage grants a fresh budget.
 	deadline := time.Now().Add(c.cfg.CleanupBudget)
 
 	// Stage 1: close stdin and allow EOF-driven exit.
 	c.closeStdin()
 	if c.exitedBy(earliest(time.Now().Add(eofStage), deadline)) {
-		return c.finish()
+		// Descendants that survive the direct child's own exit are
+		// preserved here on purpose: membership in this child's private
+		// group does not prove a descendant is disposable (a
+		// provider-managed shared leader can be a descendant). Our pipe
+		// ends are closed in finish, which is what unblocks our readers;
+		// the reaped child and removed temp dir complete our duties.
+		return c.finish(deadline)
 	}
 
 	// Stage 2: SIGTERM the direct child only.
@@ -237,17 +252,27 @@ func (c *Child) shutdown() error {
 		_ = c.cmd.Process.Signal(syscall.SIGTERM)
 	}
 	if c.exitedBy(earliest(time.Now().Add(termStage), deadline)) {
-		return c.finish()
+		// Same descendant boundary as stage 1.
+		return c.finish(deadline)
 	}
 
-	// Stage 3: SIGKILL the private process group (and the child).
+	// Stage 3: SIGKILL the private process group (and the child). Only
+	// reached when the direct child we started refuses to exit; the
+	// group was created for exactly this child.
 	c.killGroup()
+	reaped := false
 	select {
 	case <-c.done:
+		reaped = true
 	case <-time.After(time.Until(deadline)):
-		// SIGKILL is not blockable; this is a scheduler artifact.
+		// SIGKILL is not blockable; this is a scheduler artifact, but
+		// report it rather than hiding an unreaped child.
 	}
-	return c.finish()
+	err := c.finish(deadline)
+	if !reaped {
+		return errors.Join(ErrCleanupIncomplete, err)
+	}
+	return err
 }
 
 func earliest(a, b time.Time) time.Time {
@@ -282,9 +307,12 @@ func (c *Child) closeStdin() {
 }
 
 // finish unblocks readers, joins the stderr drain, and removes the
-// temporary directory. It must not overwrite a collected result: the
-// child's wait error belongs to the caller's interpretation layer.
-func (c *Child) finish() error {
+// temporary directory, all against the shutdown's absolute deadline. A
+// drain that cannot be joined in time surfaces ErrCleanupIncomplete
+// instead of hiding incomplete cleanup behind a success result. It must
+// not overwrite a collected result: the child's wait error belongs to
+// the caller's interpretation layer.
+func (c *Child) finish(deadline time.Time) error {
 	if c.stdoutR != nil {
 		_ = c.stdoutR.Close()
 	}
@@ -293,7 +321,8 @@ func (c *Child) finish() error {
 	}
 	select {
 	case <-c.drainDone:
-	case <-time.After(time.Until(time.Now().Add(c.cfg.CleanupBudget))):
+		return os.RemoveAll(c.dir)
+	case <-time.After(time.Until(deadline)):
+		return errors.Join(ErrCleanupIncomplete, os.RemoveAll(c.dir))
 	}
-	return os.RemoveAll(c.dir)
 }

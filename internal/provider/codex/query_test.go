@@ -185,6 +185,28 @@ func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
 	}
 }
 
+// TestQueryValidResultSurvivesSlowCleanup reproduces the audit's
+// executable-level finding at the provider boundary: every response is
+// routed well inside the query budget, but the provider lingers after
+// its final reply, so deferred cleanup crosses the deadline inside
+// Query. The numeric result must survive; only a response established
+// after the deadline may time out.
+func TestQueryValidResultSurvivesSlowCleanup(t *testing.T) {
+	steps := fullScript(t, "account_chatgpt_home1.json", "ratelimits_weekly_home1.json")
+	steps = append(steps, testutil.Step{SleepMs: 600}) // linger like a slow provider
+	child := testutil.StartFake(t, steps)
+	p := providerOver(child)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	res := p.Query(ctx, codexTarget(t.TempDir()))
+	if res.Status != domain.StatusOK {
+		t.Fatalf("status = %v (%s); timely result discarded for slow cleanup", res.Status, res.Diagnostic.Message)
+	}
+	if res.UsedPercent == nil || *res.UsedPercent != 37 {
+		t.Fatalf("percent = %v", res.UsedPercent)
+	}
+}
+
 func TestQueryTimeoutClassification(t *testing.T) {
 	steps := []testutil.Step{
 		{Wait: 1},

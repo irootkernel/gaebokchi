@@ -87,12 +87,11 @@ func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.
 
 			qctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
+			// A clean result here means its final response was routed
+			// before the deadline (the rpc layer rejects later ones), so
+			// it survives even when the provider's bounded cleanup runs
+			// past the deadline inside Query.
 			res := r.querierFor(tgt.Provider).Query(qctx, tgt)
-			if qctx.Err() == context.DeadlineExceeded && res.Status.ExitClass() == domain.ExitClean {
-				// A clean result cannot arrive after its own deadline;
-				// treat as timeout rather than trusting a late write.
-				res = timedOutResult(tgt)
-			}
 			mu.Lock()
 			results[tgt.Index] = res
 			mu.Unlock()
@@ -114,21 +113,6 @@ func cancelledResult(tgt domain.Target) domain.Result {
 		Diagnostic: domain.Diagnostic{
 			Code:    "cancelled",
 			Message: tgt.ID + ": query cancelled before start",
-		},
-	}
-}
-
-func timedOutResult(tgt domain.Target) domain.Result {
-	return domain.Result{
-		TargetID:      tgt.ID,
-		Provider:      tgt.Provider,
-		Account:       tgt.FallbackAccount,
-		AccountSource: domain.AccountSourceConfiguredAlias,
-		Status:        domain.StatusTimeout,
-		ObservedAt:    time.Now(),
-		Diagnostic: domain.Diagnostic{
-			Code:    "timeout",
-			Message: tgt.ID + ": query exceeded its deadline",
 		},
 	}
 }

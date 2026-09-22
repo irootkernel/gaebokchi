@@ -238,6 +238,53 @@ func TestOneQueryAttemptPerTarget(t *testing.T) {
 	}
 }
 
+// TestValidResultSurvivesCleanupPastDeadline reproduces the audit's
+// executable-level finding at the runner boundary: a result established
+// within the query budget must survive bounded cleanup that crosses the
+// deadline before Query returns, instead of being rewritten to TIMEOUT.
+func TestValidResultSurvivesCleanupPastDeadline(t *testing.T) {
+	q := &fakeQuerier{responder: func(ctx context.Context, tgt domain.Target) domain.Result {
+		res := okResult(tgt, 37) // established immediately, well in budget
+		<-time.After(700 * time.Millisecond)
+		return res // "cleanup" outlives the 300ms query budget
+	}}
+	r := &Runner{Codex: q, Grok: q}
+	results := r.Run(context.Background(), mkTargets(0), 300*time.Millisecond)
+	if len(results) != 1 {
+		t.Fatalf("results = %d", len(results))
+	}
+	if results[0].Status != domain.StatusOK || results[0].UsedPercent == nil || *results[0].UsedPercent != 37 {
+		t.Fatalf("timely result discarded: status=%v percent=%v", results[0].Status, results[0].UsedPercent)
+	}
+}
+
+// TestEstablishedResultSurvivesRootCancellation pins REQ-023's
+// preservation clause: once a target's result is established, root
+// cancellation of the invocation must not erase it from the output.
+func TestEstablishedResultSurvivesRootCancellation(t *testing.T) {
+	established := make(chan struct{})
+	q := &fakeQuerier{responder: func(ctx context.Context, tgt domain.Target) domain.Result {
+		if tgt.ID == "grok:0" {
+			res := okResult(tgt, 11)
+			close(established)
+			return res
+		}
+		<-ctx.Done() // codex targets wedge until cancellation
+		return timeoutish(tgt)
+	}}
+	r := &Runner{Codex: q, Grok: q}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-established
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	results := r.Run(ctx, mkTargets(2), 5*time.Second)
+	if results[2].Status != domain.StatusOK || results[2].UsedPercent == nil || *results[2].UsedPercent != 11 {
+		t.Fatalf("established result lost: %+v", results[2])
+	}
+}
+
 func TestOptionsTargetsFeedRunner(t *testing.T) {
 	o, err := options.Parse(nil)
 	if err != nil {
