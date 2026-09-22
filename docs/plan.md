@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: CORRECTIVE — the original six epics and fourteen tasks were implemented and committed, but a 2026-09-22 post-closeout audit superseded part of the recorded acceptance; [EPIC-007](#epic-007) (TASK-015 through TASK-021) re-qualifies the affected scope before v0.1 can be accepted  
+Status: CORRECTIVE-COMPLETE (code) — [EPIC-007](#epic-007) finished the bounded remediation: all audit code findings are fixed with regression coverage and 16 of the 17 reopened requirements are re-checked with corrected-tree evidence. v0.1 is not fully release-accepted: REQ-048's owner-authorized provider-display comparison remains open  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -708,7 +708,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-007"></a>
 ## EPIC-007: Corrective remediation and re-acceptance
 
-- [ ] Epic complete. **Status: IN PROGRESS.**
+- [x] Epic complete. **Status: COMPLETE** — corrective work finished; the final release-acceptance gate for REQ-048 remains open (owner action required), which is exactly what the epic was scoped to record truthfully.
 
 **Goal:** Correct the executable-level defects found by the 2026-09-22 adversarial audit of commit `f8b180d`, restore the documented contracts with regression coverage, and make the recorded acceptance state truthful again. This is a bounded remediation of the existing v0.1 implementation, not a redesign: the product scope, architecture, and the original six epics' IDs and commits are preserved.
 
@@ -911,7 +911,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-021"></a>
 ### TASK-021: Perform final qualification and record the release decision truthfully
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Qualify the corrected candidate tree end-to-end and record a truthful release decision, keeping code-remediation completion distinct from full release acceptance.
 
@@ -944,13 +944,13 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 These are release-level checks, not extra implementation tasks. The checks below were marked passed at commit `f8b180d` (TASK-014); the corrective audit superseded several of them, and they are re-owned by [EPIC-007](#epic-007) / [TASK-021](#task-021):
 
-- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Superseded: 17 requirements were unchecked in TASK-015 pending re-qualification.)*
-- [ ] All epics and tasks have completed their stated local acceptance criteria in sequence. *(Superseded: EPIC-007, TASK-015 through TASK-021, is in progress; TASK-013/TASK-014 acceptance claims were superseded.)*
+- [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Re-owned by TASK-021: 16 of the 17 reopened requirements are re-checked with corrected-tree evidence; REQ-048 remains unchecked pending the owner-authorized provider-display comparison.)*
+- [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-015 through TASK-021 closed EPIC-007; the superseded TASK-013/TASK-014 acceptance portions are re-owned by the still-open REQ-048 gate below.)*
 - [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
-- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(Superseded: the recorded live evidence belongs to the pre-remediation artifact; the corrected candidate requires re-qualification, and Grok authentication classification defects must not survive into it.)*
-- [ ] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Superseded: owner-account acceptance lacks the provider-display comparison, and Linux/native checks must be re-run against the corrected tree or marked NOT RUN.)*
+- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the corrected candidate has not been live-tested because owner authorization was unavailable in this environment. Offline qualification of the corrected tree is complete.)*
+- [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](verification/TASK-021.md).)*
 - [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced. *(Held.)*
-- [ ] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Superseded: README conflates Linux offline testing with live qualification; artifacts must be rebuilt from the corrected tree.)*
+- [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Artifacts rebuilt from the corrected tree with new SHA-256 checksums; README separates live qualification from offline Linux evidence.)*
 
 A missing live environment is a real qualification gap, not a reason to invent evidence. Stop with a precise incomplete-gate report instead of asking an implementation AI to loop until an unavailable service becomes available.
 

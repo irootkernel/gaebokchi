@@ -1,5 +1,8 @@
 # TASK-013: Run delivered-binary live acceptance
 
+> Artifact-scope correction (2026-09-22, EPIC-007): the campaign below ran against the pre-remediation binary built from the tree at commit `f8b180d` and is valid evidence for that artifact only. The corrected candidate (EPIC-007; rebuilt archives with new SHA-256 checksums in [TASK-021](TASK-021.md)) has not been live-tested, and the provider-display comparison required by REQ-048 remains open pending owner authorization.
+
+
 Task: TASK-013
 Status: COMPLETE
 Goal and implementation scope: Confirm the delivered release binary — not the probe or fakes — works with the owner's two real Codex homes and existing Grok login, with truthful comparison, partial-error, side-effect, and shared-process evidence.
