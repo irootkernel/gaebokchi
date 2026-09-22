@@ -412,11 +412,13 @@ func TestDescendantsPreservedWhenDirectChildExits(t *testing.T) {
 	_ = syscall.Kill(pid, syscall.SIGKILL)
 }
 
-// TestStuckDescendantsKilledWithStuckChild covers the disposable side of
-// the boundary: when the direct child we started refuses to exit, the
-// escalation to its private process group takes the stuck descendants
-// with it, so bounded cleanup is actually achieved.
-func TestStuckDescendantsKilledWithStuckChild(t *testing.T) {
+// TestStuckDescendantSurvivesForcedDirectKill covers the forced side of
+// the ownership boundary: when the direct child we started refuses
+// graceful termination, escalation kills and reaps only that direct
+// child. The uncertain-ownership descendant survives even forced
+// cleanup — direct-child unresponsiveness does not prove the group is
+// disposable — while bounded cleanup still completes.
+func TestStuckDescendantSurvivesForcedDirectKill(t *testing.T) {
 	c := startHelper(t, "ignore-term-grandchild", "sleep", "30")
 	pid := readGrandchildPID(t, c)
 
@@ -430,20 +432,14 @@ func TestStuckDescendantsKilledWithStuckChild(t *testing.T) {
 	select {
 	case <-c.Done():
 	default:
-		t.Fatal("direct child not reaped after group kill")
+		t.Fatal("direct child not reaped after forced kill")
 	}
-	// The descendant dies with the group; allow a short grace for the
-	// kernel to reap the orphan.
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		if err := syscall.Kill(pid, 0); err != nil {
-			return // gone: group escalation cleaned the descendant
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("stuck descendant %d survived group kill", pid)
-		}
-		time.Sleep(50 * time.Millisecond)
+	if err := syscall.Kill(pid, 0); err != nil {
+		t.Fatalf("uncertain-ownership descendant killed by forced cleanup: %v", err)
 	}
+	// The descendant is the test's own helper process: end it explicitly
+	// rather than leaving it to its 30s sleep.
+	_ = syscall.Kill(pid, syscall.SIGKILL)
 }
 
 func TestStartFailureCleansUp(t *testing.T) {
@@ -478,4 +474,45 @@ func samePath(a, b string) (bool, error) {
 
 func realpath(p string) (string, error) {
 	return filepath.EvalSymlinks(p)
+}
+
+// TestCloseReportsRemovalFailure reproduces a real cleanup failure with
+// permissions: after the test-owned parent directory loses its write
+// bit, the private directory cannot be unlinked, so Close must report
+// the failure, keep reporting the same outcome on repeated calls, and
+// still reap the child.
+func TestCloseReportsRemovalFailure(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission-based removal failure does not apply as root")
+	}
+	parent := t.TempDir()
+	c, err := Start(Config{
+		Bin:       os.Args[0],
+		Args:      []string{"-test.run=TestHelperProcess", "--", "stuck"},
+		Env:       append(os.Environ(), "GO_GAEBOKCHI_HELPER=1"),
+		TempParent: parent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the test's own directory is touched; the permission is
+	// restored before the temp-dir cleanup runs.
+	if err := os.Chmod(parent, 0o500); err != nil {
+		t.Skipf("cannot chmod temp parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	first := c.Close()
+	if first == nil {
+		t.Fatal("cleanup failure not reported")
+	}
+	second := c.Close()
+	if second != first {
+		t.Fatalf("repeated close changed the outcome: %v vs %v", second, first)
+	}
+	select {
+	case <-c.Done():
+	default:
+		t.Fatal("child not reaped despite incomplete removal")
+	}
 }

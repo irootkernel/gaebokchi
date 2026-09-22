@@ -58,12 +58,14 @@ func Table(results []domain.Result) string {
 	return buf.String()
 }
 
-// WriteDiagnostics emits at most one bounded line per non-clean result,
-// in result order, followed by nothing else. Only safe, fixed messages
-// from the domain diagnostics are used.
+// WriteDiagnostics emits at most one bounded line per result, in result
+// order, followed by nothing else. Only safe, fixed messages from the
+// domain diagnostics are used. A numeric row whose cleanup failed also
+// emits its single safe line — the measurement stays, the incomplete
+// operation is reported.
 func WriteDiagnostics(w io.Writer, results []domain.Result) {
 	for _, r := range results {
-		if r.Status == domain.StatusOK {
+		if r.Status == domain.StatusOK && !r.CleanupFailed {
 			continue
 		}
 		cell := UsageCell(r)

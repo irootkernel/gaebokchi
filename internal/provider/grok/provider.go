@@ -93,9 +93,26 @@ type session struct {
 	conn  *rpc.Conn
 }
 
-func (s *session) close() {
+// close tears the connection down and completes the child's bounded
+// cleanup, returning an error when cleanup did not fully complete.
+func (s *session) close() error {
 	s.conn.Close()
-	_ = s.child.Close()
+	return s.child.Close()
+}
+
+// closeInto closes the session and records incomplete cleanup on the
+// result without invalidating a measured outcome: a valid quota stays
+// numeric, a bounded safe diagnostic is added when none exists, and
+// only the flag is set when a primary diagnostic already describes the
+// row's failure. Raw cleanup errors, paths, and provider stderr never
+// reach the diagnostic.
+func (s *session) closeInto(res *domain.Result) {
+	if err := s.close(); err != nil && res != nil {
+		res.CleanupFailed = true
+		if res.Diagnostic.Message == "" {
+			res.Diagnostic = domain.Diagnostic{Code: "cleanup_failed", Message: "provider cleanup incomplete"}
+		}
+	}
 }
 
 // childEnv composes the filtered environment for Grok children from
@@ -168,7 +185,10 @@ type headlessMeta struct {
 
 // openSession starts the child, negotiates the verified protocol
 // version, and classifies the advertised authentication methods. No
-// `initialized` notification exists in this dialect.
+// `initialized` notification exists in this dialect. The returned
+// session is non-nil whenever a child was started, including on error
+// and for terminal plans: cleanup is owned by the caller's deferred
+// close so its outcome is never discarded.
 func openSession(ctx context.Context, bin string, start process.Factory) (*session, authPlan, error) {
 	child, err := startChild(bin, start)
 	if err != nil {
@@ -188,17 +208,17 @@ func openSession(ctx context.Context, bin string, start process.Factory) (*sessi
 
 	resp, err := conn.Call(ctx, "initialize", initParams)
 	if err != nil {
-		s.close()
-		return nil, 0, err
+		// Transport failure already aborted and closed the child (the
+		// connection's die hook); the caller's deferred closeInto
+		// captures that cleanup outcome idempotently.
+		return s, 0, err
 	}
 	if resp.Err != nil {
-		s.close()
-		return nil, 0, &rpcCallError{method: "initialize", remote: resp.Err}
+		return s, 0, &rpcCallError{method: "initialize", remote: resp.Err}
 	}
 	plan, err := classifyInitialize(resp.Result)
 	if err != nil || plan != planCachedToken {
-		s.close()
-		return nil, plan, err
+		return s, plan, err
 	}
 	return s, plan, nil
 }
@@ -317,8 +337,10 @@ func readBilling(ctx context.Context, s *session) (json.RawMessage, error) {
 // Query runs the complete metadata-only lifecycle for the Grok target
 // and returns exactly one terminal result. The ACCOUNT column is the
 // configured alias on every outcome; no identity endpoint exists.
-func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
-	res := domain.Result{
+// Cleanup that did not fully complete is recorded separately through
+// CleanupFailed instead of being discarded.
+func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Result) {
+	res = domain.Result{
 		TargetID:      tgt.ID,
 		Provider:      tgt.Provider,
 		Account:       tgt.FallbackAccount,
@@ -339,11 +361,18 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
 	}
 
 	s, plan, err := openSession(ctx, bin, p.Start)
+	if s != nil {
+		// The deferred close captures cleanup failure whether cleanup
+		// runs here or was already initiated by the RPC abort path
+		// (Close is idempotent and keeps its first outcome).
+		defer s.closeInto(&res)
+	}
 	if err != nil {
 		return classifyTransportFailure(res, err)
 	}
-	if s == nil {
-		// Negotiation established a terminal plan without a session.
+	if plan != planCachedToken {
+		// Negotiation established a terminal plan; the deferred close
+		// above still reaps the child.
 		switch plan {
 		case planAPIKeyOnly:
 			res.Status = domain.StatusNotApplicableAPIKey
@@ -360,7 +389,6 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
 		}
 		return res
 	}
-	defer s.close()
 
 	// A live session exists only for the cached-token plan.
 	if err := authenticateCached(ctx, s); err != nil {

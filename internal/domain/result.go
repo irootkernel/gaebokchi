@@ -54,4 +54,11 @@ type Result struct {
 	ObservedAt time.Time
 	Source     string
 	Diagnostic Diagnostic
+	// CleanupFailed records that the target's owned-process cleanup did
+	// not fully complete (for example, the private temporary directory
+	// could not be removed). It never invalidates a measured quota: the
+	// percentage stays, a bounded safe diagnostic is emitted, and the
+	// invocation exits 1 instead of claiming complete operational
+	// success. Signal exit codes (130/143) keep their precedence.
+	CleanupFailed bool
 }

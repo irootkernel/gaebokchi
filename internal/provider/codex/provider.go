@@ -53,9 +53,11 @@ func (p *Provider) resolveBin(bin string) (string, error) {
 // Query runs the complete metadata-only lifecycle for one Codex target
 // and returns exactly one terminal result. It never renders, exits, or
 // touches other targets; a planned cleanup after a valid exchange never
-// overwrites the collected outcome.
-func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
-	res := domain.Result{
+// overwrites the collected outcome. Cleanup that did not fully complete
+// is recorded separately through CleanupFailed instead of being
+// discarded.
+func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Result) {
+	res = domain.Result{
 		TargetID:      tgt.ID,
 		Provider:      tgt.Provider,
 		Account:       tgt.FallbackAccount,
@@ -87,10 +89,15 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) domain.Result {
 	}
 
 	sess, err := openSession(ctx, bin, tgt.Home, p.Start)
+	if sess != nil {
+		// The deferred close captures cleanup failure whether cleanup
+		// runs here or was already initiated by the RPC abort path
+		// (Close is idempotent and keeps its first outcome).
+		defer sess.closeInto(&res)
+	}
 	if err != nil {
 		return classifyTransportFailure(res, err)
 	}
-	defer sess.close()
 
 	info, err := readAccount(ctx, sess)
 	if err != nil {
@@ -188,9 +195,26 @@ type session struct {
 	conn  *rpc.Conn
 }
 
-func (s *session) close() {
+// close tears the connection down and completes the child's bounded
+// cleanup, returning an error when cleanup did not fully complete.
+func (s *session) close() error {
 	s.conn.Close()
-	_ = s.child.Close()
+	return s.child.Close()
+}
+
+// closeInto closes the session and records incomplete cleanup on the
+// result without invalidating a measured outcome: a valid quota stays
+// numeric, a bounded safe diagnostic is added when none exists, and
+// only the flag is set when a primary diagnostic already describes the
+// row's failure. Raw cleanup errors, paths, and provider stderr never
+// reach the diagnostic.
+func (s *session) closeInto(res *domain.Result) {
+	if err := s.close(); err != nil && res != nil {
+		res.CleanupFailed = true
+		if res.Diagnostic.Message == "" {
+			res.Diagnostic = domain.Diagnostic{Code: "cleanup_failed", Message: "provider cleanup incomplete"}
+		}
+	}
 }
 
 // startChild launches `codex app-server` for one home with the
@@ -208,7 +232,9 @@ func startChild(bin, home string, start process.Factory) (*process.Child, error)
 }
 
 // openSession starts the child and completes the metadata-only
-// initialize/initialized handshake.
+// initialize/initialized handshake. The returned session is non-nil
+// whenever a child was started, including on error: cleanup is owned by
+// the caller's deferred close so its outcome is never discarded.
 func openSession(ctx context.Context, bin, home string, start process.Factory) (*session, error) {
 	child, err := startChild(bin, home, start)
 	if err != nil {
@@ -226,23 +252,22 @@ func openSession(ctx context.Context, bin, home string, start process.Factory) (
 	}
 	resp, err := conn.Call(ctx, "initialize", initParams)
 	if err != nil {
-		s.close()
-		return nil, err
+		// Transport failure already aborted and closed the child (the
+		// connection's die hook); Query's deferred closeInto captures
+		// that cleanup outcome idempotently.
+		return s, err
 	}
 	if resp.Err != nil {
-		s.close()
-		return nil, &rpcCallError{method: "initialize", remote: resp.Err}
+		return s, &rpcCallError{method: "initialize", remote: resp.Err}
 	}
 	if err := validateInitializeResult(resp.Result); err != nil {
-		s.close()
-		return nil, err
+		return s, err
 	}
 	// Wait for the initialize response before sending initialized, per
 	// the qualified handshake order. A blocked write is cancellable so a
 	// wedged provider cannot defeat the query deadline.
 	if err := conn.Notify(ctx, "initialized", struct{}{}); err != nil {
-		s.close()
-		return nil, err
+		return s, err
 	}
 	return s, nil
 }

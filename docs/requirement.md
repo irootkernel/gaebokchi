@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: CORRECTIVE-COMPLETE (code) — the EPIC-007 remediation is implemented and re-qualified offline: 16 of the 17 requirements reopened by the 2026-09-22 audit are re-checked below with corrected-tree evidence. REQ-048's owner-authorized provider-display comparison is the one remaining acceptance gate, so v0.1 is not fully release-accepted yet  
+Status: CORRECTIVE (residual findings open) — the confirmation review of `c340245` found five residual defects (discarded cleanup failures, unqualified forced group termination, incomplete Unicode whitespace normalization, a suffix-rule mismatch, stale roadmap/acceptance/packaging state). Affected requirements are reopened below pending TASK-022 through TASK-025; REQ-048 remains the separate open live gate  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -63,11 +63,12 @@ Provider compatibility is an implementation gate. Published documentation/source
 ### CLI and output
 
 <a id="req-006"></a>
-- [x] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
+- [ ] **REQ-006: Small documented command surface.** Implement only the v0.1 flags in ARCH-03, including help, version, repeatable Codex home overrides, binary overrides, Grok display alias, and per-target timeout. Help/version must not launch a provider process. Reject unknown flags and positional arguments.
   - - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-010](plan.md#task-010). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) parser matrix plus TASK-010 help/version/no-launch and exit-code tests.
   - Superseded 2026-09-22 by the corrective audit: binary overrides given as explicit relative paths fail from the neutral child cwd, and a whitespace-only `--grok-account` alias is accepted. Re-qualification: [TASK-017](plan.md#task-017) (path resolution) and [TASK-019](plan.md#task-019) (alias validation).
   - Re-qualified 2026-09-22 under EPIC-007: explicit relative binary overrides resolve against the invocation cwd (unit + end-to-end wrapper-script test), and aliases normalize before validation with blank-after-normalization rejected as a usage error before launch. Checkbox restored.
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: whitespace built from Unicode spaces (U+3000, U+205F, U+1680) bypassed alias validation. Re-qualification: [TASK-023](plan.md#task-023).
 <a id="req-007"></a>
 - [x] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep one Grok target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
   - Architecture: [ARCH-03](architecture.md#arch-03). Owner: [TASK-002](plan.md#task-002). Verification: [V-OPTIONS](architecture.md#v-options). Evidence: [docs/verification/TASK-002.md](verification/TASK-002.md) (replacement order, ambient CODEX_HOME ignored, Grok last).
@@ -83,21 +84,23 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Re-qualified 2026-09-22 under EPIC-007: results established before the deadline survive cleanup crossing it (runner, provider, and rpc establishment-timestamp regressions), and one absolute cleanup budget is enforced end to end.
 
 <a id="req-010"></a>
-- [x] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
+- [ ] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate visible Codex account names without merging rows.
   - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-010](plan.md#task-010). Verification: [V-IDENTITY](architecture.md#v-identity). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) and TASK-006/008 identity suites — protocol email preferred, home-basename fallback, Grok alias, duplicate disambiguation.
   - Superseded 2026-09-22 by the corrective audit: whitespace-only protocol emails are adopted as labels instead of falling back to the home basename, and duplicate disambiguation runs on raw labels before sanitization. Re-qualification: [TASK-019](plan.md#task-019).
   - Re-qualified 2026-09-22 under EPIC-007: emails and aliases pass through the single display-label policy before validity decisions, and disambiguation operates on normalized final labels with suffix-lookalike collision handling.
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: Unicode-whitespace labels bypassed validity checks and duplicate suffixes used a collision counter instead of the documented target-index rule. Re-qualification: [TASK-023](plan.md#task-023).
 <a id="req-011"></a>
 - [x] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
   - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) golden tests — three headings, no extras, 4 lines default, N+2 rule, final newline.
 
 <a id="req-012"></a>
-- [x] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
+- [ ] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
   - - Architecture: [ARCH-10](architecture.md#arch-10). Owner: [TASK-010](plan.md#task-010). Verification: [V-OUTPUT](architecture.md#v-output). Evidence: [docs/verification/TASK-010.md](verification/TASK-010.md) — stdout table only, stderr diagnostics only, no raw provider output, control-character sanitization.
 
 ### Usage semantics
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: the shared normalization policy enumerated only some Unicode whitespace, so whitespace-only labels could render as blank cells. Re-qualification: [TASK-023](plan.md#task-023).
 <a id="req-013"></a>
 - [x] **REQ-013: Presence-aware percentages.** Emit one decimal place and `%` for a finite, explicitly present numeric value from 0 through 100. Preserve a genuine zero as `0.0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them, multiply ratios by 100, or substitute zero for missing fields.
   - - Architecture: [ARCH-04](architecture.md#arch-04). Owner: [TASK-008](plan.md#task-008). Verification: [V-QUOTA](architecture.md#v-quota). Evidence: [docs/verification/TASK-008.md](verification/TASK-008.md) and TASK-006 suites — one-decimal formatting, explicit zero preserved, out-of-range/non-numeric rejected without clamping or ratio conversion.
@@ -135,11 +138,12 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-004](plan.md#task-004). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-004.md](verification/TASK-004.md) (server requests rejected with exact id and connection aborted; Grok false capabilities declared in TASK-007 wire tests).
 
 <a id="req-020"></a>
-- [x] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
+- [ ] **REQ-020: Owned-process cleanup.** Close stdin and reap each owned child exactly once. Apply bounded EOF/termination/kill cleanup on success, error, timeout, and cancellation. Do not kill unrelated CLI sessions or provider-managed shared leaders; private process-group cleanup is allowed only with proven ownership.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-LIFECYCLE](architecture.md#v-lifecycle). Evidence: [docs/verification/TASK-003.md](verification/TASK-003.md) — stdin close, exactly-once wait, EOF/SIGTERM/SIGKILL stages within budget, unrelated-process survival, owned-group-only kills.
   - Superseded 2026-09-22 by the corrective audit: cleanup grants `finish` a fresh full budget after `shutdown` (violating the single bounded allowance), and the direct child exiting early can leave application-owned descendants unsignalled. Re-qualification: [TASK-016](plan.md#task-016).
   - Re-qualified 2026-09-22 under EPIC-007: one absolute cleanup deadline covers shutdown and finish, incomplete cleanup surfaces ErrCleanupIncomplete, exactly-once reaping and the descendant/shared-leader boundary are tested on both sides.
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: forced cleanup still SIGKILLed the whole private group when the direct child was unresponsive, without proven ownership. Re-qualification: [TASK-022](plan.md#task-022).
 <a id="req-021"></a>
 - [x] **REQ-021: Safe diagnostics.** Classify errors using local failure types and verified structured protocol errors. Do not print auth files, bearer tokens, environment values, raw RPC bodies, or raw child stderr. A generic sanitized error is preferable to unsafe or guessed detail.
   - - Architecture: [ARCH-09](architecture.md#arch-09). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) — fixed application-owned messages only; secret markers and raw provider output never reach stdout/stderr.
@@ -233,9 +237,10 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Re-qualified 2026-09-22 under EPIC-007: explicit relative executable identity is absolutized before the neutral child cwd while ErrDot protection is preserved.
 
 <a id="req-040"></a>
-- [x] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
+- [ ] **REQ-040: Neutral working directory.** Launch probes and runtime children in private empty temporary directories outside the caller’s project tree. Do not pass repository prompts, MCP servers, skills, or project files. Delete application-owned temporary resources after child cleanup.
   - - Architecture: [ARCH-05](architecture.md#arch-05). Owner: [TASK-003](plan.md#task-003). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-003.md](verification/TASK-003.md) — private 0700 temp cwd outside the project, removed after cleanup; TASK-011 confirms invocation from neutral dirs.
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: cleanup failures (including temporary-directory removal failures) were discarded before reaching the CLI, so an invocation with unremovable application-owned directories still exited 0. Re-qualification: [TASK-022](plan.md#task-022).
 <a id="req-041"></a>
 - [x] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
   - - Architecture: [ARCH-02](architecture.md#arch-02). Owner: [TASK-011](plan.md#task-011). Verification: [V-SAFETY](architecture.md#v-safety). Evidence: [docs/verification/TASK-011.md](verification/TASK-011.md) static scan (no listeners, no persistent files) and TASK-003 temp-dir cleanup.
@@ -282,11 +287,12 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Re-qualified 2026-09-22 under EPIC-007: README distinguishes live provider qualification (darwin/arm64) from the native offline Linux run and from cross-build-only targets.
 
 <a id="req-050"></a>
-- [x] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
+- [ ] **REQ-050: Traceable completion.** Maintain requirement-to-architecture-to-task links and record verification evidence before checking off a requirement. Complete epics in plan order, one task-scoped commit at a time. Do not close a provider requirement on fallback-only evidence or run unbounded review cycles.
   - - Architecture: [ARCH-14](architecture.md#arch-14). Owner: [TASK-014](plan.md#task-014). Verification: [V-AUDIT](architecture.md#v-audit). Evidence: this audit — every REQ carries architecture/owner/verification/evidence links, fourteen task-scoped commits in plan order (git log), live evidence distinguished from fixtures throughout.
   - Superseded 2026-09-22 by the corrective audit: 17 requirements were checked without their full acceptance scope being verified, and plan/requirement statuses contradicted each other. Re-qualification: [TASK-021](plan.md#task-021).
   - Re-qualified 2026-09-22 under EPIC-007: TASK-015 through TASK-021 each landed one coherent commit with evidence; the audit trail records the supersession and re-qualification of every affected requirement, and REQ-048 remains visibly open rather than silently closed.
 
+  - Reopened 2026-09-22 by the confirmation review of `c340245`: roadmap/acceptance-checkbox/packaged-document states were inconsistent with the recorded completion claims. Re-qualification: [TASK-024](plan.md#task-024).
 ## Completion rules
 
 A percentage is not required when the provider explicitly reports a monthly allowance or the account uses an out-of-scope API-key mode. Those are supported, truthful **non-applicable** outcomes. An unsupported method, missing weekly metadata, absent login, timeout, or missing executable is a supported **failure/unavailable presentation**, not evidence that the positive provider integration is complete.

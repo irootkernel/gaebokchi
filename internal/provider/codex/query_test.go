@@ -347,3 +347,80 @@ func TestInitializeResultShapeValidation(t *testing.T) {
 		}
 	})
 }
+
+// startFakeIn starts a scripted fake child whose private directory
+// lives under the given parent, so a test that owns the parent can make
+// removal fail deterministically.
+func startFakeIn(t *testing.T, parent string, steps []testutil.Step) *process.Child {
+	t.Helper()
+	script, err := json.Marshal(steps)
+	if err != nil {
+		t.Fatalf("marshal fake script: %v", err)
+	}
+	c, err := process.Start(process.Config{
+		Bin:  os.Args[0],
+		Args: []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Env:  append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
+		TempParent: parent,
+	})
+	if err != nil {
+		t.Fatalf("start fake child: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	return c
+}
+
+// TestQueryCleanupFailureFlaggedOnSuccess pins the propagation contract
+// on a successful query: the measured percentage stays, CleanupFailed
+// is set, and the safe fixed diagnostic replaces the empty one.
+func TestQueryCleanupFailureFlaggedOnSuccess(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission-based removal failure does not apply as root")
+	}
+	parent := t.TempDir()
+	child := startFakeIn(t, parent, fullScript(t, "account_chatgpt_home1.json", "ratelimits_weekly_home1.json"))
+	if err := os.Chmod(parent, 0o500); err != nil {
+		t.Skipf("cannot chmod temp parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	res := providerOver(child).Query(context.Background(), codexTarget(t.TempDir()))
+	if res.Status != domain.StatusOK || res.UsedPercent == nil || *res.UsedPercent != 37 {
+		t.Fatalf("measurement lost: status=%v percent=%v", res.Status, res.UsedPercent)
+	}
+	if !res.CleanupFailed {
+		t.Fatal("cleanup failure not propagated to the result")
+	}
+	if res.Diagnostic.Code != "cleanup_failed" || res.Diagnostic.Message != "provider cleanup incomplete" {
+		t.Fatalf("diagnostic = %+v", res.Diagnostic)
+	}
+}
+
+// TestQueryCleanupFailureFlaggedViaRPCAbort pins that cleanup failures
+// initiated by the RPC abort path (a timed-out query whose transport
+// teardown cannot complete) still reach the result: the timeout keeps
+// its primary diagnostic and gains the CleanupFailed flag.
+func TestQueryCleanupFailureFlaggedViaRPCAbort(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission-based removal failure does not apply as root")
+	}
+	parent := t.TempDir()
+	child := startFakeIn(t, parent, []testutil.Step{{Wait: 1}, {SleepMs: 60000}})
+	if err := os.Chmod(parent, 0o500); err != nil {
+		t.Skipf("cannot chmod temp parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	res := providerOver(child).Query(ctx, codexTarget(t.TempDir()))
+	if res.Status != domain.StatusTimeout {
+		t.Fatalf("status = %v, want timeout", res.Status)
+	}
+	if res.Diagnostic.Code != "timeout" {
+		t.Fatalf("primary diagnostic lost: %+v", res.Diagnostic)
+	}
+	if !res.CleanupFailed {
+		t.Fatal("RPC-abort cleanup failure not propagated to the result")
+	}
+}

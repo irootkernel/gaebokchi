@@ -41,6 +41,13 @@ type Config struct {
 	Env  []string
 	// CleanupBudget defaults to DefaultCleanupBudget.
 	CleanupBudget time.Duration
+	// TempParent overrides the parent directory of the child's private
+	// working directory; empty uses the system default. It exists as a
+	// narrow, documented test seam so tests that own the parent can
+	// deterministically reproduce cleanup failures (for example by
+	// removing the parent's write permission after start). Production
+	// callers leave it empty.
+	TempParent string
 }
 
 // Factory creates owned children; production uses Start. Tests inject
@@ -81,7 +88,7 @@ func Start(cfg Config) (*Child, error) {
 	if cfg.CleanupBudget <= 0 {
 		cfg.CleanupBudget = DefaultCleanupBudget
 	}
-	dir, err := os.MkdirTemp("", "gaebokchi-")
+	dir, err := os.MkdirTemp(cfg.TempParent, "gaebokchi-")
 	if err != nil {
 		return nil, err
 	}
@@ -217,12 +224,13 @@ func (c *Child) drainStderr() {
 
 // Close terminates and reaps the child within one absolute cleanup
 // budget: stdin EOF, then SIGTERM to the direct child, then SIGKILL to
-// the private process group owned by this child. It unblocks pipe
-// readers, joins the drain goroutine, and removes the temporary
-// directory, all against that same deadline. Safe to call more than
-// once. Descendants that outlive a cleanly exiting child are preserved
-// (see shutdown); shared provider leaders outside this child's process
-// group are never signalled.
+// the direct child only — never to its process group, whose membership
+// does not prove disposability. It unblocks pipe readers, joins the
+// drain goroutine, and removes the temporary directory, all against
+// that same deadline, returning an error when cleanup did not fully
+// complete. Safe to call more than once (the first outcome is kept).
+// Descendants that outlive the direct child are preserved; shared
+// provider leaders outside this child are never signalled.
 func (c *Child) Close() error {
 	c.closeOnce.Do(func() {
 		c.closeErr = c.shutdown()
@@ -256,10 +264,15 @@ func (c *Child) shutdown() error {
 		return c.finish(deadline)
 	}
 
-	// Stage 3: SIGKILL the private process group (and the child). Only
-	// reached when the direct child we started refuses to exit; the
-	// group was created for exactly this child.
-	c.killGroup()
+	// Stage 3: SIGKILL the direct child only. The child refuses graceful
+	// termination, but its unresponsiveness does not prove that every
+	// process in its group is disposable: a provider-managed shared
+	// leader can be a descendant with uncertain ownership. Terminating,
+	// reaping, and unblocking pipes for the child we started stays
+	// within our ownership; the group is never signalled (ARCH-05).
+	if c.cmd.Process != nil {
+		_ = c.killDirect()
+	}
 	reaped := false
 	select {
 	case <-c.done:

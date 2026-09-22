@@ -157,10 +157,15 @@ func finalExit(sigNum int64, outputFailed bool, results []domain.Result) int {
 }
 
 // exitCode computes the non-signal exit code: 0 when every row is
-// numeric or explicitly non-applicable, 1 otherwise.
+// numeric or explicitly non-applicable and every target's cleanup
+// completed, 1 otherwise. Incomplete cleanup must not be reported as
+// complete operational success.
 func exitCode(results []domain.Result) int {
 	for _, r := range results {
 		if r.Status.ExitClass() != domain.ExitClean {
+			return 1
+		}
+		if r.CleanupFailed {
 			return 1
 		}
 	}

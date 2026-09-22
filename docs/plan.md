@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: CORRECTIVE-COMPLETE (code) — [EPIC-007](#epic-007) finished the bounded remediation: all audit code findings are fixed with regression coverage and 16 of the 17 reopened requirements are re-checked with corrected-tree evidence. v0.1 is not fully release-accepted: REQ-048's owner-authorized provider-display comparison remains open  
+Status: CORRECTIVE (residual findings open) — the confirmation review of commit `c340245` accepted most of EPIC-007's fixes but found five residual defects (discarded cleanup failures, unqualified forced group termination, incomplete Unicode whitespace normalization, a suffix rule mismatch, and stale roadmap/acceptance/packaging state). TASK-022 through TASK-025 address exactly that list; REQ-048 remains open as the separate live gate  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -42,11 +42,11 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | NOT STARTED |
 | 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | NOT STARTED |
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | NOT STARTED |
-| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) | [EPIC-006](#epic-006) implemented | IN PROGRESS |
+| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) | [EPIC-006](#epic-006) implemented | IN PROGRESS (residual findings) |
 
 The `Initial status` column is historical: it records the state when the plan was authored. All six original epics subsequently reached their implementation milestones and their task commits exist in repository history. However, the corrective audit that opened [EPIC-007](#epic-007) superseded acceptance claims recorded at TASK-013 and TASK-014, so those gates are pending re-qualification and v0.1 is not currently fully accepted.
 
-The task order is globally sequential: TASK-001 through TASK-021. Runtime account queries may be concurrent; development tasks may not.
+The task order is globally sequential: TASK-001 through TASK-025. Runtime account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -708,13 +708,13 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-007"></a>
 ## EPIC-007: Corrective remediation and re-acceptance
 
-- [x] Epic complete. **Status: COMPLETE** — corrective work finished; the final release-acceptance gate for REQ-048 remains open (owner action required), which is exactly what the epic was scoped to record truthfully.
+- [ ] Epic complete. **Status: IN PROGRESS (residual findings).** *Supersession note (2026-09-22): the confirmation review of `c340245` verified most TASK-015..021 fixes but found five residual defects, reopening this epic through TASK-022..025. The completion claim above was premature; the historical work itself stands.*
 
 **Goal:** Correct the executable-level defects found by the 2026-09-22 adversarial audit of commit `f8b180d`, restore the documented contracts with regression coverage, and make the recorded acceptance state truthful again. This is a bounded remediation of the existing v0.1 implementation, not a redesign: the product scope, architecture, and the original six epics' IDs and commits are preserved.
 
 **Entry:** EPIC-001 through EPIC-006 implemented (historical commits preserved); corrective audit findings accepted.
 
-**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021)
+**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025)
 
 **Local epic acceptance:** Every audit finding is either fixed with focused regression coverage or explicitly recorded as an owner action (REQ-048's provider-display comparison). The affected requirement checkboxes are re-checked only against the corrected tree. A mandatory gate that cannot be run in this environment is reported as blocked, never waived.
 
@@ -937,7 +937,113 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Commit boundary:** `test(TASK-021): record final qualification and release decision`.
 
-**Next:** Close EPIC-007 and stop. Return the corrected-behavior handoff with trustworthy evidence; do not start another feature automatically.
+
+<a id="task-022"></a>
+### TASK-022: Reopen corrective state, propagate cleanup failures, and own only the direct child
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Execute the confirmation review's first two residual findings: make lifecycle cleanup failures visible to the CLI without invalidating measured quotas, and make forced termination depend on proven ownership (direct-child only).
+
+**Dependency:** TASK-021's record superseded by the confirmation review; no unrelated work reopened.
+
+**Architecture:** [ARCH-05](architecture.md#arch-05) (ownership and cleanup-failure policy rewritten accordingly).
+
+**Primary requirement ownership:** re-qualifies [REQ-020](requirement.md#req-020), [REQ-040](requirement.md#req-040); reopens the acceptance baseline for [REQ-006](requirement.md#req-006), [REQ-010](requirement.md#req-010), [REQ-012](requirement.md#req-012), [REQ-050](requirement.md#req-050) pending TASK-023/TASK-024.
+
+**Implementation scope:**
+
+- Reopen the corrective-completion claims and register TASK-022 through TASK-025.
+- Stage-3 cleanup kills the direct child only; the private group is never signalled (Setpgid stays for signal isolation). killGroup removed.
+- Cleanup outcomes propagate: provider sessions return Close's error through a deferred capture (idempotent, covers the RPC-abort path); `domain.Result.CleanupFailed` carries the outcome; the renderer emits one bounded safe diagnostic for numeric rows; the CLI exits 1; signal codes 130/143 keep precedence.
+- `process.Config.TempParent` is a narrow documented test seam for deterministic cleanup-failure injection.
+
+**Acceptance criteria:**
+
+- [ ] A numeric quota plus failed cleanup keeps the percentage, emits exactly one safe diagnostic, and exits 1; cleanup failure in one target leaves healthy siblings untouched; signal codes outrank cleanup failure; repeated closure keeps one outcome; RPC-abort-initiated cleanup failures reach the result; a real permission-based removal failure is reproduced where the environment permits (test-owned directories only, permissions restored).
+
+**Verification:** [V-LIFECYCLE](architecture.md#v-lifecycle), [V-EXIT](architecture.md#v-exit), [V-E2E](architecture.md#v-e2e).
+
+**Commit boundary:** `fix(TASK-022): propagate cleanup failures and own only direct-child termination`.
+
+**Next:** [TASK-023](#task-023).
+
+<a id="task-023"></a>
+### TASK-023: Complete Unicode label normalization and the target-index suffix rule
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Execute the confirmation review's findings 3 and 4: whitespace-only labels built from Unicode spaces (U+3000, U+205F, U+1680, ...) must normalize to empty and be rejected or fall back; duplicate-account suffixes must follow the documented `#<target index + 1>` rule.
+
+**Architecture:** [ARCH-04](architecture.md#arch-04).
+
+**Primary requirement ownership:** re-qualifies [REQ-006](requirement.md#req-006), [REQ-010](requirement.md#req-010), [REQ-012](requirement.md#req-012).
+
+**Implementation scope:**
+
+- `domain.NormalizeLabel` uses a complete Unicode whitespace predicate (`unicode.IsSpace`) together with the existing control/format/replacement policy; ordinary printable Unicode (including Korean/CJK) is preserved.
+- Disambiguation suffixes are based on the target's configured index (`#<index+1>`); a narrow documented deterministic extension (`#<index+1>-2`, ...) covers collisions with reserved lookalike labels while preserving the index component.
+
+**Acceptance criteria:**
+
+- [ ] U+3000/U+205F/U+1680-only aliases exit 2 before provider launch; a U+3000-only email falls back to its home basename; the `same/other/same` example yields `#3`; labels are deterministic across repeated invocations and completion orders; existing sanitization-collision and lookalike protections still hold.
+
+**Verification:** [V-OPTIONS](architecture.md#v-options), [V-IDENTITY](architecture.md#v-identity).
+
+**Commit boundary:** `fix(TASK-023): complete unicode label normalization and index suffix rule`.
+
+**Next:** [TASK-024](#task-024).
+
+<a id="task-024"></a>
+### TASK-024: Reconcile current documentation and acceptance state
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Execute the confirmation review's fifth finding: make headers, roadmap rows, epic/task statuses, requirement checkboxes, acceptance checklists, and verification records agree, without bulk-checking or rewriting history.
+
+**Architecture:** [ARCH-14](architecture.md#arch-14).
+
+**Primary requirement ownership:** re-qualifies [REQ-050](requirement.md#req-050); closes the reopened label/cleanup requirements with evidence.
+
+**Implementation scope:**
+
+- Roadmap rows and epic/task statuses reconciled with the current state; each of the previously unchecked acceptance items checked only with matching evidence or left unchecked with the exact remaining issue; TASK-016/TASK-019/TASK-021 records gain explicit follow-up notes; requirement.md reflects the final corrective state.
+
+**Acceptance criteria:**
+
+- [ ] Document navigation is consistent; no acceptance checkbox is checked without matching evidence; the final state distinguishes corrective code completion from the pending REQ-048 live gate (candidate live test and provider-display comparison).
+
+**Verification:** [V-AUDIT](architecture.md#v-audit), [V-DOCS](architecture.md#v-docs). `go run scripts/check-docs.go`.
+
+**Commit boundary:** `docs(TASK-024): reconcile corrective state and acceptance checklists`.
+
+**Next:** [TASK-025](#task-025).
+
+<a id="task-025"></a>
+### TASK-025: Final verification and candidate packaging
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Re-qualify the corrected tree end to end and package the candidate with document freshness verified (the previous archives were staged before the final document edits).
+
+**Architecture:** [ARCH-13](architecture.md#arch-13), [ARCH-14](architecture.md#arch-14).
+
+**Primary requirement ownership:** evidence for all re-qualified requirements; artifact records.
+
+**Implementation scope:**
+
+- Full gate (gofmt/vet/test/race/docs) on darwin/arm64 and linux/arm64 (containerized); four CGO-disabled builds.
+- Packaging sequence: finalize documents, build, inspect all four archives, byte-compare every packaged document with the intended source, verify version output and checksums, record source identity. No document edits after staging without rebuilding.
+
+**Acceptance criteria:**
+
+- [ ] Gate green on available platforms with NOT RUN items marked; packaged documents byte-identical to the working tree; checksums recorded; the handoff distinguishes code completion from the open REQ-048 gate.
+
+**Verification:** [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-DOCS](architecture.md#v-docs).
+
+**Commit boundary:** `test(TASK-025): requalify candidate and repackage archives`.
+
+**Next:** Close EPIC-007 and stop.
 
 <a id="plan-release-gate"></a>
 ## Final release gate

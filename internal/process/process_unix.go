@@ -7,22 +7,23 @@ import (
 	"syscall"
 )
 
-// prepareSysProcAttr puts the child into its own process group. The group
-// is created by gaebokchi for this child, so group-level SIGKILL during
-// cleanup can only reach descendants of the child we started — never a
-// provider-managed shared leader or any unrelated session.
+// prepareSysProcAttr puts the child into its own process group for
+// signal isolation: the child and anything it starts cannot deliver
+// terminal-control signals to gaebokchi's own group, and gaebokchi's
+// signals to itself do not reach the child indirectly. The private
+// group is NOT an ownership claim — cleanup never signals the group,
+// because group membership alone does not prove a descendant (possibly
+// a provider-managed shared leader) is disposable (ARCH-05).
 func prepareSysProcAttr(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-// killGroup SIGKILLs the child's private process group and the child
-// itself. Failures are ignored: the shutdown sequence is best-effort and
-// bounded.
-func (c *Child) killGroup() {
+// killDirect SIGKILLs only the direct child gaebokchi started. The
+// failure is ignored: the shutdown sequence is best-effort, bounded,
+// and reports incompleteness through its returned error.
+func (c *Child) killDirect() error {
 	if c.cmd.Process == nil {
-		return
+		return nil
 	}
-	pid := c.cmd.Process.Pid
-	_ = syscall.Kill(-pid, syscall.SIGKILL)
-	_ = syscall.Kill(pid, syscall.SIGKILL)
+	return syscall.Kill(c.cmd.Process.Pid, syscall.SIGKILL)
 }

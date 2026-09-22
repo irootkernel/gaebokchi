@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -13,6 +15,10 @@ import (
 
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/options"
+	"gaebokchi/internal/process"
+	"gaebokchi/internal/provider/codex"
+	"gaebokchi/internal/provider/grok"
+	"gaebokchi/internal/testutil"
 )
 
 // fakeProv is an injectable provider returning scripted results.
@@ -227,5 +233,142 @@ func TestSignalCancelsAndExitsWithSignalCode(t *testing.T) {
 	}
 	if ws.ExitStatus() != 130 {
 		t.Fatalf("child exit = %d, want 130 (SIGINT)", ws.ExitStatus())
+	}
+}
+
+// TestFakeHelperProcess is not a real test: the re-executed child for
+// the cleanup-propagation tests runs the scripted fake provider.
+func TestFakeHelperProcess(t *testing.T) {
+	if os.Getenv("GAEBOKCHI_FAKE") != "1" {
+		return
+	}
+	if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+// startFakeChild starts a scripted fake child whose private directory
+// lives under the given parent (see process.Config.TempParent).
+func startFakeChild(t *testing.T, parent string, steps []testutil.Step) *process.Child {
+	t.Helper()
+	script, err := json.Marshal(steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := process.Start(process.Config{
+		Bin:        os.Args[0],
+		Args:       []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Env:        append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
+		TempParent: parent,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	return c
+}
+
+// cmdCodexSteps scripts a complete successful codex exchange.
+func cmdCodexSteps(email string, pct int) []testutil.Step {
+	account := fmt.Sprintf(`{"id":2,"result":{"account":{"type":"chatgpt","email":%q,"planType":"pro"}}}`, email)
+	quota := fmt.Sprintf(`{"id":3,"result":{"rateLimitsByLimitId":{"codex":{"limitId":"codex","primary":{"usedPercent":%d,"windowDurationMins":10080,"resetsAt":1790411774},"secondary":null}}}}`, pct)
+	return []testutil.Step{
+		{Wait: 1},
+		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
+		{Wait: 1},
+		{Emit: account + "\n"},
+		{Wait: 1},
+		{Emit: quota + "\n"},
+	}
+}
+
+// cmdGrokSteps scripts a complete successful grok exchange.
+func cmdGrokSteps(pct int) []testutil.Step {
+	init := `{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"authMethods":[{"id":"cached_token"},{"id":"grok.com"}],"defaultAuthMethodId":"cached_token"}}`
+	auth := `{"jsonrpc":"2.0","id":2,"result":{"_meta":{"auth_mode":"Oidc"}}}`
+	bill := fmt.Sprintf(`{"jsonrpc":"2.0","id":3,"result":{"config":{"creditUsagePercent":%d.0,"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY","start":"2026-09-19T15:52:30Z","end":"2026-09-26T15:52:30Z"}}}}`, pct)
+	return []testutil.Step{
+		{Wait: 1}, {Emit: init + "\n"},
+		{Wait: 1}, {Emit: auth + "\n"},
+		{Wait: 1}, {Emit: bill + "\n"},
+	}
+}
+
+// TestCleanupFailureKeepsRowsAndExitsOne runs the full CLI path — real
+// codex/grok providers over scripted children, one of whose temporary
+// directories cannot be removed — and pins the contract: both quotas
+// stay numeric, exactly one bounded safe diagnostic names the failing
+// target, healthy siblings are untouched, and the command exits 1.
+func TestCleanupFailureKeepsRowsAndExitsOne(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("permission-based removal failure does not apply as root")
+	}
+	homeDir := t.TempDir()
+	homeA := filepath.Join(homeDir, "a")
+	homeB := filepath.Join(homeDir, "b")
+	for _, h := range []string{homeA, homeB} {
+		if err := os.MkdirAll(h, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	badParent := t.TempDir()
+	childA := startFakeChild(t, "", cmdCodexSteps("a@example.com", 37))
+	childB := startFakeChild(t, badParent, cmdCodexSteps("b@example.com", 12))
+	childG := startFakeChild(t, "", cmdGrokSteps(28))
+	if err := os.Chmod(badParent, 0o500); err != nil {
+		t.Skipf("cannot chmod temp parent: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(badParent, 0o700) })
+
+	// The factory selects its child by the per-target CODEX_HOME, so
+	// concurrent admissions stay deterministic and share no counter.
+	cx := &codex.Provider{Start: func(cfg process.Config) (*process.Child, error) {
+		for _, kv := range cfg.Env {
+			if kv == "CODEX_HOME="+homeB {
+				return childB, nil
+			}
+		}
+		return childA, nil
+	}}
+	gk := &grok.Provider{Start: func(process.Config) (*process.Child, error) { return childG, nil }}
+
+	opts := parse(t, "--timeout", "10s",
+		"--codex-home", homeA, "--codex-home", homeB,
+		"--codex-bin", os.Args[0], "--grok-bin", os.Args[0])
+	var out, errBuf bytes.Buffer
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier) { return cx, gk })
+
+	if code != 1 {
+		t.Fatalf("code = %d, want 1 for incomplete cleanup; stderr:\n%s", code, errBuf.String())
+	}
+	for _, want := range []string{"37.0%", "12.0%", "28.0%"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("numeric row lost (%s):\n%s", want, out.String())
+		}
+	}
+	lines := strings.Split(strings.TrimSuffix(errBuf.String(), "\n"), "\n")
+	if len(lines) != 1 || !strings.Contains(lines[0], "codex:1") || !strings.Contains(lines[0], "provider cleanup incomplete") {
+		t.Fatalf("expected exactly one safe cleanup diagnostic for codex:1, got:\n%s", errBuf.String())
+	}
+}
+
+// TestFinalExitPrecedenceWithCleanupFailure pins the centralized exit
+// precedence: a handled signal outranks a cleanup failure, which
+// outranks clean rows.
+func TestFinalExitPrecedenceWithCleanupFailure(t *testing.T) {
+	failing := []domain.Result{{TargetID: "codex:0", Status: domain.StatusOK, UsedPercent: ptr(5), CleanupFailed: true}}
+	clean := []domain.Result{{TargetID: "codex:0", Status: domain.StatusOK, UsedPercent: ptr(5)}}
+	if got := finalExit(int64(syscall.SIGINT), false, failing); got != 130 {
+		t.Fatalf("SIGINT + cleanup failure = %d, want 130", got)
+	}
+	if got := finalExit(int64(syscall.SIGTERM), false, failing); got != 143 {
+		t.Fatalf("SIGTERM + cleanup failure = %d, want 143", got)
+	}
+	if got := finalExit(0, false, failing); got != 1 {
+		t.Fatalf("cleanup failure = %d, want 1", got)
+	}
+	if got := finalExit(0, false, clean); got != 0 {
+		t.Fatalf("clean run = %d, want 0", got)
 	}
 }
