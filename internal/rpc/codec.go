@@ -19,6 +19,11 @@ type Codec interface {
 	// EncodeErrorResponse renders a rejection for a server-initiated
 	// request, echoing the exact received id.
 	EncodeErrorResponse(id json.RawMessage, code int, message string) ([]byte, error)
+	// ValidateResponseEnvelope checks the raw member map of an inbound
+	// response against the dialect's envelope rules. Additive unknown
+	// members are not this method's concern (they stay tolerated); only
+	// dialect-required markers and their exact values are enforced.
+	ValidateResponseEnvelope(keys map[string]json.RawMessage) error
 	// Allowed reports whether the method is on the outbound allowlist.
 	Allowed(method string) bool
 	// Allowlist lists every permitted outbound method.
@@ -29,10 +34,19 @@ type Codec interface {
 // to reject server-initiated requests.
 const MethodNotFoundCode = -32601
 
-// wireError is the error member of a response envelope.
+// wireError is the error member of a response envelope for encoding.
 type wireError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+// wireErrorIn decodes an inbound error member. Pointer members
+// distinguish an absent or mistyped field from a present one, so an
+// incomplete error object cannot masquerade as a well-formed one.
+type wireErrorIn struct {
+	Code    *int            `json:"code"`
+	Message *string         `json:"message"`
+	Data    json.RawMessage `json:"data"`
 }
 
 // ---- Codex App Server dialect: no jsonrpc marker anywhere ----
@@ -82,6 +96,13 @@ func (CodexCodec) EncodeErrorResponse(id json.RawMessage, code int, message stri
 func (CodexCodec) Allowed(method string) bool { return methodAllowed(codexAllowlist, method) }
 
 func (CodexCodec) Allowlist() []string { return append([]string(nil), codexAllowlist...) }
+
+// ValidateResponseEnvelope imposes no marker on the Codex dialect: its
+// envelope carries no jsonrpc field, and an additive jsonrpc member on
+// an otherwise valid response stays tolerated.
+func (CodexCodec) ValidateResponseEnvelope(keys map[string]json.RawMessage) error {
+	return nil
+}
 
 // ---- ACP dialect (Grok): jsonrpc:"2.0" on every message ----
 
@@ -133,6 +154,24 @@ func (ACPCodec) EncodeErrorResponse(id json.RawMessage, code int, message string
 func (ACPCodec) Allowed(method string) bool { return methodAllowed(acpAllowlist, method) }
 
 func (ACPCodec) Allowlist() []string { return append([]string(nil), acpAllowlist...) }
+
+// ValidateResponseEnvelope requires the exact ACP version marker
+// "jsonrpc":"2.0" on inbound responses. A missing or incompatible
+// marker (e.g. "1.0") is a protocol mismatch, not a success.
+func (ACPCodec) ValidateResponseEnvelope(keys map[string]json.RawMessage) error {
+	raw, ok := keys["jsonrpc"]
+	if !ok {
+		return fmt.Errorf("acp response is missing the jsonrpc version marker")
+	}
+	var v string
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return fmt.Errorf("acp jsonrpc version marker is not a string")
+	}
+	if v != "2.0" {
+		return fmt.Errorf("acp jsonrpc version marker %q is incompatible", v)
+	}
+	return nil
+}
 
 func methodAllowed(list []string, method string) bool {
 	for _, m := range list {

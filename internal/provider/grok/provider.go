@@ -268,6 +268,30 @@ func authenticateCached(ctx context.Context, s *session) error {
 	if resp.Err != nil {
 		return &rpcCallError{method: "authenticate", remote: resp.Err}
 	}
+	if err := validateAuthenticateResult(resp.Result); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateAuthenticateResult enforces the qualified Grok authenticate
+// result shape: a non-null JSON object carrying the qualified _meta
+// member. A malformed or shapeless response (error:null, result:null, a
+// bare scalar, an empty object) must not count as an authenticated
+// session; unknown additive members stay tolerated.
+func validateAuthenticateResult(raw json.RawMessage) error {
+	if len(raw) == 0 || string(raw) == "null" {
+		return fmt.Errorf("grok: authenticate result missing: %w", rpc.ErrMalformedMessage)
+	}
+	var w struct {
+		Meta *json.RawMessage `json:"_meta"`
+	}
+	if err := json.Unmarshal(raw, &w); err != nil {
+		return fmt.Errorf("grok: authenticate result is not an object: %w", rpc.ErrMalformedMessage)
+	}
+	if w.Meta == nil || string(*w.Meta) == "null" {
+		return fmt.Errorf("grok: authenticate result lacks the qualified _meta member: %w", rpc.ErrMalformedMessage)
+	}
 	return nil
 }
 

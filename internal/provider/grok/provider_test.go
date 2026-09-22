@@ -51,7 +51,7 @@ func initReplyWith(protocolVersion any, methodIDs ...string) string {
 		"authMethods":        methods,
 		"defaultAuthMethodId": firstOr(methodIDs, ""),
 	}
-	b, _ := json.Marshal(map[string]any{"id": 1, "result": result})
+	b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
 	return string(b)
 }
 
@@ -166,9 +166,9 @@ func TestAuthNegotiationMatrix(t *testing.T) {
 
 func TestInitializeResultMalformed(t *testing.T) {
 	cases := []string{
-		`{"id":1,"result":null}`,
-		`{"id":1,"result":{"authMethods":[{"id":"cached_token"}]}}`,
-		`{"id":1,"result":{"protocolVersion":"one","authMethods":[]}}`,
+		`{"jsonrpc":"2.0","id":1,"result":null}`,
+		`{"jsonrpc":"2.0","id":1,"result":{"authMethods":[{"id":"cached_token"}]}}`,
+		`{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"one","authMethods":[]}}`,
 	}
 	for _, reply := range cases {
 		steps := []testutil.Step{{Wait: 1}, {Emit: reply + "\n"}}
@@ -186,7 +186,7 @@ func TestAuthenticateRejectionTyped(t *testing.T) {
 	code := -32000
 	steps := withCapturedInit(t,
 		testutil.Step{Wait: 1},
-		testutil.Step{Reply: []testutil.ReplySpec{{Slot: 1, ErrCode: &code, ErrMsg: "token expired"}}},
+		testutil.Step{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, ErrCode: &code, ErrMsg: "token expired"}}},
 	)
 	child := testutil.StartFake(t, steps)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -209,7 +209,7 @@ func TestBillingMethodNotFoundTyped(t *testing.T) {
 		testutil.Step{Wait: 1},
 		testutil.Step{Emit: compactFixture(t, "authenticate_cached_token_response.json") + "\n"},
 		testutil.Step{Wait: 1},
-		testutil.Step{Reply: []testutil.ReplySpec{{Slot: 2, ErrCode: &code, ErrMsg: "method not found"}}},
+		testutil.Step{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, ErrCode: &code, ErrMsg: "method not found"}}},
 	)
 	child := testutil.StartFake(t, steps)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

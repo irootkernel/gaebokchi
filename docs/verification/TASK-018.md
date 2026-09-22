@@ -1,0 +1,20 @@
+# TASK-018: Harden inbound RPC validation
+
+Task: TASK-018
+Status: COMPLETE
+Goal and implementation scope: Require exactly one structurally valid response alternative before a pending call is satisfied; validate the ACP envelope and both handshakes against their qualified dialects; keep additive-member and notification tolerance.
+Requirements and architecture sections covered: REQ-016, REQ-018 (re-qualification); ARCH-06, ARCH-11.
+Changed files: internal/rpc/codec.go (Codec.ValidateResponseEnvelope added — Codex imposes no marker, ACP requires exactly "jsonrpc":"2.0"; wireErrorIn decodes error members with pointer fields so absent/mistyped members are distinguishable), internal/rpc/client.go (deliverResponse: envelope validation first; error:null without result is malformed; incomplete or mistyped error objects are malformed; operation-specific null results still preserved), internal/provider/codex/provider.go (validateInitializeResult: non-null object carrying the qualified platformOs member), internal/provider/grok/provider.go (validateAuthenticateResult: non-null object carrying the qualified _meta member), plus tests in internal/rpc/client_validation_test.go, internal/provider/codex/query_test.go, internal/provider/grok/normalize_test.go. Existing fake-provider replies were corrected to carry the dialect-correct envelope (they had relied on the lax inbound validation this task removes); no production behavior depended on that laxness.
+Verification (environment: macOS 26.6.2 arm64, go1.26.6):
+  - V-RPC (`go test -count=1 ./internal/rpc`): TestErrorNullWithoutResultIsMalformed (the audit's primary finding), TestIncompleteErrorObjectIsMalformed (missing message, missing code, mistyped code/message, non-object error member), TestACPResponseRequiresJSONRPC2 (missing marker, "1.0", numeric 2.0), TestCodexToleratesAdditiveJSONRPCMember (dialect separation: additive marker tolerated on Codex, mandatory on ACP). Existing framing cases (invalid UTF-8, oversize, unterminated frames, unknown/duplicate IDs, valid null results, unrelated notifications) all still pass.
+  - V-CODEX (`go test -count=1 ./internal/provider/codex`): TestInitializeResultShapeValidation — error:null, result:null, empty object, bare scalar, array result, and non-string platformOs each yield PROTOCOL ERROR without raw-data leakage; the qualified shape with additive members completes the handshake.
+  - V-GROK (`go test -count=1 ./internal/provider/grok`): TestAuthenticateResultShapeValidation — error:null, result:null, shapeless object, bare scalar, jsonrpc "1.0", and missing marker each yield PROTOCOL ERROR (never numeric success and never an unsupported authentication claim); the qualified shape with additive members proceeds to billing.
+  - Full regression: `go vet ./...` pass; `go test -count=1 ./...` all 12 packages pass.
+Design notes:
+  - Validation lives at the boundary where classification already happens: deliverResponse enforces the one-valid-alternative rule and the dialect envelope; the providers enforce the operation-specific result shapes observed during qualification (platformOs for Codex initialize, _meta for Grok authenticate). Requiring those qualified members is deliberate: a renamed member in a future CLI is a safe protocol-mismatch failure, which REQ-042 prefers over silently trusting shapeless responses.
+  - Notifications remain validated only as well-formed unrelated frames (envelope markers are enforced on responses, where the pending call's satisfaction is at stake).
+Fixtures: unchanged; captured fixtures already carry the dialect-correct envelopes.
+Findings and bounded remediation: the audit's claim that unknown/duplicate response IDs could satisfy a pending call was re-verified as already safe; the existing tests pinning that behavior still pass unchanged.
+Compatibility/platform limitations: none introduced.
+Task commit subject: `fix(TASK-018): reject malformed RPC responses and incompatible envelopes`
+Handoff: proceed to TASK-019 (identity handling, Grok authentication classification, provenance).

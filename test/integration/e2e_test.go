@@ -206,7 +206,7 @@ func TestMissingHomeRow(t *testing.T) {
 func TestFailedAuthKeepsTable(t *testing.T) {
 	authFail := []testutil.Step{
 		{Wait: 1},
-		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"ok": true}}}},
+		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
 		{Wait: 1},
 		{Emit: `{"id":2,"result":{"account":null}}` + "\n"},
 	}

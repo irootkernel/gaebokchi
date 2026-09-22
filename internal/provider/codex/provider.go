@@ -233,6 +233,10 @@ func openSession(ctx context.Context, bin, home string, start process.Factory) (
 		s.close()
 		return nil, &rpcCallError{method: "initialize", remote: resp.Err}
 	}
+	if err := validateInitializeResult(resp.Result); err != nil {
+		s.close()
+		return nil, err
+	}
 	// Wait for the initialize response before sending initialized, per
 	// the qualified handshake order. A blocked write is cancellable so a
 	// wedged provider cannot defeat the query deadline.
@@ -241,6 +245,27 @@ func openSession(ctx context.Context, bin, home string, start process.Factory) (
 		return nil, err
 	}
 	return s, nil
+}
+
+// validateInitializeResult enforces the qualified Codex initialize
+// result shape: a non-null JSON object carrying the qualified
+// platformOs member. A malformed or shapeless response (error:null,
+// result:null, a bare scalar, an empty object) must not complete the
+// handshake; unknown additive members stay tolerated.
+func validateInitializeResult(raw json.RawMessage) error {
+	if len(raw) == 0 || string(raw) == "null" {
+		return fmt.Errorf("codex: initialize result missing: %w", rpc.ErrMalformedMessage)
+	}
+	var w struct {
+		PlatformOs *string `json:"platformOs"`
+	}
+	if err := json.Unmarshal(raw, &w); err != nil {
+		return fmt.Errorf("codex: initialize result is not an object: %w", rpc.ErrMalformedMessage)
+	}
+	if w.PlatformOs == nil {
+		return fmt.Errorf("codex: initialize result lacks the qualified platformOs member: %w", rpc.ErrMalformedMessage)
+	}
+	return nil
 }
 
 // rpcCallError marks a well-formed remote rejection.

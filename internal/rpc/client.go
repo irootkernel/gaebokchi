@@ -195,7 +195,10 @@ func (c *Conn) handleLine(line []byte) error {
 }
 
 func (c *Conn) deliverResponse(in *incoming) error {
-	_, resultPresent := in.keys["result"]
+	if err := c.codec.ValidateResponseEnvelope(in.keys); err != nil {
+		return fmt.Errorf("%w: %v", ErrMalformedMessage, err)
+	}
+	rawResult, resultPresent := in.keys["result"]
 	rawErr, errorPresent := in.keys["error"]
 	if resultPresent && errorPresent {
 		return fmt.Errorf("%w: response carries both result and error", ErrMalformedMessage)
@@ -203,15 +206,25 @@ func (c *Conn) deliverResponse(in *incoming) error {
 	if !resultPresent && !errorPresent {
 		return fmt.Errorf("%w: response has neither result nor error", ErrMalformedMessage)
 	}
-	if rawErr != nil && string(rawErr) != "null" {
-		var we wireError
+	if errorPresent {
+		// An error member must be exactly one structurally valid
+		// alternative: error:null is a malformed response, never a
+		// success with a nil result.
+		if string(rawErr) == "null" {
+			return fmt.Errorf("%w: response carries error:null without a result", ErrMalformedMessage)
+		}
+		var we wireErrorIn
 		if err := json.Unmarshal(rawErr, &we); err != nil {
 			return fmt.Errorf("%w: error member is malformed", ErrMalformedMessage)
 		}
-		return c.route(in.id, Response{Err: &RPCError{Code: we.Code, Message: we.Message}})
+		if we.Code == nil || we.Message == nil {
+			return fmt.Errorf("%w: error member lacks its required typed fields", ErrMalformedMessage)
+		}
+		return c.route(in.id, Response{Err: &RPCError{Code: *we.Code, Message: *we.Message, Data: we.Data}})
 	}
-	// result may be a JSON null; the adapter decides if that is valid.
-	return c.route(in.id, Response{Result: in.keys["result"]})
+	// result may be a JSON null; the adapter decides if that is valid
+	// for the operation's schema.
+	return c.route(in.id, Response{Result: rawResult})
 }
 
 // route matches a response id against pending calls. Unknown or

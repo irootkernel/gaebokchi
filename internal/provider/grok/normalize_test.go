@@ -159,9 +159,9 @@ func TestQueryMonthlyNonApplicable(t *testing.T) {
 		{Wait: 1},
 		{Emit: initReplyWith(1, "cached_token") + "\n"},
 		{Wait: 1},
-		{Reply: []testutil.ReplySpec{{Slot: 1, Result: map[string]any{"_meta": map[string]any{"ok": true}}}}},
+		{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{"ok": true}}}}},
 		{Wait: 1},
-		{Reply: []testutil.ReplySpec{{Slot: 2, RawResult: monthly}}},
+		{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, RawResult: monthly}}},
 	}
 	child := testutil.StartFake(t, steps)
 	p := providerOver(child)
@@ -199,7 +199,7 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1},
-			{Reply: []testutil.ReplySpec{{Slot: 1, ErrCode: &code, ErrMsg: "no"}}},
+			{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, ErrCode: &code, ErrMsg: "no"}}},
 		}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
@@ -211,9 +211,9 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1},
-			{Reply: []testutil.ReplySpec{{Slot: 1, Result: map[string]any{"_meta": map[string]any{}}}}},
+			{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{}}}}},
 			{Wait: 1},
-			{Reply: []testutil.ReplySpec{{Slot: 2, ErrCode: &code, ErrMsg: "method not found"}}},
+			{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, ErrCode: &code, ErrMsg: "method not found"}}},
 		}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
@@ -233,10 +233,13 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 
 func TestQueryAliasOnEveryOutcome(t *testing.T) {
 	alias := "personal"
+	authOK := testutil.Step{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{}}}}}
+	weekly := testutil.Step{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, RawResult: billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 5, nil)}}}
+	legacyOnly := testutil.Step{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, RawResult: billingConfig(nil, 5, map[string]any{"monthlyLimit": 9})}}}
 	cases := [][]testutil.Step{
-		{{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"}, {Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 1, Result: map[string]any{}}}}, {Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 2, RawResult: billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 5, nil)}}}},
+		withCapturedInit(t, testutil.Step{Wait: 1}, authOK, testutil.Step{Wait: 1}, weekly),
 		{{Wait: 1}, {Emit: initReplyWith(1, "grok.com") + "\n"}},
-		{{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"}, {Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 1, Result: map[string]any{}}}}, {Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 2, RawResult: billingConfig(nil, 5, map[string]any{"monthlyLimit": 9})}}}},
+		withCapturedInit(t, testutil.Step{Wait: 1}, authOK, testutil.Step{Wait: 1}, legacyOnly),
 	}
 	for i, steps := range cases {
 		child := testutil.StartFake(t, steps)
@@ -279,4 +282,48 @@ func TestQueryTimeout(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
+}
+
+// TestAuthenticateResultShapeValidation pins the audit's finding that a
+// malformed authenticate response (error:null, result:null, a shapeless
+// object, or an incompatible envelope) used to count as an
+// authenticated session: each must be a protocol failure, never a
+// numeric success and never an unsupported authentication claim.
+func TestAuthenticateResultShapeValidation(t *testing.T) {
+	cases := []struct {
+		name   string
+		auth   string
+	}{
+		{"error null without result", `{"jsonrpc":"2.0","id":2,"error":null}`},
+		{"result null", `{"jsonrpc":"2.0","id":2,"result":null}`},
+		{"empty object without meta", `{"jsonrpc":"2.0","id":2,"result":{}}`},
+		{"bare scalar", `{"jsonrpc":"2.0","id":2,"result":"ok"}`},
+		{"incompatible jsonrpc marker", `{"jsonrpc":"1.0","id":2,"result":{"_meta":{}}}`},
+		{"missing jsonrpc marker", `{"id":2,"result":{"_meta":{}}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			steps := []testutil.Step{
+				{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
+				{Wait: 1}, {Emit: tc.auth + "\n"},
+			}
+			child := testutil.StartFake(t, steps)
+			res := providerOver(child).Query(context.Background(), grokTarget("default"))
+			if res.Status != domain.StatusProtocolError {
+				t.Fatalf("status = %v (%s), want protocol_error", res.Status, res.Diagnostic.Message)
+			}
+		})
+	}
+	t.Run("qualified shape proceeds to billing", func(t *testing.T) {
+		steps := []testutil.Step{
+			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
+			{Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{"auth_mode": "Oidc"}, "additive": true}}}},
+			{Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, RawResult: billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 5, nil)}}},
+		}
+		child := testutil.StartFake(t, steps)
+		res := providerOver(child).Query(context.Background(), grokTarget("default"))
+		if res.Status != domain.StatusOK || res.UsedPercent == nil || *res.UsedPercent != 5 {
+			t.Fatalf("status = %v percent = %v; qualified shape must authenticate", res.Status, res.UsedPercent)
+		}
+	})
 }

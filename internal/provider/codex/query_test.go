@@ -154,7 +154,7 @@ func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
 	accountPayload := func(account string) []testutil.Step {
 		return []testutil.Step{
 			{Wait: 1},
-			{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"ok": true}}}},
+			{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
 			{Wait: 1},
 			{Emit: `{"id":2,"result":{"account":` + account + `}}` + "\n"},
 		}
@@ -300,4 +300,50 @@ func TestResolveBinMissingAndUnexecutable(t *testing.T) {
 	if _, err := ResolveBin("./noexec"); err == nil {
 		t.Fatal("present-but-unexecutable binary must not resolve")
 	}
+}
+
+// TestInitializeResultShapeValidation pins the audit's finding that any
+// shapeless initialize response used to complete the handshake: a
+// malformed or shape-missing reply must yield a protocol error, while
+// the qualified shape (with additive members) proceeds.
+func TestInitializeResultShapeValidation(t *testing.T) {
+	cases := []struct {
+		name string
+		init string
+		want domain.Status
+	}{
+		{"error null without result", `{"id":1,"error":null}`, domain.StatusProtocolError},
+		{"result null", `{"id":1,"result":null}`, domain.StatusProtocolError},
+		{"empty object", `{"id":1,"result":{}}`, domain.StatusProtocolError},
+		{"bare scalar", `{"id":1,"result":"macos"}`, domain.StatusProtocolError},
+		{"array result", `{"id":1,"result":[{"platformOs":"macos"}]}`, domain.StatusProtocolError},
+		{"platformOs not a string", `{"id":1,"result":{"platformOs":7}}`, domain.StatusProtocolError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			steps := []testutil.Step{{Wait: 1}, {Emit: tc.init + "\n"}}
+			child := testutil.StartFake(t, steps)
+			res := providerOver(child).Query(context.Background(), codexTarget(t.TempDir()))
+			if res.Status != tc.want {
+				t.Fatalf("status = %v (%s), want %v", res.Status, res.Diagnostic.Message, tc.want)
+			}
+			if containsStr(res.Diagnostic.Message, "macos") {
+				t.Fatalf("raw provider data leaked into diagnostic: %q", res.Diagnostic.Message)
+			}
+		})
+	}
+	t.Run("qualified shape with additive members proceeds", func(t *testing.T) {
+		init := `{"id":1,"result":{"platformOs":"macos","futureField":{"x":1}}}`
+		steps := []testutil.Step{
+			{Wait: 1}, {Emit: init + "\n"},
+			{Capture: 1}, // initialized notification
+			{Wait: 1},    // account/read
+			{Emit: `{"id":2,"result":{"account":{"type":"apiKey"}}}` + "\n"},
+		}
+		child := testutil.StartFake(t, steps)
+		res := providerOver(child).Query(context.Background(), codexTarget(t.TempDir()))
+		if res.Status != domain.StatusNotApplicableAPIKey {
+			t.Fatalf("status = %v (%s); qualified shape must complete the handshake", res.Status, res.Diagnostic.Message)
+		}
+	})
 }

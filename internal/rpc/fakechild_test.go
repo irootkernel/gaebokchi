@@ -37,7 +37,7 @@ func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
 	steps := []testutil.Step{
 		{EmitStderr: "warning: flood line\n"},
 		{Wait: 1},
-		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"v": 1}}}},
+		{Reply: []testutil.ReplySpec{{Slot: 0, JSONRPC: true, Result: map[string]any{"v": 1}}}},
 	}
 	child := testutil.StartFake(t, steps)
 	c := NewConn(child.Stdin(), child.Stdout(), ACPCodec{}, func() { _ = child.Close() })
