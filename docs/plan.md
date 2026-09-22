@@ -42,11 +42,11 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | COMPLETE (implementation milestone) |
 | 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | COMPLETE (implementation milestone) |
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | COMPLETE (implementation milestone) |
-| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) | [EPIC-006](#epic-006) implemented | COMPLETE (residual findings re-owned by EPIC-007) |
+| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027) | [EPIC-006](#epic-006) implemented | COMPLETE (final release acceptance pending REQ-048) |
 
-Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the original six epics keep their implementation milestones and task commits (with EPIC-006's final acceptance superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record); the corrective runtime work of EPIC-007, including the TASK-026 documentation-and-archive follow-up, is complete. Full v0.1 release acceptance alone remains pending REQ-048 — an owner-authorized live gate (candidate live test plus the provider-display comparison), not unfinished implementation work.
+Historical note: every epic began NOT STARTED at plan authoring. The reconciled column above shows each epic's current state: the original six epics keep their implementation milestones and task commits (with EPIC-006's final acceptance superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record); the corrective runtime work of EPIC-007, including the TASK-026 documentation-and-archive follow-up and the TASK-027 archive-validation follow-up, is complete. Full v0.1 release acceptance alone remains pending REQ-048 — an owner-authorized live gate (candidate live test plus the provider-display comparison), not unfinished implementation work.
 
-The task order is globally sequential: TASK-001 through TASK-026. Runtime account queries may be concurrent; development tasks may not.
+The task order is globally sequential: TASK-001 through TASK-027. Runtime account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -714,7 +714,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Entry:** EPIC-001 through EPIC-006 implemented (historical commits preserved); corrective audit findings accepted.
 
-**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026)
+**Task sequence:** [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027)
 
 **Local epic acceptance:** Every audit finding is either fixed with focused regression coverage or explicitly recorded as an owner action (REQ-048's provider-display comparison). The affected requirement checkboxes are re-checked only against the corrected tree. A mandatory gate that cannot be run in this environment is reported as blocked, never waived.
 
@@ -1070,7 +1070,34 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Commit boundary:** `build(TASK-026): strip archive sidecars and verify raw members`.
 
-**Next:** Stop. Runtime corrections stand as accepted; documentation and archive cleanup complete; full v0.1 release acceptance remains pending REQ-048.
+**Next:** [TASK-027](#task-027).
+
+<a id="task-027"></a>
+### TASK-027: Close the remaining archive-validation gaps
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Three narrow findings from the confirmation review of `7b5dbcc`: the archive checker accepted unexpected directories and duplicate members; the staged-release test skipped on any incomplete staging instead of failing; and the roadmap overview omitted TASK-026. No runtime change.
+
+**Dependency:** TASK-026 complete; no other work reopened.
+
+**Architecture:** [ARCH-13](architecture.md#arch-13).
+
+**Primary requirement ownership:** packaging evidence only; REQ-048 stays open.
+
+**Implementation scope:**
+
+- verifyArchive enforces the exact filesystem-member set: allowlisted directory entries as well as files, duplicate rejection for both, expected-type validation per path, exactly one occurrence of each intended entry.
+- The staged-release pass/fail/skip decision (checkStagedRelease) skips only when the staging directory genuinely does not exist in optional mode; empty, partial, missing-manifest, non-directory, and inspection-failure states fail in both modes. GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 makes even absent staging fail and is what the CI release job runs.
+- The roadmap overview, task sequence, and current-state text include TASK-026 and this task.
+
+**Acceptance criteria:**
+
+- [x] The strict member-set regressions (unexpected directory, duplicate README/binary/directory, wrong entry type) fail the checker; the staging-decision and mandatory-command-exit tests pass in both modes; the CI release job runs the checker in mandatory mode; focused checker tests pass on macOS and Linux; the rebuilt candidate passes the strict staged check with 16/16 byte-identical documents and verified checksums. *(TASK-027 evidence record.)*
+
+**Commit boundary:** `test(TASK-027): enforce exact archive members and mandatory staging validation`.
+
+**Next:** Stop. Runtime corrections remain accepted; archive validation and the roadmap follow-up are complete; full v0.1 release acceptance remains pending REQ-048.
 
 <a id="plan-release-gate"></a>
 ## Final release gate

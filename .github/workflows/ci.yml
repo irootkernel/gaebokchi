@@ -38,5 +38,5 @@ jobs:
         with:
           go-version: "1.26.6"
       - run: sh scripts/build-release.sh 0.1.0
-      - run: go test ./scripts/ -run 'TestVerify|TestStagedReleaseArchives' -count=1
+      - run: GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go test ./scripts/ -run 'TestVerify|TestStagedReleaseArchives' -count=1
       - run: grep -c '^' dist/gaebokchi-0.1.0/SHA256SUMS

@@ -13,6 +13,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -49,18 +50,24 @@ func repoPathFor(member string) string {
 }
 
 // verifyArchive reads archivePath raw and verifies, for the given
-// target: exactly the intended regular files and expected directory
-// entries, no sidecar (.*) or otherwise unexpected members, the
-// executable bit on the binary, and byte-identical packaged documents
-// against repoRoot. repoRoot is only consulted for the four documents.
+// target: exactly the intended filesystem entries — each expected
+// directory and regular file present exactly once, with the expected
+// entry type — plus no sidecar (.*) or otherwise unexpected members,
+// the executable bit on the binary, and byte-identical packaged
+// documents against repoRoot. repoRoot is only consulted for the four
+// documents.
 func verifyArchive(archivePath, target, repoRoot string) error {
 	intended, intendedDirs := intendedFiles(target)
-	want := make(map[string]bool, len(intended))
+	wantFiles := make(map[string]bool, len(intended))
 	for _, m := range intended {
-		want[m] = true
+		wantFiles[m] = true
 	}
-	got := make(map[string]bool, len(intended))
-	gotDirs := make(map[string]bool, len(intendedDirs))
+	wantDirs := make(map[string]bool, len(intendedDirs))
+	for _, d := range intendedDirs {
+		wantDirs[d] = true
+	}
+	seenFiles := make(map[string]int, len(intended))
+	seenDirs := make(map[string]int, len(intendedDirs))
 
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -84,7 +91,7 @@ func verifyArchive(archivePath, target, repoRoot string) error {
 			return fmt.Errorf("%s: %v", archivePath, err)
 		}
 		if hdr.Typeflag == tar.TypeXGlobalHeader {
-			continue // pax metadata, not a member
+			continue // pax metadata, not a filesystem entry
 		}
 		name := strings.TrimSuffix(hdr.Name, "/")
 		base := name[strings.LastIndexByte(name, '/')+1:]
@@ -93,12 +100,22 @@ func verifyArchive(archivePath, target, repoRoot string) error {
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			gotDirs[name] = true
+			// Directory entries are allowlisted like files: an
+			// unexpected directory, or an expected path presented as a
+			// directory, is rejected — and each may appear once.
+			if !wantDirs[name] {
+				return fmt.Errorf("%s: unexpected directory member %q", archivePath, hdr.Name)
+			}
+			if seenDirs[name]++; seenDirs[name] > 1 {
+				return fmt.Errorf("%s: duplicate directory member %q", archivePath, hdr.Name)
+			}
 		case tar.TypeReg:
-			if !want[name] {
+			if !wantFiles[name] {
 				return fmt.Errorf("%s: unexpected regular member %q", archivePath, hdr.Name)
 			}
-			got[name] = true
+			if seenFiles[name]++; seenFiles[name] > 1 {
+				return fmt.Errorf("%s: duplicate member %q", archivePath, hdr.Name)
+			}
 			if strings.HasSuffix(name, "/gaebokchi") {
 				if hdr.Mode&0o111 == 0 {
 					return fmt.Errorf("%s: packaged binary %q is not executable", archivePath, hdr.Name)
@@ -126,18 +143,18 @@ func verifyArchive(archivePath, target, repoRoot string) error {
 	}
 	var missing []string
 	for _, m := range intended {
-		if !got[m] {
+		if seenFiles[m] == 0 {
 			missing = append(missing, m)
+		}
+	}
+	for _, d := range intendedDirs {
+		if seenDirs[d] == 0 {
+			missing = append(missing, d+"/")
 		}
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
 		return fmt.Errorf("%s: missing intended members %v", archivePath, missing)
-	}
-	for _, d := range intendedDirs {
-		if !gotDirs[d] {
-			return fmt.Errorf("%s: expected directory entry %q missing", archivePath, d)
-		}
 	}
 	return nil
 }
@@ -200,4 +217,31 @@ func checkStagedArchives(distDir, repoRoot string) error {
 		}
 	}
 	return verifyChecksums(distDir)
+}
+
+// errReleaseNotStaged marks the only skip case: the staging directory
+// genuinely does not exist and validation is optional.
+var errReleaseNotStaged = errors.New("release staging directory not present")
+
+// checkStagedRelease is the pass/fail/skip decision behind
+// TestStagedReleaseArchives. errReleaseNotStaged (skip) is returned
+// only when the staging directory does not exist and requireStaged is
+// false. Every other state — an existing but empty staging directory,
+// partial archives, a missing manifest, a non-directory staging path,
+// or any inspection failure other than genuine absence — is an error,
+// in both modes.
+func checkStagedRelease(repoRoot, distDir string, requireStaged bool) error {
+	fi, err := os.Stat(distDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) && !requireStaged {
+			return errReleaseNotStaged
+		}
+		return fmt.Errorf("release staging %q not inspectable: %v", distDir, err)
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("release staging %q is not a directory", distDir)
+	}
+	// The staging directory exists: incomplete contents are a failed
+	// staging result, never an excuse to skip.
+	return checkStagedArchives(distDir, repoRoot)
 }

@@ -5,7 +5,9 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,10 +40,10 @@ func writeTestRepo(t *testing.T) string {
 
 func docBody(repoRel string) string { return "content of " + repoRel + "\n" }
 
-// intendedLayout returns the expected member set for the synthetic
-// darwin-arm64 target archive.
-func intendedLayout() []member {
-	d := "gaebokchi-darwin-arm64"
+// intendedLayoutFor returns the expected member set for a synthetic
+// target archive.
+func intendedLayoutFor(target string) []member {
+	d := "gaebokchi-" + target
 	return []member{
 		{name: d, dir: true, mode: 0o755},
 		{name: d + "/gaebokchi", mode: 0o755, body: "fake binary"},
@@ -96,7 +98,7 @@ func wantErrContaining(t *testing.T, err error, fragment string) {
 func TestVerifyArchiveAcceptsIntendedLayout(t *testing.T) {
 	root := writeTestRepo(t)
 	path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
-	buildTestArchive(t, path, intendedLayout())
+	buildTestArchive(t, path, intendedLayoutFor("darwin-arm64"))
 	if err := verifyArchive(path, "darwin-arm64", root); err != nil {
 		t.Fatalf("intended layout rejected: %v", err)
 	}
@@ -114,7 +116,7 @@ func TestVerifyArchiveRejectsSidecarMembers(t *testing.T) {
 		{name: "gaebokchi-darwin-arm64/.DS_Store", mode: 0o644, body: "x"},
 	} {
 		path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
-		buildTestArchive(t, path, append(intendedLayout(), extra))
+		buildTestArchive(t, path, append(intendedLayoutFor("darwin-arm64"), extra))
 		wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "unintended sidecar")
 	}
 }
@@ -123,7 +125,7 @@ func TestVerifyArchiveRejectsStructuralDefects(t *testing.T) {
 	root := writeTestRepo(t)
 
 	// Missing intended member.
-	missing := intendedLayout()
+	missing := intendedLayoutFor("darwin-arm64")
 	missing = append(missing[:2], missing[3:]...) // drop README.md
 	path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, missing)
@@ -131,18 +133,18 @@ func TestVerifyArchiveRejectsStructuralDefects(t *testing.T) {
 
 	// Unexpected extra regular member.
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
-	buildTestArchive(t, path, append(intendedLayout(), member{name: "gaebokchi-darwin-arm64/extra.txt", mode: 0o644, body: "x"}))
+	buildTestArchive(t, path, append(intendedLayoutFor("darwin-arm64"), member{name: "gaebokchi-darwin-arm64/extra.txt", mode: 0o644, body: "x"}))
 	wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "unexpected regular member")
 
 	// Non-executable binary.
-	nonExec := intendedLayout()
+	nonExec := intendedLayoutFor("darwin-arm64")
 	nonExec[1].mode = 0o644
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, nonExec)
 	wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "not executable")
 
 	// Stale packaged document.
-	stale := intendedLayout()
+	stale := intendedLayoutFor("darwin-arm64")
 	stale[4].body = "stale content\n"
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, stale)
@@ -206,24 +208,190 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
-// TestStagedReleaseArchives is the developer-side packaging gate: when
-// the four release archives are staged in dist/gaebokchi-0.1.0, their
-// raw membership, permissions, document freshness, and checksum
-// manifest are verified against this repository. It skips when no
-// release is staged (for example in CI test-only jobs).
+// TestStagedReleaseArchives is the developer-side packaging gate
+// behind the same pass/fail/skip decision used everywhere: when the
+// staging directory exists, its archives' raw membership, permissions,
+// document freshness, and checksum manifest are verified — incomplete
+// staging fails. A skip is allowed only when the staging directory
+// genuinely does not exist and GAEBOKCHI_REQUIRE_STAGED_RELEASE is not
+// set (ordinary checkout tests); with the variable set to 1 (CI
+// release job) even a missing staging directory fails.
 func TestStagedReleaseArchives(t *testing.T) {
 	root := repoRoot(t)
-	dist := filepath.Join(root, "dist", "gaebokchi-0.1.0")
-	missing := false
+	dist := os.Getenv("GAEBOKCHI_STAGED_RELEASE_DIR") // test-only staging override
+	if dist == "" {
+		dist = filepath.Join(root, "dist", "gaebokchi-0.1.0")
+	}
+	require := os.Getenv("GAEBOKCHI_REQUIRE_STAGED_RELEASE") == "1"
+	err := checkStagedRelease(root, dist, require)
+	if errors.Is(err, errReleaseNotStaged) {
+		t.Skip("release staging directory not present; run scripts/build-release.sh first")
+	}
+	if err != nil {
+		t.Fatalf("staged release validation failed: %v", err)
+	}
+}
+
+// TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers pins the
+// strict member-set contract: directories are allowlisted, every
+// intended entry appears exactly once, and an expected path presented
+// with the wrong entry type is rejected.
+func TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers(t *testing.T) {
+	root := writeTestRepo(t)
+	d := "gaebokchi-darwin-arm64"
+	cases := []struct {
+		name  string
+		extra []member
+		want  string
+	}{
+		{"unexpected directory", []member{{name: d + "/unexpected", dir: true, mode: 0o755}}, "unexpected directory member"},
+		{"nested unexpected directory", []member{{name: d + "/docs/extra", dir: true, mode: 0o755}}, "unexpected directory member"},
+		{"duplicate README with identical content", []member{{name: d + "/README.md", mode: 0o644, body: docBody("README.md")}}, "duplicate member"},
+		{"duplicate binary entry", []member{{name: d + "/gaebokchi", mode: 0o755, body: "fake binary"}}, "duplicate member"},
+		{"duplicate expected directory", []member{{name: d + "/docs", dir: true, mode: 0o755}}, "duplicate directory member"},
+		{"duplicate target directory", []member{{name: d, dir: true, mode: 0o755}}, "duplicate directory member"},
+		{"expected file path presented as directory", []member{{name: d + "/README.md", dir: true, mode: 0o755}}, "unexpected directory member"},
+		{"expected directory path presented as file", []member{{name: d + "/docs", mode: 0o644, body: "x"}}, "unexpected regular member"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
+			buildTestArchive(t, path, append(intendedLayoutFor("darwin-arm64"), tc.extra...))
+			wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), tc.want)
+		})
+	}
+}
+
+// writeCompleteStaging builds a complete, valid four-target staging
+// directory against the given repository root and returns its path.
+func writeCompleteStaging(t *testing.T, root string) string {
+	t.Helper()
+	dist := t.TempDir()
+	var manifest strings.Builder
 	for _, tgt := range releaseTargets {
-		if _, err := os.Stat(filepath.Join(dist, "gaebokchi-"+tgt+".tar.gz")); err != nil {
-			missing = true
+		name := "gaebokchi-" + tgt + ".tar.gz"
+		path := filepath.Join(dist, name)
+		buildTestArchive(t, path, intendedLayoutFor(tgt))
+		sum, err := fileSHA256(path)
+		if err != nil {
+			t.Fatal(err)
 		}
+		manifest.WriteString(sum + "  " + name + "\n")
 	}
-	if missing {
-		t.Skip("release archives not staged; run scripts/build-release.sh first")
+	if err := os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(manifest.String()), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if err := checkStagedArchives(dist, root); err != nil {
-		t.Fatalf("staged archives failed the packaging gate: %v", err)
+	return dist
+}
+
+// TestCheckStagedReleaseDecision exercises the exact pass/fail/skip
+// decision the test entry point uses, over isolated test-owned
+// staging roots (never the canonical dist/).
+func TestCheckStagedReleaseDecision(t *testing.T) {
+	root := writeTestRepo(t)
+
+	t.Run("absent staging skips in optional mode", func(t *testing.T) {
+		err := checkStagedRelease(root, filepath.Join(t.TempDir(), "absent"), false)
+		if !errors.Is(err, errReleaseNotStaged) {
+			t.Fatalf("err = %v, want the not-staged skip", err)
+		}
+	})
+	t.Run("absent staging fails in mandatory mode", func(t *testing.T) {
+		err := checkStagedRelease(root, filepath.Join(t.TempDir(), "absent"), true)
+		if err == nil || errors.Is(err, errReleaseNotStaged) {
+			t.Fatalf("err = %v, want a hard failure", err)
+		}
+	})
+	t.Run("existing but empty staging fails", func(t *testing.T) {
+		if err := checkStagedRelease(root, t.TempDir(), false); err == nil || errors.Is(err, errReleaseNotStaged) {
+			t.Fatalf("err = %v, want a hard failure for empty staging", err)
+		}
+	})
+	t.Run("partial staging fails", func(t *testing.T) {
+		dist := t.TempDir()
+		buildTestArchive(t, filepath.Join(dist, "gaebokchi-darwin-arm64.tar.gz"), intendedLayoutFor("darwin-arm64"))
+		if err := checkStagedRelease(root, dist, false); err == nil {
+			t.Fatal("partial staging must fail, not pass or skip")
+		}
+	})
+	t.Run("missing manifest fails", func(t *testing.T) {
+		dist := t.TempDir()
+		for _, tgt := range releaseTargets {
+			buildTestArchive(t, filepath.Join(dist, "gaebokchi-"+tgt+".tar.gz"), intendedLayoutFor(tgt))
+		}
+		if err := checkStagedRelease(root, dist, false); err == nil {
+			t.Fatal("missing manifest must fail")
+		}
+	})
+	t.Run("non-directory staging path fails", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "not-a-dir")
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := checkStagedRelease(root, path, false); err == nil {
+			t.Fatal("non-directory staging path must fail")
+		}
+	})
+	t.Run("inspection failure distinct from absence fails", func(t *testing.T) {
+		// Deterministic seam: an expected archive path occupied by a
+		// directory makes inspection fail on every platform without
+		// relying on permission bits.
+		dist := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dist, "gaebokchi-darwin-arm64.tar.gz"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		err := checkStagedRelease(root, dist, false)
+		if err == nil || errors.Is(err, errReleaseNotStaged) {
+			t.Fatalf("err = %v, want an inspection failure, not a skip", err)
+		}
+	})
+	t.Run("complete valid staging passes in both modes", func(t *testing.T) {
+		dist := writeCompleteStaging(t, root)
+		if err := checkStagedRelease(root, dist, false); err != nil {
+			t.Fatalf("optional mode rejected valid staging: %v", err)
+		}
+		if err := checkStagedRelease(root, dist, true); err != nil {
+			t.Fatalf("mandatory mode rejected valid staging: %v", err)
+		}
+	})
+}
+
+// TestMandatoryModeCommandExit runs the actual CI-facing command as a
+// subprocess and asserts its process exit: mandatory mode must exit
+// nonzero for absent and incomplete staging, while optional mode exits
+// zero (skip) for absent staging.
+func TestMandatoryModeCommandExit(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain unavailable for the subprocess check")
+	}
+	root := repoRoot(t)
+	run := func(env ...string) int {
+		t.Helper()
+		cmd := exec.Command("go", "test", "./scripts/", "-run", "TestStagedReleaseArchives", "-count=1")
+		cmd.Dir = root
+		cmd.Env = append(os.Environ(), env...)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			return 0
+		}
+		if ee, ok := err.(*exec.ExitError); ok {
+			_ = out
+			return ee.ExitCode()
+		}
+		t.Fatalf("go test could not run: %v", err)
+		return -1
+	}
+
+	// REQUIRE is set explicitly in every invocation so an inherited
+	// value from the surrounding environment cannot flip the mode.
+	absent := filepath.Join(t.TempDir(), "absent")
+	if code := run("GAEBOKCHI_REQUIRE_STAGED_RELEASE=", "GAEBOKCHI_STAGED_RELEASE_DIR="+absent); code != 0 {
+		t.Fatalf("optional mode with absent staging exited %d, want 0 (skip)", code)
+	}
+	if code := run("GAEBOKCHI_REQUIRE_STAGED_RELEASE=1", "GAEBOKCHI_STAGED_RELEASE_DIR="+absent); code == 0 {
+		t.Fatal("mandatory mode with absent staging exited 0, want nonzero")
+	}
+	if code := run("GAEBOKCHI_REQUIRE_STAGED_RELEASE=1", "GAEBOKCHI_STAGED_RELEASE_DIR="+t.TempDir()); code == 0 {
+		t.Fatal("mandatory mode with empty staging exited 0, want nonzero")
 	}
 }
