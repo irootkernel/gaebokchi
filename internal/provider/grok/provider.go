@@ -148,8 +148,8 @@ type clientInfo struct {
 }
 
 type clientCapability struct {
-	FS *fsCapability `json:"fs"`
-	Terminal bool    `json:"terminal"`
+	FS       *fsCapability `json:"fs"`
+	Terminal bool          `json:"terminal"`
 }
 
 type fsCapability struct {

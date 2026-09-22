@@ -5,12 +5,28 @@ package integration
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"gaebokchi/internal/testutil"
 )
+
+// ownedDirs records the temporary directories created by this test
+// invocation. Only registered directories are removed after the run:
+// a similarly named directory owned by a concurrent invocation, a
+// crashed earlier run, or the user is never touched.
+var ownedDirs []string
+
+func registerOwnedDir(dir string) { ownedDirs = append(ownedDirs, dir) }
+
+// cleanupOwnedDirs removes exactly the directories this invocation
+// created. Broad prefix matching is not ownership evidence.
+func cleanupOwnedDirs() {
+	for _, dir := range ownedDirs {
+		_ = os.RemoveAll(dir)
+	}
+	ownedDirs = nil
+}
 
 // TestMain is the fake-provider entry point: the gaebokchi binary under
 // test launches this same test binary as its codex/grok child, and the
@@ -71,13 +87,6 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	code := m.Run()
-	// The shared e2e build directory is test-owned state; remove it.
-	for _, prefix := range []string{"gaebokchi-e2e-"} {
-		if matches, err := filepath.Glob(filepath.Join(os.TempDir(), prefix+"*")); err == nil {
-			for _, m := range matches {
-				_ = os.RemoveAll(m)
-			}
-		}
-	}
+	cleanupOwnedDirs()
 	os.Exit(code)
 }

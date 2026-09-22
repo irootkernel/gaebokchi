@@ -298,7 +298,7 @@ func TestInspectHome(t *testing.T) {
 	if InspectHome(dir) != HomeOK {
 		t.Fatal("existing dir not OK")
 	}
-	if InspectHome(dir + "/missing") != HomeMissing {
+	if InspectHome(dir+"/missing") != HomeMissing {
 		t.Fatal("missing path should be HomeMissing")
 	}
 	file := dir + "/plainfile"

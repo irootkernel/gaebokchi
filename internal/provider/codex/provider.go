@@ -299,9 +299,9 @@ const (
 // accountWire preserves presence of the account/read result members.
 type accountWire struct {
 	Account *struct {
-		Type    string  `json:"type"`
-		Email   *string `json:"email"`
-		Plan    *string `json:"planType"`
+		Type  string  `json:"type"`
+		Email *string `json:"email"`
+		Plan  *string `json:"planType"`
 	} `json:"account"`
 }
 

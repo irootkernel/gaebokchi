@@ -32,7 +32,7 @@ type billingWire struct {
 }
 
 type configWire struct {
-	CurrentPeriod     *json.RawMessage `json:"currentPeriod"`
+	CurrentPeriod      *json.RawMessage `json:"currentPeriod"`
 	CreditUsagePercent *json.RawMessage `json:"creditUsagePercent"`
 }
 

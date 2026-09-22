@@ -30,8 +30,8 @@ var (
 // transport lines are skipped; oversized or non-UTF-8 frames are
 // rejected.
 type FrameReader struct {
-	br    *bufio.Reader
-	buf   []byte
+	br  *bufio.Reader
+	buf []byte
 }
 
 // NewFrameReader wraps r.

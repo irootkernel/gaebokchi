@@ -35,7 +35,7 @@ Observations:
 - `account.type == "chatgpt"` with an `email`; `planType` present ("pro" on both homes).
 - Rate-limit result carries both a legacy `rateLimits` object (`limitId:"codex"`) and a non-empty `rateLimitsByLimitId` map whose only key is `codex`. Both homes report identical values in the two views.
 - Weekly window observed in `primary` (`windowDurationMins: 10080`, integer-encoded `usedPercent`: 37 and 38 on the two homes); `secondary` is JSON `null` on both. `resetsAt` is Unix seconds (present).
-- Full field-allowlisted fixture: `internal/provider/codex/testdata/ratelimits_weekly_primary.json` (captured-sanitized). Handshake fixtures: `initialize_response.json`, `account_chatgpt_response.json`.
+- Full field-allowlisted fixtures: `internal/provider/codex/testdata/ratelimits_weekly_home1.json` and `ratelimits_weekly_home2.json` (captured-sanitized, one per home). Handshake fixtures: `initialize_response.json`, `account_chatgpt_home1.json`, `account_chatgpt_home2.json`.
 - Child exits cleanly on stdin EOF; no provider-managed shared leader was observed to be required for `app-server` (the CLI does maintain daemon-related state files in the home; gaebokchi never touches them).
 
 ## Grok ACP (grok 1.0.40)

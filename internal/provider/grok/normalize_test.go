@@ -352,8 +352,8 @@ func TestQueryTimeout(t *testing.T) {
 // numeric success and never an unsupported authentication claim.
 func TestAuthenticateResultShapeValidation(t *testing.T) {
 	cases := []struct {
-		name   string
-		auth   string
+		name string
+		auth string
 	}{
 		{"error null without result", `{"jsonrpc":"2.0","id":2,"error":null}`},
 		{"result null", `{"jsonrpc":"2.0","id":2,"result":null}`},

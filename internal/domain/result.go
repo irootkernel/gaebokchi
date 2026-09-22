@@ -25,8 +25,8 @@ const (
 
 // Source identifies which provider interface produced the metric.
 const (
-	SourceCodexAppServer  = "codex_app_server"
-	SourceGrokACPBilling  = "grok_acp_billing"
+	SourceCodexAppServer = "codex_app_server"
+	SourceGrokACPBilling = "grok_acp_billing"
 )
 
 // Diagnostic is a safe, application-owned error summary. Codes and messages

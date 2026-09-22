@@ -86,12 +86,12 @@ func NewConn(w io.Writer, r io.Reader, codec Codec, abort func()) *Conn {
 		abort = func() {}
 	}
 	c := &Conn{
-		codec:  codec,
-		w:      w,
-		fr:     NewFrameReader(r),
-		abort:  abort,
+		codec:   codec,
+		w:       w,
+		fr:      NewFrameReader(r),
+		abort:   abort,
 		pending: make(map[int64]chan pendingReply),
-		deadCh: make(chan struct{}),
+		deadCh:  make(chan struct{}),
 	}
 	go c.readLoop()
 	return c

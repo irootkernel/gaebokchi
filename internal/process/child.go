@@ -60,7 +60,7 @@ type Child struct {
 
 	dir string
 
-	mu       sync.Mutex
+	mu         sync.Mutex
 	stderrKept []byte
 
 	waitErr error

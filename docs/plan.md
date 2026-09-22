@@ -757,7 +757,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-016"></a>
 ### TASK-016: Fix query deadlines, transport cancellation, and owned-process cleanup
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** A valid result established within the query budget must survive bounded cleanup; cancellation and terminal failure must unblock owned I/O exactly once within one cleanup budget.
 
@@ -789,7 +789,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-017"></a>
 ### TASK-017: Fix executable-path resolution and CLI output/signal behavior
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Explicit relative executable paths must work from the neutral child cwd, and the executable must implement the documented output and signal exit contract.
 
@@ -819,7 +819,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-018"></a>
 ### TASK-018: Harden inbound RPC validation
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Malformed or incompatible inbound responses must fail safely; only a structurally valid response alternative may satisfy a pending call.
 
@@ -849,7 +849,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-019"></a>
 ### TASK-019: Fix identity handling, Grok authentication classification, and provenance
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Account labels must be normalized before validation and disambiguation, and Grok authentication/provenance must be classified from verified structure rather than guesses.
 
@@ -880,7 +880,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-020"></a>
 ### TASK-020: Fix test hygiene, formatting, and documentation inconsistencies
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Test-owned cleanup must not delete unrelated directories, formatting must be verifiable rather than assumed, and the documentation must state exactly what was verified.
 

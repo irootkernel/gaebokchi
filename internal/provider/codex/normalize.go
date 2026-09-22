@@ -29,8 +29,8 @@ func outcome(s domain.Status) quotaOutcome { return quotaOutcome{Status: s} }
 // fields distinguishable from zero values.
 
 type rateLimitsResultWire struct {
-	RateLimitsByLimitID json.RawMessage    `json:"rateLimitsByLimitId"`
-	RateLimits          *json.RawMessage   `json:"rateLimits"`
+	RateLimitsByLimitID json.RawMessage  `json:"rateLimitsByLimitId"`
+	RateLimits          *json.RawMessage `json:"rateLimits"`
 }
 
 type bucketWire struct {

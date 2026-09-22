@@ -58,11 +58,11 @@ func TestNormalizeCapturedFixtureShapes(t *testing.T) {
 
 func TestNormalizeWindowSlotSelection(t *testing.T) {
 	cases := []struct {
-		name       string
-		primary    string
-		secondary  string
-		want       domain.Status
-		wantPct    *float64
+		name      string
+		primary   string
+		secondary string
+		want      domain.Status
+		wantPct   *float64
 	}{
 		{"primary weekly", window(37, 10080, 1790411774), "null", domain.StatusOK, fp(37)},
 		{"secondary weekly", "null", window(12.5, 10080, nil), domain.StatusOK, fp(12.5)},

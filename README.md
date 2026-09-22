@@ -40,10 +40,14 @@ identifiers.)
 - A Go toolchain is needed only to build from source; release binaries
   are self-contained (`CGO_ENABLED=0`).
 
-Tested with `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on
-macOS/arm64 (native) and Linux/arm64 (native, containerized); see
+Protocol compatibility was qualified with live, prompt-free queries
+against `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on macOS/arm64;
+see
 [docs/verification/compatibility.md](docs/verification/compatibility.md)
-for the frozen protocol evidence. Compatibility is capability-driven:
+for the frozen protocol evidence. Separately, the offline application
+and fake-provider test suites also ran natively on Linux/arm64
+(containerized) — no real provider CLI was exercised on Linux.
+Compatibility is capability-driven:
 newer CLI versions may change wire contracts, in which case rows will
 report `UNSUPPORTED` or `PROTOCOL ERROR` rather than guess.
 

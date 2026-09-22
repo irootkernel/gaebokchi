@@ -8,7 +8,7 @@ const (
 	StatusOK Status = "ok"
 
 	StatusNotApplicableMonthly Status = "not_applicable/monthly"
-	StatusNotApplicableAPIKey   Status = "not_applicable/api_key"
+	StatusNotApplicableAPIKey  Status = "not_applicable/api_key"
 
 	StatusUnavailableNoWeekly Status = "unavailable/no_weekly"
 	StatusUnavailablePeriod   Status = "unavailable/period"

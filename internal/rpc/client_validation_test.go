@@ -28,11 +28,11 @@ func TestErrorNullWithoutResultIsMalformed(t *testing.T) {
 // pending call.
 func TestIncompleteErrorObjectIsMalformed(t *testing.T) {
 	cases := []string{
-		`{"id":1,"error":{"code":-32000}}`,                    // message missing
-		`{"id":1,"error":{"message":"x"}}`,                    // code missing
-		`{"id":1,"error":{"code":"oops","message":"x"}}`,      // mistyped code
-		`{"id":1,"error":{"code":-32000,"message":42}}`,       // mistyped message
-		`{"id":1,"error":"not an object"}`,                    // wrong member type
+		`{"id":1,"error":{"code":-32000}}`,               // message missing
+		`{"id":1,"error":{"message":"x"}}`,               // code missing
+		`{"id":1,"error":{"code":"oops","message":"x"}}`, // mistyped code
+		`{"id":1,"error":{"code":-32000,"message":42}}`,  // mistyped message
+		`{"id":1,"error":"not an object"}`,               // wrong member type
 	}
 	for _, reply := range cases {
 		t.Run(reply, func(t *testing.T) {

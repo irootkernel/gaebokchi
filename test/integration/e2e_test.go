@@ -31,6 +31,7 @@ func gaebokchiBin(t *testing.T) string {
 			buildErr = err
 			return
 		}
+		registerOwnedDir(dir)
 		binPath = filepath.Join(dir, "gaebokchi")
 		out, err := exec.Command("go", "build", "-o", binPath, "gaebokchi/cmd/gaebokchi").CombinedOutput()
 		if err != nil {
@@ -55,12 +56,12 @@ func fakeBin(t *testing.T) string {
 
 // run invokes the built gaebokchi with fake provider scripts.
 type invocation struct {
-	args     []string
-	env      []string
-	codex    []testutil.Step
-	grok     []testutil.Step
-	argLog   string
-	envLog   string
+	args   []string
+	env    []string
+	codex  []testutil.Step
+	grok   []testutil.Step
+	argLog string
+	envLog string
 }
 
 func runCLI(t *testing.T, inv invocation) (stdout, stderr string, code int) {
@@ -189,8 +190,8 @@ func TestMissingExecutableKeepsOtherRows(t *testing.T) {
 
 func TestMissingHomeRow(t *testing.T) {
 	stdout, _, code := runCLI(t, invocation{
-		args:  []string{"--codex-home", "/definitely/not/here"},
-		grok:  grokWeekly(5),
+		args: []string{"--codex-home", "/definitely/not/here"},
+		grok: grokWeekly(5),
 	})
 	if code != 1 {
 		t.Fatalf("code = %d", code)
@@ -471,14 +472,14 @@ func TestConcurrentAccountIsolation(t *testing.T) {
 func TestNoForbiddenProductionCapabilities(t *testing.T) {
 	roots := []string{"../../internal", "../../cmd"}
 	forbidden := []string{
-		"net/http",       // no HTTP billing client or listener
-		"net.Listen",     // no application service
-		"auth.json",      // no credential file parsing
-		"keychain",       // no keychain access
-		"os.Setenv",      // no parent-environment mutation in production
-		"pkill",          // no process spraying
-		"sh -c",          // no shell wrappers
-		"session/new",    // no agent sessions (allowlists own these strings only in rpc codec)
+		"net/http",    // no HTTP billing client or listener
+		"net.Listen",  // no application service
+		"auth.json",   // no credential file parsing
+		"keychain",    // no keychain access
+		"os.Setenv",   // no parent-environment mutation in production
+		"pkill",       // no process spraying
+		"sh -c",       // no shell wrappers
+		"session/new", // no agent sessions (allowlists own these strings only in rpc codec)
 	}
 	for _, root := range roots {
 		filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {

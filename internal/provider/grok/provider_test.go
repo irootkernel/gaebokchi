@@ -47,8 +47,8 @@ func initReplyWith(protocolVersion any, methodIDs ...string) string {
 		methods = append(methods, map[string]any{"id": id, "name": id})
 	}
 	result := map[string]any{
-		"protocolVersion":    protocolVersion,
-		"authMethods":        methods,
+		"protocolVersion":     protocolVersion,
+		"authMethods":         methods,
 		"defaultAuthMethodId": firstOr(methodIDs, ""),
 	}
 	b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})

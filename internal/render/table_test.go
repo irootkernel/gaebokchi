@@ -76,13 +76,13 @@ func TestSanitizeLabel(t *testing.T) {
 		"injected\tcol":       "injected col",
 		"line1\nline2":        "line1 line2",
 		"esc\x1b[31mred":      "esc [31mred",
-		"bidi‪hidden‬":          "bidi hidden",
-		"nbsp a b":             "nbsp a b",
+		"bidi‪hidden‬":        "bidi hidden",
+		"nbsp a b":            "nbsp a b",
 		"collapse    spaces":  "collapse spaces",
 		"  trimmed  ":         "trimmed",
 		"unicode 개복치 🐡 stays": "unicode 개복치 🐡 stays",
-		"del\x7fchar":          "del char",
-		"c1\x9bcontrol":        "c1 control",
+		"del\x7fchar":         "del char",
+		"c1\x9bcontrol":       "c1 control",
 	}
 	for in, want := range cases {
 		if got := SanitizeLabel(in); got != want {
