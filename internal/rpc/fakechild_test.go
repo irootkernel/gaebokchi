@@ -48,10 +48,12 @@ func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
 	if string(resp.Result) != `{"v":1}` {
 		t.Fatalf("result = %s", resp.Result)
 	}
+	// Close joins the stderr drain: without it, retention is asserted
+	// before the drain goroutine has necessarily read the flood line.
+	child.Close()
 	if len(child.StderrKept()) == 0 {
 		t.Fatal("stderr retention empty despite flood")
 	}
-	child.Close()
 }
 
 func TestFakeChildBannerIsProtocolError(t *testing.T) {

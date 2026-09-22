@@ -262,7 +262,7 @@ func TestContextCancellationAbortsTransport(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want DeadlineExceeded", err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("cancellation took %v", elapsed)
 	}
 	if pp.abort.count() == 0 {

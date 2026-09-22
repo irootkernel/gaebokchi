@@ -358,9 +358,9 @@ func startFakeIn(t *testing.T, parent string, steps []testutil.Step) *process.Ch
 		t.Fatalf("marshal fake script: %v", err)
 	}
 	c, err := process.Start(process.Config{
-		Bin:  os.Args[0],
-		Args: []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
-		Env:  append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
+		Bin:        os.Args[0],
+		Args:       []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Env:        append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
 		TempParent: parent,
 	})
 	if err != nil {

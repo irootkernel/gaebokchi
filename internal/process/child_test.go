@@ -487,9 +487,9 @@ func TestCloseReportsRemovalFailure(t *testing.T) {
 	}
 	parent := t.TempDir()
 	c, err := Start(Config{
-		Bin:       os.Args[0],
-		Args:      []string{"-test.run=TestHelperProcess", "--", "stuck"},
-		Env:       append(os.Environ(), "GO_GAEBOKCHI_HELPER=1"),
+		Bin:        os.Args[0],
+		Args:       []string{"-test.run=TestHelperProcess", "--", "stuck"},
+		Env:        append(os.Environ(), "GO_GAEBOKCHI_HELPER=1"),
 		TempParent: parent,
 	})
 	if err != nil {

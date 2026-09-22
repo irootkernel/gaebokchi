@@ -12,6 +12,13 @@ import (
 // invocation, a crashed run, or the user) must survive — a shared name
 // prefix is not ownership evidence.
 func TestCleanupRemovesOnlyOwnedDirs(t *testing.T) {
+	// Operate on a private registry so the suite's shared build
+	// directory (registered by gaebokchiBin) is never removed here,
+	// including under -count=N re-runs of the whole package.
+	saved := ownedDirs
+	ownedDirs = nil
+	defer func() { ownedDirs = saved }()
+
 	// A "foreign" directory that merely shares the naming convention.
 	foreign, err := os.MkdirTemp("", "gaebokchi-e2e-")
 	if err != nil {

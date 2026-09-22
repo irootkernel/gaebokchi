@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: CORRECTIVE-COMPLETE (code) — the confirmation review's residual code findings are fixed (TASK-022 cleanup propagation and direct-child-only termination; TASK-023 complete Unicode normalization and the target-index suffix); documentation is reconciled (TASK-024) and the final gate/candidate packaging is TASK-025. REQ-048 remains the only unchecked requirement: the corrected candidate has not been live-tested and the provider-display comparison was never performed  
+Status: CORRECTIVE-COMPLETE (code) — the confirmation review's residual findings are fixed and re-qualified (TASK-022 through TASK-025); the final offline gate is green on darwin/arm64 and linux/arm64 and the candidate archives carry byte-verified documents. REQ-048 remains the only unchecked requirement: the corrected candidate has not been live-tested and the provider-display comparison was never performed  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  

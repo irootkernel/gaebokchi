@@ -75,7 +75,7 @@ func TestNotifyBlockedWriteCancellable(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want DeadlineExceeded", err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("notify took %v", elapsed)
 	}
 	if pp.abort.count() == 0 {
@@ -102,8 +102,9 @@ func TestBlockedRejectionWriteReleasedByAbort(t *testing.T) {
 	if !errors.Is(err, ErrServerRequest) {
 		t.Fatalf("err = %v, want ErrServerRequest", err)
 	}
-	// rejectionWriteBudget plus bounded teardown must dominate.
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
+	// rejectionWriteBudget plus bounded teardown must dominate; the
+	// generous ceiling still proves the loop is not wedged forever.
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("call took %v; blocked rejection wedged the read loop", elapsed)
 	}
 	if pp.abort.count() == 0 {

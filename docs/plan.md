@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: CORRECTIVE (residual findings open) — the confirmation review of commit `c340245` accepted most of EPIC-007's fixes but found five residual defects (discarded cleanup failures, unqualified forced group termination, incomplete Unicode whitespace normalization, a suffix rule mismatch, and stale roadmap/acceptance/packaging state). TASK-022 through TASK-025 address exactly that list; REQ-048 remains open as the separate live gate  
+Status: CORRECTIVE-COMPLETE (code) — the confirmation review's five residual findings are fixed and re-qualified (TASK-022 through TASK-025), the final offline gate is green on darwin/arm64 and linux/arm64, and the candidate archives are rebuilt with packaged-document freshness verified. v0.1 release acceptance remains pending REQ-048: the corrected candidate has not been live-tested and the provider-display comparison was never performed  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -708,7 +708,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="epic-007"></a>
 ## EPIC-007: Corrective remediation and re-acceptance
 
-- [ ] Epic complete. **Status: IN PROGRESS** — TASK-022 and TASK-023 fixed the residual cleanup/ownership and label/suffix defects with regression coverage; TASK-024 reconciles this documentation; only TASK-025 (final gate and candidate packaging) remains. *Supersession note (2026-09-22): the confirmation review of `c340245` had found five residual defects, reopening the earlier completion claim; the historical TASK-015..021 work itself stands.*
+- [x] Epic complete. **Status: COMPLETE** — every residual finding from the confirmation review of `c340245` is fixed with regression coverage (TASK-022..023), documentation is reconciled (TASK-024), and the final gate plus document-verified packaging is recorded (TASK-025). The epic's own scope is closed; v0.1 release acceptance remains pending REQ-048 alone. *Supersession note (2026-09-22): the confirmation review had found five residual defects, reopening the earlier completion claim; the historical TASK-015..021 work itself stands.*
 
 **Goal:** Correct the executable-level defects found by the 2026-09-22 adversarial audit of commit `f8b180d`, restore the documented contracts with regression coverage, and make the recorded acceptance state truthful again. This is a bounded remediation of the existing v0.1 implementation, not a redesign: the product scope, architecture, and the original six epics' IDs and commits are preserved.
 
@@ -1022,7 +1022,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 <a id="task-025"></a>
 ### TASK-025: Final verification and candidate packaging
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Re-qualify the corrected tree end to end and package the candidate with document freshness verified (the previous archives were staged before the final document edits).
 
@@ -1037,7 +1037,7 @@ Check a requirement only when its complete acceptance scope is verified. The “
 
 **Acceptance criteria:**
 
-- [ ] Gate green on available platforms with NOT RUN items marked; packaged documents byte-identical to the working tree; checksums recorded; the handoff distinguishes code completion from the open REQ-048 gate.
+- [x] Gate green on available platforms with NOT RUN items marked; packaged documents byte-identical to the working tree; checksums recorded; the handoff distinguishes code completion from the open REQ-048 gate. *(TASK-025 evidence record.)*
 
 **Verification:** [V-BUILD](architecture.md#v-build), [V-PLATFORM](architecture.md#v-platform), [V-DOCS](architecture.md#v-docs).
 
@@ -1053,7 +1053,7 @@ These are release-level checks, not extra implementation tasks. The checks below
 - [ ] Every checkbox in [requirement.md](requirement.md) has evidence, with live and fixture-only claims distinguished. *(Current: 49 checked after the TASK-022/023/024 re-qualifications; REQ-048 remains unchecked pending the owner-authorized live campaign — both the candidate live test and the provider-display comparison.)*
 - [x] All epics and tasks have completed their stated local acceptance criteria in sequence. *(TASK-015 through TASK-021 closed EPIC-007; the superseded TASK-013/TASK-014 acceptance portions are re-owned by the still-open REQ-048 gate below.)*
 - [x] Default output is exactly three columns and four logical lines, including on partial provider failure. *(Held: output shape was not invalidated by the audit.)*
-- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the corrected candidate has not been live-tested because owner authorization was unavailable in this environment. Offline qualification of the corrected tree is complete.)*
+- [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the final corrected candidate (TASK-025 archives) has not been live-tested because owner authorization was unavailable. Offline qualification of the corrected tree is complete on darwin/arm64 and linux/arm64.)*
 - [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](verification/TASK-021.md).)*
 - [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced. *(Held.)*
 - [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Artifacts rebuilt from the corrected tree with new SHA-256 checksums; README separates live qualification from offline Linux evidence.)*
