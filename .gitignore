@@ -4,3 +4,8 @@
 .omc/
 .zcode/
 
+
+/.mulgae/*
+!/.mulgae/config.yaml
+
+/.sorage/
