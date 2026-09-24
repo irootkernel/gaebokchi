@@ -34,7 +34,7 @@ func TestHelperProcess(t *testing.T) {
 	case "echo-stdin":
 		// Read stdin until EOF, echo byte count to stdout, exit 0.
 		n, _ := io.Copy(io.Discard, os.Stdin)
-		os.Stdout.WriteString("read-bytes=" + itoa(n) + "\n")
+		writeHelper(os.Stdout, "read-bytes="+itoa(n)+"\n")
 		os.Exit(0)
 	case "exit-immediately":
 		os.Exit(3)
@@ -49,24 +49,24 @@ func TestHelperProcess(t *testing.T) {
 		signal.Notify(sig, syscall.SIGTERM)
 		go func() {
 			<-sig
-			os.Stdout.WriteString("still-alive\n")
+			writeHelper(os.Stdout, "still-alive\n")
 		}()
 		time.Sleep(5 * time.Minute)
 		os.Exit(0)
 	case "flood-stderr":
 		chunk := strings.Repeat("x", 4096)
 		for i := 0; i < 256; i++ { // 1 MiB total
-			os.Stderr.WriteString(chunk)
+			writeHelper(os.Stderr, chunk)
 		}
 		os.Exit(0)
 	case "print-cwd":
 		wd, _ := os.Getwd()
-		os.Stdout.WriteString("cwd=" + wd + "\n")
+		writeHelper(os.Stdout, "cwd="+wd+"\n")
 		os.Exit(0)
 	case "print-env":
 		for _, kv := range os.Environ() {
 			if strings.HasPrefix(kv, "GAEBOKCHI_TEST_") {
-				os.Stdout.WriteString(kv + "\n")
+				writeHelper(os.Stdout, kv+"\n")
 			}
 		}
 		os.Exit(0)
@@ -83,7 +83,7 @@ func TestHelperProcess(t *testing.T) {
 		gc.Stdout = os.Stdout
 		gc.Stderr = os.Stderr
 		_ = gc.Start()
-		os.Stdout.WriteString("grandchild-pid=" + itoa(int64(gc.Process.Pid)) + "\n")
+		writeHelper(os.Stdout, "grandchild-pid="+itoa(int64(gc.Process.Pid))+"\n")
 		os.Exit(0)
 	case "ignore-term-grandchild":
 		// Ignores SIGTERM and keeps a descendant alive in the private
@@ -92,17 +92,23 @@ func TestHelperProcess(t *testing.T) {
 		signal.Notify(sig, syscall.SIGTERM)
 		go func() {
 			<-sig
-			os.Stdout.WriteString("still-alive\n")
+			writeHelper(os.Stdout, "still-alive\n")
 		}()
 		gc := exec.Command(args[1], args[2:]...)
 		gc.Stdout = os.Stdout
 		gc.Stderr = os.Stderr
 		_ = gc.Start()
-		os.Stdout.WriteString("grandchild-pid=" + itoa(int64(gc.Process.Pid)) + "\n")
+		writeHelper(os.Stdout, "grandchild-pid="+itoa(int64(gc.Process.Pid))+"\n")
 		time.Sleep(5 * time.Minute)
 		os.Exit(0)
 	default:
 		os.Exit(9)
+	}
+}
+
+func writeHelper(out *os.File, s string) {
+	if _, err := out.WriteString(s); err != nil {
+		os.Exit(1)
 	}
 }
 
@@ -236,7 +242,9 @@ func TestPrivateTempWorkingDirectory(t *testing.T) {
 	c := startHelper(t, "print-cwd")
 	out, _ := io.ReadAll(c.Stdout())
 	<-c.Done()
-	c.Close()
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
 	line := strings.TrimPrefix(string(out), "cwd=")
 	wd := strings.TrimSpace(line)
 	if !strings.Contains(wd, "gaebokchi-") {
@@ -258,7 +266,9 @@ func TestEnvironmentPassedVerbatim(t *testing.T) {
 	}
 	out, _ := io.ReadAll(c.Stdout())
 	<-c.Done()
-	c.Close()
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if !bytes.Contains(out, []byte("GAEBOKCHI_TEST_MARKER=42")) {
 		t.Fatalf("env not passed verbatim, got %q", out)
 	}

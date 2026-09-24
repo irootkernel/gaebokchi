@@ -72,17 +72,17 @@ func TestUsageCellOneDecimal(t *testing.T) {
 
 func TestSanitizeLabel(t *testing.T) {
 	cases := map[string]string{
-		"plain":               "plain",
-		"injected\tcol":       "injected col",
-		"line1\nline2":        "line1 line2",
-		"esc\x1b[31mred":      "esc [31mred",
-		"bidi‪hidden‬":        "bidi hidden",
-		"nbsp a b":            "nbsp a b",
-		"collapse    spaces":  "collapse spaces",
-		"  trimmed  ":         "trimmed",
-		"unicode 개복치 🐡 stays": "unicode 개복치 🐡 stays",
-		"del\x7fchar":         "del char",
-		"c1\x9bcontrol":       "c1 control",
+		"plain":                  "plain",
+		"injected\tcol":          "injected col",
+		"line1\nline2":           "line1 line2",
+		"esc\x1b[31mred":         "esc [31mred",
+		"bidi\u202ahidden\u202c": "bidi hidden",
+		"nbsp a b":               "nbsp a b",
+		"collapse    spaces":     "collapse spaces",
+		"  trimmed  ":            "trimmed",
+		"unicode 개복치 🐡 stays":    "unicode 개복치 🐡 stays",
+		"del\x7fchar":            "del char",
+		"c1\x9bcontrol":          "c1 control",
 	}
 	for in, want := range cases {
 		if got := SanitizeLabel(in); got != want {

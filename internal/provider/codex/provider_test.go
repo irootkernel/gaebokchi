@@ -89,7 +89,9 @@ func TestHandshakeOrderAndOutgoingSurface(t *testing.T) {
 	if info.AuthStatus != AuthAbsent {
 		t.Fatalf("auth status = %v, want AuthAbsent for null account", info.AuthStatus)
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	kept := string(child.StderrKept())
 	if !strings.Contains(kept, `"method":"initialize"`) {
@@ -138,7 +140,9 @@ func TestAccountMappingChatGPTFromFixture(t *testing.T) {
 	if info.AuthStatus != AuthChatGPT || info.Email != "account1@example.com" {
 		t.Fatalf("info = %+v", info)
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestAccountMappingVariants(t *testing.T) {
@@ -176,7 +180,9 @@ func TestAccountMappingVariants(t *testing.T) {
 			if info.Email != "" {
 				t.Fatalf("email should be unset, got %q", info.Email)
 			}
-			child.Close()
+			if err := child.Close(); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -230,7 +236,9 @@ func TestAccountEmailNormalizationPolicy(t *testing.T) {
 			if info.AuthStatus != AuthChatGPT {
 				t.Fatalf("auth status = %v", info.AuthStatus)
 			}
-			child.Close()
+			if err := child.Close(); err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }
@@ -253,8 +261,14 @@ func TestTwoHomesIsolatedIdentity(t *testing.T) {
 	connB := newTestConn(childB)
 	handshake(t, connA)
 	handshake(t, connB)
-	defer childA.Close()
-	defer childB.Close()
+	t.Cleanup(func() {
+		if err := childA.Close(); err != nil {
+			t.Error(err)
+		}
+		if err := childB.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -293,7 +307,9 @@ func TestRemoteAuthErrorIsTypedNotGuessed(t *testing.T) {
 	if ok := asRPCCallError(err, &rce); !ok || rce.method != "account/read" {
 		t.Fatalf("err = %v, want rpcCallError for account/read", err)
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestInspectHome(t *testing.T) {
@@ -305,7 +321,9 @@ func TestInspectHome(t *testing.T) {
 		t.Fatal("missing path should be HomeMissing")
 	}
 	file := dir + "/plainfile"
-	os.WriteFile(file, []byte("x"), 0o644)
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if InspectHome(file) != HomeInvalid {
 		t.Fatal("non-directory should be HomeInvalid")
 	}

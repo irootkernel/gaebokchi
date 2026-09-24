@@ -70,7 +70,8 @@ func runWithIO(args []string, stdout, stderr io.Writer, newProviders providers) 
 	}
 	opts, err := options.Parse(args)
 	if err != nil {
-		fmt.Fprintf(stderr, "gaebokchi: %v\n\n%s", err, usage)
+		// No recovery path remains if stderr itself cannot accept the diagnostic.
+		_, _ = fmt.Fprintf(stderr, "gaebokchi: %v\n\n%s", err, usage)
 		return 2
 	}
 	return execute(opts, stdout, stderr, newProviders)
@@ -126,7 +127,7 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 	// output failure all the same.
 	if opts.Help {
 		if !writeOut(usage) {
-			fmt.Fprintln(stderr, "gaebokchi: cannot write help to stdout")
+			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write help to stdout")
 			return finalExit(signalNum.Load(), true, nil)
 		}
 		return finalExit(signalNum.Load(), false, nil)
@@ -142,7 +143,7 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 	if !outputOK {
 		// Without a writable stdout a complete table cannot be
 		// guaranteed; write only safe diagnostics where possible.
-		fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
+		_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
 	}
 	render.WriteDiagnostics(stderr, results)
 	return finalExit(signalNum.Load(), !outputOK, results)

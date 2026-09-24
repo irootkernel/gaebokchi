@@ -100,7 +100,9 @@ func RunFakeScript(stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 			}
 			// Every consumed line is reported so tests can assert the
 			// outgoing transcript.
-			fmt.Fprintf(stderr, "FAKE-GOT:%s\n", line)
+			if _, err := fmt.Fprintf(stderr, "FAKE-GOT:%s\n", line); err != nil {
+				return "", err
+			}
 			var req struct {
 				ID json.Number `json:"id"`
 			}
@@ -141,7 +143,9 @@ func RunFakeScript(stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 				}
 				written += n
 			}
-			fmt.Fprintln(stdout)
+			if _, err := fmt.Fprintln(stdout); err != nil {
+				return err
+			}
 		case st.Wait > 0:
 			for i := 0; i < st.Wait; i++ {
 				if _, err := readRequest(); err != nil {
@@ -166,7 +170,9 @@ func RunFakeScript(stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 				if err != nil {
 					return err
 				}
-				fmt.Fprintf(stderr, "FAKE-GOT:%s\n", line)
+				if _, err := fmt.Fprintf(stderr, "FAKE-GOT:%s\n", line); err != nil {
+					return err
+				}
 			}
 		case st.EmitStderr != "":
 			if _, err := stderr.Write([]byte(st.EmitStderr)); err != nil {

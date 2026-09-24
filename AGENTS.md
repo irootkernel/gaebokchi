@@ -67,7 +67,7 @@ Repository guidance for AI coding agents working on gaebokchi.
 
 - `README.md` owns the CLI purpose, supported usage, privacy boundary, build instructions, and distribution limits.
 - `docs/README.md` indexes project documents; `docs/specs/README.md`, `docs/architecture/README.md`, and `docs/roadmap/README.md` own requirements, architecture, and roadmap status. `docs/implementation-tips/README.md` lists the local verification commands.
-- This is a Go 1.26 module. Run `go vet ./...` and `go test ./... -count=1` for the documented offline check; use the narrower package tests and race command listed in `docs/implementation-tips/README.md` when relevant. Build and release instructions are in `README.md` and `scripts/build-release.sh`.
+- This is a Go 1.27 module. Run `go vet ./...`, `golangci-lint run ./...`, and `go test ./... -count=1` for the documented offline checks; use the narrower package tests and race command listed in `docs/implementation-tips/README.md` when relevant. Build and release instructions are in `README.md` and `scripts/build-release.sh`.
 
 ### Commit Messages
 

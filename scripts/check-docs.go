@@ -29,9 +29,12 @@ func main() {
 	anchors := map[string]map[string]bool{} // file -> anchor
 	ids := map[string]bool{}                // global identifiers (REQ-..., etc.)
 	var files []string
-	filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			if err == nil && d.IsDir() && (d.Name() == ".git" || d.Name() == "dist") {
+	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == "dist" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -42,7 +45,7 @@ func main() {
 		files = append(files, path)
 		b, err := os.ReadFile(path)
 		if err != nil {
-			return nil
+			return err
 		}
 		anchors[path] = map[string]bool{}
 		for _, m := range anchorRe.FindAllStringSubmatch(string(b), -1) {
@@ -50,7 +53,10 @@ func main() {
 			ids[strings.ToUpper(m[1])] = true
 		}
 		return nil
-	})
+	}); err != nil {
+		fmt.Printf("check-docs: cannot scan markdown: %v\n", err)
+		fail = true
+	}
 
 	// Markdown heading anchors (lowercased, dashed) for linked headings.
 	headingAnchors := map[string]map[string]bool{}

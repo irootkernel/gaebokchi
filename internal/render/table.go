@@ -46,9 +46,10 @@ func UsageCell(r domain.Result) string {
 func Table(results []domain.Result) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "%s\t%s\t%s\n", HeadingProvider, HeadingAccount, HeadingUsage)
+	// The tabwriter writes only to an in-memory bytes.Buffer, which cannot fail.
+	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", HeadingProvider, HeadingAccount, HeadingUsage)
 	for _, r := range results {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n",
 			SanitizeLabel(r.Provider.DisplayName()),
 			SanitizeLabel(r.Account),
 			UsageCell(r),
@@ -64,6 +65,8 @@ func Table(results []domain.Result) string {
 // emits its single safe line — the measurement stays, the incomplete
 // operation is reported.
 func WriteDiagnostics(w io.Writer, results []domain.Result) {
+	// Diagnostics are best effort; callers have no alternative channel if
+	// stderr itself is unwritable.
 	for _, r := range results {
 		if r.Status == domain.StatusOK && !r.CleanupFailed {
 			continue
@@ -73,6 +76,6 @@ func WriteDiagnostics(w io.Writer, results []domain.Result) {
 		if msg == "" {
 			msg = r.TargetID + ": " + strings.ToLower(cell)
 		}
-		fmt.Fprintf(w, "gaebokchi: %s: %s: %s\n", r.TargetID, cell, SanitizeLabel(msg))
+		_, _ = fmt.Fprintf(w, "gaebokchi: %s: %s: %s\n", r.TargetID, cell, SanitizeLabel(msg))
 	}
 }

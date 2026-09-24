@@ -30,7 +30,9 @@ func TestFakeChildFragmentedReplyOverPipes(t *testing.T) {
 	}
 	child.CloseStdin()
 	<-child.Done()
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
@@ -50,7 +52,9 @@ func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
 	}
 	// Close joins the stderr drain: without it, retention is asserted
 	// before the drain goroutine has necessarily read the flood line.
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if len(child.StderrKept()) == 0 {
 		t.Fatal("stderr retention empty despite flood")
 	}
@@ -66,7 +70,9 @@ func TestFakeChildBannerIsProtocolError(t *testing.T) {
 	if !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v, want ErrMalformedMessage for banner", err)
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestFakeChildOversizeFrameKillsConnection(t *testing.T) {
@@ -80,7 +86,9 @@ func TestFakeChildOversizeFrameKillsConnection(t *testing.T) {
 	if !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v, want ErrMalformedMessage wrapping ErrFrameTooLarge", err)
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestFakeChildHungServerTimesOut(t *testing.T) {
@@ -127,5 +135,7 @@ func TestFakeChildCRLFAndDuplicateID(t *testing.T) {
 	if err == nil {
 		t.Fatal("second call should not be satisfied by a duplicate id")
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 }

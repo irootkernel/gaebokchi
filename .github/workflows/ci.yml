@@ -15,10 +15,10 @@ jobs:
           - os: ubuntu-latest  # amd64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
         with:
-          go-version: "1.26.6"
+          go-version: "1.27.1"
       - run: go vet ./...
       - name: Check gofmt
         run: |
@@ -33,10 +33,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
         with:
-          go-version: "1.26.6"
+          go-version: "1.27.1"
       - run: sh scripts/build-release.sh v0.1.0
       - run: GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go test ./scripts/ -run 'TestVerify|TestStagedReleaseArchives' -count=1
       - run: grep -c '^' dist/gaebokchi-v0.1.0/SHA256SUMS
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: "1.27.1"
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.13.2
+          args: --max-issues-per-linter=0 --max-same-issues=0

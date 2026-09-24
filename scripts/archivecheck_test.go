@@ -64,9 +64,8 @@ func buildTestArchive(t *testing.T, path string, members []member) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // Also closes on a fixture-construction failure.
 	gz := gzip.NewWriter(f)
-	defer gz.Close()
 	tw := tar.NewWriter(gz)
 	for _, m := range members {
 		hdr := &tar.Header{Name: m.name, Mode: m.mode}
@@ -87,6 +86,12 @@ func buildTestArchive(t *testing.T, path string, members []member) {
 		}
 	}
 	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -173,20 +178,26 @@ func TestVerifyChecksums(t *testing.T) {
 	for _, name := range []string{"gaebokchi-darwin-arm64.tar.gz", "gaebokchi-darwin-amd64.tar.gz", "gaebokchi-linux-arm64.tar.gz", "gaebokchi-linux-amd64.tar.gz"} {
 		write(name, "archive-"+name)
 	}
-	os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(manifest()), 0o644)
+	if err := os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(manifest()), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := verifyChecksums(dist); err != nil {
 		t.Fatalf("correct manifest rejected: %v", err)
 	}
 
 	// Tampered manifest entry.
-	os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(strings.Replace(manifest(), "  gaebokchi-linux-arm64", "  gaebokchi-linux-amd64", 1)), 0o644)
+	if err := os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(strings.Replace(manifest(), "  gaebokchi-linux-arm64", "  gaebokchi-linux-amd64", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	wantErrContaining(t, verifyChecksums(dist), "checksum mismatch")
 
 	// Manifest with a correct hash but only one target: the defect is
 	// the missing archive, not a bad hash.
 	body, _ := os.ReadFile(filepath.Join(dist, "gaebokchi-darwin-arm64.tar.gz"))
 	sum := sha256.Sum256(body)
-	os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(hex.EncodeToString(sum[:])+"  gaebokchi-darwin-arm64.tar.gz\n"), 0o644)
+	if err := os.WriteFile(filepath.Join(dist, "SHA256SUMS"), []byte(hex.EncodeToString(sum[:])+"  gaebokchi-darwin-arm64.tar.gz\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	wantErrContaining(t, verifyChecksums(dist), "lacks the")
 }
 

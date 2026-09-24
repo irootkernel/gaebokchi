@@ -95,24 +95,15 @@ func Start(cfg Config) (*Child, error) {
 
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
-		os.RemoveAll(dir)
-		return nil, err
+		return nil, cleanupStartFailure(err, dir)
 	}
 	stdoutR, stdoutW, err := os.Pipe()
 	if err != nil {
-		stdinR.Close()
-		stdinW.Close()
-		os.RemoveAll(dir)
-		return nil, err
+		return nil, cleanupStartFailure(err, dir, stdinR, stdinW)
 	}
 	stderrR, stderrW, err := os.Pipe()
 	if err != nil {
-		stdinR.Close()
-		stdinW.Close()
-		stdoutR.Close()
-		stdoutW.Close()
-		os.RemoveAll(dir)
-		return nil, err
+		return nil, cleanupStartFailure(err, dir, stdinR, stdinW, stdoutR, stdoutW)
 	}
 
 	cmd := exec.Command(cfg.Bin, cfg.Args...)
@@ -135,20 +126,15 @@ func Start(cfg Config) (*Child, error) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		stdinR.Close()
-		stdinW.Close()
-		stdoutR.Close()
-		stdoutW.Close()
-		stderrR.Close()
-		stderrW.Close()
-		os.RemoveAll(dir)
-		return nil, err
+		return nil, cleanupStartFailure(err, dir, stdinR, stdinW, stdoutR, stdoutW, stderrR, stderrW)
 	}
 	// Drop the parent's copies of the child-side fds: EOF on our read
 	// ends must depend only on the child's lifetime.
-	stdinR.Close()
-	stdoutW.Close()
-	stderrW.Close()
+	// These descriptors are already owned by the running child; closing
+	// them here is best effort and cannot undo a successful start.
+	_ = stdinR.Close()
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
 
 	// Exactly one owner ever calls Wait: this goroutine.
 	go func() {
@@ -157,6 +143,14 @@ func Start(cfg Config) (*Child, error) {
 	}()
 	go c.drainStderr()
 	return c, nil
+}
+
+func cleanupStartFailure(startErr error, dir string, pipes ...io.Closer) error {
+	err := startErr
+	for _, pipe := range pipes {
+		err = errors.Join(err, pipe.Close())
+	}
+	return errors.Join(err, os.RemoveAll(dir))
 }
 
 // Stdin is the write end of the child's stdin.

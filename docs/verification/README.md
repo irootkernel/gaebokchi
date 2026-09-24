@@ -12,6 +12,8 @@ current merely because a later tree retains the record.
   its explicit corrected-candidate limitation.
 - `TASK-001.md` through `TASK-028.md` record task-scoped checks, findings,
   supersessions, and platform limitations.
+- [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
+  and local scanner upgrade against its own working-tree snapshot.
 
 The canonical lifecycle state remains in [the roadmap](../roadmap/README.md),
 and required behavior remains in [the specifications](../specs/README.md).

@@ -462,8 +462,12 @@ func TestConcurrentAccountIsolation(t *testing.T) {
 	argLog := filepath.Join(dir, "argv.log")
 	homeA := filepath.Join(dir, "work")
 	homeB := filepath.Join(dir, "personal")
-	os.MkdirAll(homeA, 0o755)
-	os.MkdirAll(homeB, 0o755)
+	if err := os.MkdirAll(homeA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(homeB, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	stdout, _, code := runCLI(t, invocation{
 		args:   []string{"--codex-home", homeA, "--codex-home", homeB},
 		codex:  codexOK("shared@example.com", 21),
@@ -499,8 +503,11 @@ func TestNoForbiddenProductionCapabilities(t *testing.T) {
 		"session/new", // no agent sessions (allowlists own these strings only in rpc codec)
 	}
 	for _, root := range roots {
-		filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+		if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
 				return nil
 			}
 			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
@@ -508,7 +515,7 @@ func TestNoForbiddenProductionCapabilities(t *testing.T) {
 			}
 			b, err := os.ReadFile(path)
 			if err != nil {
-				return nil
+				return err
 			}
 			src := string(b)
 			for _, marker := range forbidden {
@@ -520,7 +527,9 @@ func TestNoForbiddenProductionCapabilities(t *testing.T) {
 				}
 			}
 			return nil
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

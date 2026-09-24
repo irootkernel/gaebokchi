@@ -40,7 +40,7 @@ identifiers.)
 - The `grok` CLI installed and logged in (`grok` manages its own cached
   token in `~/.grok`).
 - The `claude` CLI installed and logged in through a Claude subscription.
-- A Go toolchain is needed only to build from source; release binaries
+- Go 1.27 or newer is needed only to build from source; release binaries
   are self-contained (`CGO_ENABLED=0`).
 
 Protocol compatibility was qualified with live, prompt-free queries

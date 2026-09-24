@@ -70,7 +70,9 @@ func TestMain(m *testing.M) {
 				steps = os.Getenv("GAEBOKCHI_FAKE_GROK_STEPS")
 			}
 		}
-		os.Setenv("GAEBOKCHI_FAKE_STEPS", steps)
+		if err := os.Setenv("GAEBOKCHI_FAKE_STEPS", steps); err != nil {
+			os.Exit(1)
+		}
 		// Record the invocation for arg and env assertions.
 		if path := os.Getenv("GAEBOKCHI_FAKE_ARGLOG"); path != "" {
 			argv := "argv:"

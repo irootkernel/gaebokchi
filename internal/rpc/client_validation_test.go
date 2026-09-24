@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"errors"
-	"io"
 	"testing"
 )
 
@@ -14,8 +13,8 @@ func TestErrorNullWithoutResultIsMalformed(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"id":1,"error":null}`+"\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"id":1,"error":null}`+"\n")
 	}()
 	_, err := c.Call(context.Background(), "initialize", nil)
 	if !errors.Is(err, ErrMalformedMessage) {
@@ -39,8 +38,8 @@ func TestIncompleteErrorObjectIsMalformed(t *testing.T) {
 			pp := newPipePair(t)
 			c := pp.conn(CodexCodec{})
 			go func() {
-				testutilReadLine(pp.serverR)
-				io.WriteString(pp.serverW, reply+"\n")
+				readRequest(t, pp.serverR)
+				writeReply(t, pp.serverW, reply+"\n")
 			}()
 			_, err := c.Call(context.Background(), "initialize", nil)
 			if !errors.Is(err, ErrMalformedMessage) {
@@ -65,8 +64,8 @@ func TestACPResponseRequiresJSONRPC2(t *testing.T) {
 			pp := newPipePair(t)
 			c := pp.conn(ACPCodec{})
 			go func() {
-				testutilReadLine(pp.serverR)
-				io.WriteString(pp.serverW, reply+"\n")
+				readRequest(t, pp.serverR)
+				writeReply(t, pp.serverW, reply+"\n")
 			}()
 			_, err := c.Call(context.Background(), "initialize", nil)
 			if !errors.Is(err, ErrMalformedMessage) {
@@ -84,9 +83,9 @@ func TestCodexToleratesAdditiveJSONRPCMember(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"jsonrpc":"2.0","id":1,"result":{"ok":true},"extra":"additive"}`+"\n")
-		pp.serverW.Close()
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":1,"result":{"ok":true},"extra":"additive"}`+"\n")
+		_ = pp.serverW.Close()
 	}()
 	resp, err := c.Call(context.Background(), "initialize", nil)
 	if err != nil {

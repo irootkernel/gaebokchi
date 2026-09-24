@@ -8,13 +8,19 @@ guidance. Product behavior remains owned by the specifications.
 ```sh
 gofmt -l .
 go vet ./...
+golangci-lint run ./... # v2.13.2
 go test ./... -count=1
 go test -race ./internal/... ./test/... -count=1
 go run scripts/check-docs.go
+govulncheck ./... # v1.8.0; queries the public Go vulnerability database
 ```
 
 The normal test suite is offline and uses fake providers. It does not authorize
 or perform real-account queries.
+
+CI pins `golangci-lint` v2.13.2; use the same binary version locally. For the
+optional vulnerability scan, install the scanner with the active Go 1.27
+toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 
 ## Local release staging
 

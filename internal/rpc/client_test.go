@@ -56,6 +56,20 @@ func newPipePair(t *testing.T) *pipePair {
 	return pp
 }
 
+func readRequest(t *testing.T, r io.Reader) {
+	t.Helper()
+	if _, err := testutilReadLine(r); err != nil {
+		t.Errorf("fake server could not read request: %v", err)
+	}
+}
+
+func writeReply(t *testing.T, w io.Writer, reply string) {
+	t.Helper()
+	if _, err := io.WriteString(w, reply); err != nil {
+		t.Errorf("fake server could not write reply: %v", err)
+	}
+}
+
 func (pp *pipePair) conn(codec Codec) *Conn {
 	return NewConn(pp.clientW, pp.clientR, codec, pp.abort.fire)
 }
@@ -86,10 +100,10 @@ func TestCallCorrelationWithNotificationsAndUnknownIDs(t *testing.T) {
 			pp.serverW.CloseWithError(errors.New("unexpected request: " + line))
 			return
 		}
-		io.WriteString(pp.serverW, "{\"method\":\"remoteControl/status/changed\",\"params\":{}}\n")
-		io.WriteString(pp.serverW, "{\"id\":99,\"result\":{}}\n")
-		io.WriteString(pp.serverW, "{\"id\":1,\"result\":{\"account\":{\"type\":\"chatgpt\"}}}\n")
-		pp.serverW.Close()
+		writeReply(t, pp.serverW, "{\"method\":\"remoteControl/status/changed\",\"params\":{}}\n")
+		writeReply(t, pp.serverW, "{\"id\":99,\"result\":{}}\n")
+		writeReply(t, pp.serverW, "{\"id\":1,\"result\":{\"account\":{\"type\":\"chatgpt\"}}}\n")
+		_ = pp.serverW.Close()
 	}()
 
 	resp, err := c.Call(ctx, "account/read", map[string]any{"refreshToken": false})
@@ -108,9 +122,9 @@ func TestCallRemoteError(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"auth required"}}`+"\n")
-		pp.serverW.Close()
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"auth required"}}`+"\n")
+		_ = pp.serverW.Close()
 	}()
 	resp, err := c.Call(context.Background(), "authenticate", nil)
 	if err != nil {
@@ -126,8 +140,8 @@ func TestEOFailsPendingCall(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		pp.serverW.Close() // EOF before response
+		readRequest(t, pp.serverR)
+		_ = pp.serverW.Close() // EOF before response
 	}()
 	_, err := c.Call(context.Background(), "initialize", nil)
 	if !errors.Is(err, ErrEOF) {
@@ -139,8 +153,8 @@ func TestMalformedFrameFailsCall(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, "this is not json\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, "this is not json\n")
 	}()
 	_, err := c.Call(context.Background(), "initialize", nil)
 	if err == nil || !errors.Is(err, ErrMalformedMessage) {
@@ -152,8 +166,8 @@ func TestBatchTopLevelRejected(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, "[{\"id\":1,\"result\":{}}]\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, "[{\"id\":1,\"result\":{}}]\n")
 	}()
 	_, err := c.Call(context.Background(), "initialize", nil)
 	if !errors.Is(err, ErrMalformedMessage) {
@@ -165,8 +179,8 @@ func TestBothResultAndErrorRejected(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"id":1,"result":{},"error":{"code":1,"message":"x"}}`+"\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"id":1,"result":{},"error":{"code":1,"message":"x"}}`+"\n")
 	}()
 	_, err := c.Call(context.Background(), "initialize", nil)
 	if !errors.Is(err, ErrMalformedMessage) {
@@ -178,9 +192,9 @@ func TestNullResultPreserved(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"id":1,"result":null}`+"\n")
-		pp.serverW.Close()
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"id":1,"result":null}`+"\n")
+		_ = pp.serverW.Close()
 	}()
 	resp, err := c.Call(context.Background(), "account/read", nil)
 	if err != nil {
@@ -197,9 +211,9 @@ func TestServerInitiatedRequestRejectedAndAborts(t *testing.T) {
 	received := make(chan string, 1)
 	go func() {
 		// Consume the client's own request first.
-		testutilReadLine(pp.serverR)
+		readRequest(t, pp.serverR)
 		// Then deliver the server-initiated request.
-		io.WriteString(pp.serverW, `{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"prompt":"run this"}}`+"\n")
+		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"prompt":"run this"}}`+"\n")
 		line, _ := testutilReadLine(pp.serverR)
 		received <- line
 	}()
@@ -225,8 +239,8 @@ func TestCodexRejectionOmitsJSONRPC(t *testing.T) {
 	c := pp.conn(CodexCodec{})
 	received := make(chan string, 1)
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"id":7,"method":"tool/approve"}`+"\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"id":7,"method":"tool/approve"}`+"\n")
 		line, _ := testutilReadLine(pp.serverR)
 		received <- line
 	}()
@@ -254,7 +268,7 @@ func TestContextCancellationAbortsTransport(t *testing.T) {
 	defer cancel()
 	go func() {
 		// Server reads the request but never answers.
-		testutilReadLine(pp.serverR)
+		readRequest(t, pp.serverR)
 		time.Sleep(5 * time.Second)
 	}()
 	start := time.Now()
@@ -294,10 +308,10 @@ func TestSingleOutstandingRequest(t *testing.T) {
 	requestSeen := make(chan struct{}, 1)
 	release := make(chan struct{})
 	go func() {
-		testutilReadLine(pp.serverR)
+		readRequest(t, pp.serverR)
 		requestSeen <- struct{}{}
 		<-release
-		io.WriteString(pp.serverW, `{"id":1,"result":{}}`+"\n")
+		writeReply(t, pp.serverW, `{"id":1,"result":{}}`+"\n")
 	}()
 
 	firstDone := make(chan error, 1)

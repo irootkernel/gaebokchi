@@ -94,7 +94,9 @@ func TestQueryFullLifecycleFromFixtures(t *testing.T) {
 	if res.ResetAt == nil {
 		t.Fatal("reset metadata not preserved")
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 	kept := string(child.StderrKept())
 	if !containsStr(kept, `"method":"account/rateLimits/read"`) {
 		t.Fatalf("quota read missing from transcript: %q", kept)
@@ -130,7 +132,9 @@ func TestQueryHomePreflight(t *testing.T) {
 		t.Fatalf("missing home status = %v", missing.Status)
 	}
 	file := filepath.Join(t.TempDir(), "plainfile")
-	os.WriteFile(file, []byte("x"), 0o644)
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	invalid := p.Query(context.Background(), codexTarget(file))
 	if invalid.Status != domain.StatusHomeError {
 		t.Fatalf("invalid home status = %v", invalid.Status)

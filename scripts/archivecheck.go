@@ -32,18 +32,18 @@ var releaseTargets = []string{
 func intendedFiles(target string) (files []string, dirs []string) {
 	d := "gaebokchi-" + target
 	return []string{
-			d + "/gaebokchi",
-			d + "/README.md",
-			d + "/docs/specs/README.md",
-			d + "/docs/architecture/README.md",
-			d + "/docs/roadmap/README.md",
-		}, []string{
-			d,
-			d + "/docs",
-			d + "/docs/specs",
-			d + "/docs/architecture",
-			d + "/docs/roadmap",
-		}
+		d + "/gaebokchi",
+		d + "/README.md",
+		d + "/docs/specs/README.md",
+		d + "/docs/architecture/README.md",
+		d + "/docs/roadmap/README.md",
+	}, []string{
+		d,
+		d + "/docs",
+		d + "/docs/specs",
+		d + "/docs/architecture",
+		d + "/docs/roadmap",
+	}
 }
 
 // repoPathFor maps one intended packaged file to its repository source.
@@ -76,12 +76,12 @@ func verifyArchive(archivePath, target, repoRoot string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // The archive is read-only; read failures surface above.
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return fmt.Errorf("%s: not a gzip archive: %v", archivePath, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	tr := tar.NewReader(gz)
 
 	binaryOK := false
@@ -201,7 +201,7 @@ func fileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err

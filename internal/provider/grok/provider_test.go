@@ -87,7 +87,11 @@ func TestOutgoingBytesMatchQualifiedContract(t *testing.T) {
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v plan=%v", err, plan)
 	}
-	defer s.close()
+	t.Cleanup(func() {
+		if err := s.close(); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := authenticateCached(ctx, s); err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
@@ -98,7 +102,9 @@ func TestOutgoingBytesMatchQualifiedContract(t *testing.T) {
 	if !json.Valid(raw) {
 		t.Fatalf("billing payload invalid")
 	}
-	child.Close()
+	if err := child.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	kept := string(child.StderrKept())
 	lines := transcriptLines(kept)
@@ -202,7 +208,11 @@ func TestAuthenticateRejectionTyped(t *testing.T) {
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v", err)
 	}
-	defer s.close()
+	t.Cleanup(func() {
+		if err := s.close(); err != nil {
+			t.Error(err)
+		}
+	})
 	err = authenticateCached(ctx, s)
 	var rce *rpcCallError
 	if err == nil || !errorsAs(err, &rce) || rce.method != "authenticate" {
@@ -225,7 +235,11 @@ func TestBillingMethodNotFoundTyped(t *testing.T) {
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v", err)
 	}
-	defer s.close()
+	t.Cleanup(func() {
+		if err := s.close(); err != nil {
+			t.Error(err)
+		}
+	})
 	if err := authenticateCached(ctx, s); err != nil {
 		t.Fatalf("authenticate: %v", err)
 	}
@@ -255,7 +269,9 @@ func TestUnsafeCallbackAbortsSession(t *testing.T) {
 	}
 	// Let the fake consume the buffered rejection before teardown.
 	time.Sleep(200 * time.Millisecond)
-	s.close()
+	if err := s.close(); err != nil {
+		t.Fatal(err)
+	}
 	// The fake received exactly one dialect-correct rejection.
 	kept := string(child.StderrKept())
 	if !strings.Contains(kept, `"code":-32601`) || !strings.Contains(kept, `"id":50`) {
@@ -302,10 +318,6 @@ func transcriptLines(kept string) []string {
 		}
 	}
 	return lines
-}
-
-func isRPCErr(err error) bool {
-	return strings.Contains(err.Error(), "rpc:")
 }
 
 func errorsAs(err error, target **rpcCallError) bool {

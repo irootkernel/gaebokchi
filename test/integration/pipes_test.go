@@ -78,7 +78,9 @@ func brokenStdoutPipe(t *testing.T) *os.File {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.Close()
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
 	return w
 }
 
@@ -89,7 +91,9 @@ func TestClosedStdoutPipeExitsOneNotSignalled(t *testing.T) {
 	w := brokenStdoutPipe(t)
 	var errBuf bytes.Buffer
 	cmd := startWithFakes(t, nil, codexOK("a@example.com", 40), grokWeekly(41), w, &errBuf)
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
 	code := waitExitCode(t, cmd, cmd.Wait())
 	if code != 1 {
 		t.Fatalf("exit = %d, want 1 for output failure", code)
@@ -117,7 +121,9 @@ func TestSignalWithBrokenStdoutKeepsSignalCode(t *testing.T) {
 			w := brokenStdoutPipe(t)
 			var errBuf bytes.Buffer
 			cmd := startWithFakes(t, nil, hang, hang, w, &errBuf)
-			w.Close()
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
 			time.Sleep(700 * time.Millisecond) // children admitted and hanging
 			if err := cmd.Process.Signal(tc.sig); err != nil {
 				t.Fatal(err)
@@ -181,7 +187,9 @@ func TestHelpVersionBrokenPipeExitsOne(t *testing.T) {
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}
-		w.Close()
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
 		code := waitExitCode(t, cmd, cmd.Wait())
 		if code != 1 {
 			t.Fatalf("%v: exit = %d, want 1 for output failure", args, code)

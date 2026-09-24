@@ -20,10 +20,11 @@ func TestLateRoutedReplyNeverSatisfiesCall(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 	go func() {
-		testutilReadLine(pp.serverR)
+		readRequest(t, pp.serverR)
 		time.Sleep(300 * time.Millisecond) // reply crosses the deadline
-		io.WriteString(pp.serverW, `{"id":1,"result":{}}`+"\n")
-		pp.serverW.Close()
+		// The client has already timed out and may have closed this pipe.
+		_, _ = io.WriteString(pp.serverW, `{"id":1,"result":{}}`+"\n")
+		_ = pp.serverW.Close()
 	}()
 	start := time.Now()
 	resp, err := c.Call(ctx, "initialize", nil)
@@ -47,10 +48,10 @@ func TestTimelyReplyReturnedWhileConnectionLingers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	go func() {
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"id":1,"result":{"ok":true}}`+"\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"id":1,"result":{"ok":true}}`+"\n")
 		time.Sleep(400 * time.Millisecond) // linger after answering
-		pp.serverW.Close()
+		_ = pp.serverW.Close()
 	}()
 	resp, err := c.Call(ctx, "initialize", nil)
 	if err != nil {
@@ -93,8 +94,8 @@ func TestBlockedRejectionWriteReleasedByAbort(t *testing.T) {
 	go func() {
 		// Consume the client's request, then stop reading so the
 		// rejection write blocks on the full pipe.
-		testutilReadLine(pp.serverR)
-		io.WriteString(pp.serverW, `{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"prompt":"run this"}}`+"\n")
+		readRequest(t, pp.serverR)
+		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"prompt":"run this"}}`+"\n")
 		// Deliberately never read again.
 	}()
 	start := time.Now()
@@ -129,8 +130,8 @@ func TestCloseUnblocksTransportOnTerminalEOF(t *testing.T) {
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
-		testutilReadLine(pp.serverR)
-		pp.serverW.Close() // EOF
+		readRequest(t, pp.serverR)
+		_ = pp.serverW.Close() // EOF
 	}()
 	if _, err := c.Call(context.Background(), "initialize", nil); !errors.Is(err, ErrEOF) {
 		t.Fatalf("err = %v, want ErrEOF", err)

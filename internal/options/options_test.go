@@ -21,7 +21,7 @@ func mustParse(t *testing.T, args ...string) Options {
 	return o
 }
 
-func mustFail(t *testing.T, args ...string) error {
+func mustFail(t *testing.T, args ...string) {
 	t.Helper()
 	o, err := parse(args, testHome, testWD)
 	if err == nil {
@@ -30,7 +30,6 @@ func mustFail(t *testing.T, args ...string) error {
 	if !IsUsageError(err) {
 		t.Fatalf("parse(%q) error is not a usage error: %v", args, err)
 	}
-	return err
 }
 
 func TestDefaultTargets(t *testing.T) {
@@ -99,9 +98,7 @@ func TestTildeExpansion(t *testing.T) {
 }
 
 func TestTildeOtherUserRejected(t *testing.T) {
-	if err := mustFail(t, "--codex-home", "~other/cache"); err == nil {
-		t.Fatal("expected failure")
-	}
+	mustFail(t, "--codex-home", "~other/cache")
 }
 
 func TestRelativeHomeResolvedAgainstWD(t *testing.T) {
