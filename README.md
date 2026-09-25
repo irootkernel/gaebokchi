@@ -81,6 +81,7 @@ gaebokchi --codex-home ~/.codex-work                 # one custom home (replaces
 gaebokchi --codex-home ~/.codex-work --codex-home ~/.codex-personal
 gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
+gaebokchi --json                                    # machine-readable usage snapshot
 gaebokchi version
 gaebokchi version --json
 ```
@@ -98,10 +99,32 @@ version override print `gaebokchi (devel)`.
 | `--claude-bin PATH` | `claude` | claude executable path or name |
 | `--grok-account LABEL` | `default` | Display alias for the Grok row (not an email) |
 | `--timeout DURATION` | `20s` | Per-target query budget, 1s–120s |
+| `--json` | off | Emit the usage snapshot as JSON |
 | `-h`, `--help` | — | Print help without launching providers |
 
 `version [--json]` is a project-independent command and never launches a
 provider. The former `--version` flag is not supported.
+
+For a usage query, `--json` writes one newline-terminated object with a
+`results` array in display order. Each result has `target_id`, `provider`
+(`codex`, `grok`, or `claude`), normalized `account`, `status`, numeric
+`used_percent` (or `null` when unavailable), and boolean `cleanup_failed`.
+The numeric value retains provider precision and has no `%` suffix. For
+example, a successful row may look like:
+
+```json
+{"results":[{"target_id":"codex:0","provider":"codex","account":"account1@example.com","status":"ok","used_percent":37.125,"cleanup_failed":false}]}
+```
+
+The example shows one result for brevity; actual output retains every target,
+including failures. Diagnostics remain on stderr, and exit codes do not change.
+Help remains text. Invalid arguments produce no stdout JSON.
+
+JSON `status` values are `ok`, `not_applicable/monthly`,
+`not_applicable/api_key`, `unavailable/no_weekly`, `unavailable/period`,
+`unavailable/no_data`, `auth_required`, `unsupported`, `cli_not_found`,
+`home_not_found`, `home_error`, `timeout`, `protocol_error`, `provider_error`,
+and `cancelled`.
 
 The ambient `CODEX_HOME` environment variable does not change the default
 account list. Unknown flags, positional arguments, empty values, invalid
@@ -127,7 +150,7 @@ errors.
 |---|---|
 | `0` | All rows numeric or explicitly non-applicable (monthly/API key) |
 | `1` | One or more incomplete/error rows, or stdout write failure |
-| `2` | Invalid arguments; no table is printed |
+| `2` | Invalid arguments; no usage snapshot is printed |
 | `130` / `143` | Cancelled by SIGINT / SIGTERM |
 
 Grok and Claude use the display label `default`; it is not a verified email.
@@ -144,7 +167,7 @@ A monthly result is truthful non-applicability, not weekly usage.
   while keeping `HOME` and `CLAUDE_CONFIG_DIR`.
 - Children run in private temporary directories outside your project;
   the directories are removed after each run.
-- stdout contains the table (with account identifiers); diagnostics go
+- stdout contains the table or JSON snapshot (with account identifiers); diagnostics go
   to stderr as fixed, application-owned messages only.
 
 ## Troubleshooting

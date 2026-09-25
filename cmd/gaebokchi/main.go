@@ -41,12 +41,13 @@ Flags:
   --claude-bin PATH     claude executable path or name (default "claude")
   --grok-account LABEL  display alias for the Grok row (default "default")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
+  --json                emit one JSON usage snapshot instead of the table
   -h, --help            show this help and exit
 
 Exit codes: 0 ok, 1 incomplete rows, 2 usage error, 130 SIGINT, 143 SIGTERM.
 
-stdout carries the account table and can contain account identifiers;
-diagnostics go to stderr.
+stdout carries the account table or JSON snapshot and can contain account
+identifiers; diagnostics go to stderr.
 `
 
 func main() {
@@ -138,12 +139,27 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 	results := runner.Run(ctx, targets, opts.Timeout)
 	app.DisambiguateCodexAccounts(results, targets)
 
-	table := render.Table(results)
-	outputOK := writeOut(table)
+	var output string
+	if opts.JSON {
+		var err error
+		output, err = render.JSON(results)
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot encode usage JSON")
+			render.WriteDiagnostics(stderr, results)
+			return finalExit(signalNum.Load(), true, results)
+		}
+	} else {
+		output = render.Table(results)
+	}
+	outputOK := writeOut(output)
 	if !outputOK {
-		// Without a writable stdout a complete table cannot be
+		// Without a writable stdout a complete snapshot cannot be
 		// guaranteed; write only safe diagnostics where possible.
-		_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
+		if opts.JSON {
+			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write usage JSON to stdout")
+		} else {
+			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
+		}
 	}
 	render.WriteDiagnostics(stderr, results)
 	return finalExit(signalNum.Load(), !outputOK, results)

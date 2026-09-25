@@ -178,6 +178,75 @@ var _ = ginkgo.It("TestPartialFailureKeepsTableExitOne", func() {
 	}
 })
 
+var _ = ginkgo.It("TestJSONPartialFailureKeepsOrderedResults", func() {
+	t := testT{ginkgo.GinkgoT()}
+	cx := &fakeProv{results: map[string]domain.Result{
+		"codex:0": {Account: "same@example.com", Status: domain.StatusOK, UsedPercent: ptr(37.125), CleanupFailed: true,
+			Diagnostic: domain.Diagnostic{Code: "cleanup_failed", Message: "codex:0: cleanup failed"}},
+		"codex:1": {Account: "same@example.com", Status: domain.StatusAuthRequired,
+			Diagnostic: domain.Diagnostic{Code: "auth_required", Message: "codex:1: authentication required"}},
+	}}
+	var out, errBuf bytes.Buffer
+	code := runWithIO([]string{"--json"}, &out, &errBuf,
+		func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, &fakeProv{}, &fakeProv{} })
+	if code != 1 {
+		t.Fatalf("code = %d, want 1", code)
+	}
+	var snapshot struct {
+		Results []struct {
+			TargetID      string   `json:"target_id"`
+			Account       string   `json:"account"`
+			Status        string   `json:"status"`
+			UsedPercent   *float64 `json:"used_percent"`
+			CleanupFailed bool     `json:"cleanup_failed"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &snapshot); err != nil {
+		t.Fatalf("stdout is not JSON: %v; output: %q", err, out.String())
+	}
+	if len(snapshot.Results) != 4 || snapshot.Results[0].TargetID != "codex:0" ||
+		snapshot.Results[1].TargetID != "codex:1" || snapshot.Results[2].TargetID != "grok:0" ||
+		snapshot.Results[3].TargetID != "claude:0" || snapshot.Results[0].UsedPercent == nil ||
+		*snapshot.Results[0].UsedPercent != 37.125 || !snapshot.Results[0].CleanupFailed ||
+		snapshot.Results[0].Account != "same@example.com [.codex]" ||
+		snapshot.Results[1].Account != "same@example.com [.codex-hsy]" ||
+		snapshot.Results[1].Status != "auth_required" || snapshot.Results[1].UsedPercent != nil {
+		t.Fatalf("JSON results = %+v", snapshot.Results)
+	}
+	if !strings.Contains(errBuf.String(), "AUTH REQUIRED") {
+		t.Fatalf("stderr diagnostics missing: %q", errBuf.String())
+	}
+})
+
+var _ = ginkgo.It("TestJSONOutputFailureExitsOne", func() {
+	t := testT{ginkgo.GinkgoT()}
+	var errBuf bytes.Buffer
+	code := runWithIO([]string{"--json"}, errWriter{}, &errBuf, fakes)
+	if code != 1 || !strings.Contains(errBuf.String(), "cannot write usage JSON") {
+		t.Fatalf("code=%d stderr=%q", code, errBuf.String())
+	}
+})
+
+var _ = ginkgo.It("TestJSONCleanHelpAndInvalidUsage", func() {
+	t := testT{ginkgo.GinkgoT()}
+	var out, errBuf bytes.Buffer
+	if code := runWithIO([]string{"--json"}, &out, &errBuf, fakes); code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("clean JSON: code=%d stderr=%q", code, errBuf.String())
+	}
+	if !json.Valid(out.Bytes()) || !strings.HasSuffix(out.String(), "}\n") {
+		t.Fatalf("clean JSON output = %q", out.String())
+	}
+	out.Reset()
+	if code := runWithIO([]string{"--json", "--help"}, &out, &errBuf, fakes); code != 0 ||
+		!strings.HasPrefix(out.String(), "Usage:\n") || !strings.Contains(out.String(), "--json") {
+		t.Fatalf("JSON help: code=%d stdout=%q", code, out.String())
+	}
+	out.Reset()
+	if code := runWithIO([]string{"--json", "--bogus"}, &out, &errBuf, fakes); code != 2 || out.Len() != 0 {
+		t.Fatalf("JSON usage error: code=%d stdout=%q", code, out.String())
+	}
+})
+
 var _ = ginkgo.It("TestMonthlyAndAPIKeyAreCleanExitZero", func() {
 	t := testT{ginkgo.GinkgoT()}
 	cx := &fakeProv{results: map[string]domain.Result{

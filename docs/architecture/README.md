@@ -19,6 +19,13 @@ before selecting the exact all-models weekly line. The Claude adapter uses
 no RPC dialect, credential parsing, or app-owned HTTP connection. See the
 [qualification record](../verification/claude-compatibility.md).
 
+## Current JSON output extension
+
+The usage command's optional `--json` output is a projection of the same
+ordered results rendered by the table. It adds no provider request, storage,
+or credential access. The exact public fields and failure behavior are in
+[ARCH-10](#arch-10).
+
 ## Document contract and navigation
 
 The [requirements](../specs/README.md) define acceptance. The [roadmap](../roadmap/README.md) defines the sequential implementation route. This document defines the intended implementation and its boundaries. Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them.
@@ -128,7 +135,7 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008), [REQ-051](../specs/README.md#req-051). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010), [TASK-028](../roadmap/README.md#task-028).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008), [REQ-051](../specs/README.md#req-051), [REQ-052](../specs/README.md#req-052). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010), [TASK-028](../roadmap/README.md#task-028), [TASK-029](../roadmap/README.md#task-029).
 
 | Flag | Default | Rules |
 |---|---|---|
@@ -138,6 +145,10 @@ Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req
 | `--grok-account LABEL` | `default` | Display alias only; does not switch Grok login |
 | `--timeout DURATION` | `20s` | 1s through 120s inclusive; one query budget per target |
 | `--help`, `-h` | Off | Print help and return 0 without provider execution |
+| `--json` | Off | Use the JSON snapshot for a usage query; help remains text |
+
+The `--json` flag on usage queries is the later REQ-052 extension to this
+historical v0.1 command surface.
 
 The sole subcommand is `version [--json]`. Human output is `<name> <version>`;
 JSON output contains exactly the string fields `name` and `version` followed by
@@ -145,7 +156,7 @@ a newline. A release build uses a `v`-prefixed version such as `v0.1.0`, while
 an ordinary source build without release metadata reports `(devel)`. The former
 `--version` flag is unsupported.
 
-No other positional arguments, provider filter, global output-format flag,
+No other positional arguments, provider filter, general output-format selector,
 configuration file, or implicit account discovery exists in v0.1. Each
 non-repeatable flag may occur once; ambiguous repeated scalar options are usage
 errors. Help and version do not validate provider installation or
@@ -428,7 +439,7 @@ Treat error data as untrusted. Convert only verified structured codes to named s
 <a id="arch-10"></a>
 ## ARCH-10: Table, diagnostics and exit behavior
 
-Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024). Owner: [TASK-010](../roadmap/README.md#task-010).
+Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024), [REQ-052](../specs/README.md#req-052). Owners: [TASK-010](../roadmap/README.md#task-010), [TASK-029](../roadmap/README.md#task-029).
 
 Render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the program must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
 
@@ -448,6 +459,18 @@ A corresponding safe stderr line can be:
 ```text
 gaebokchi: codex:1: AUTH REQUIRED: authenticate using the provider CLI outside gaebokchi
 ```
+
+For usage `--json`, render one compact, newline-terminated object with a
+`results` array in target order. Each element has exactly `target_id` (the
+invocation-local ID), `provider` (`codex`, `grok`, `claude`), `account` (the
+normalized, disambiguated display label), `status` (the domain status string),
+`used_percent` (an unrounded JSON number for an OK measurement, otherwise
+`null`), and `cleanup_failed` (boolean). A genuine zero remains numeric zero.
+Build this explicit projection rather than serializing internal results;
+exclude source, reset time, quota ID, timestamps, diagnostics, and raw
+provider data. Encoding errors and stdout write failures are output failures
+under the existing exit policy. Usage errors leave stdout empty. Help stays
+text, and `version --json` keeps its independent two-field schema.
 
 Emit diagnostics in target order, at most one bounded line per target plus a command-level failure if needed. Include no timestamps, progress spinners, raw paths to secrets, or raw upstream errors. A successful numeric row needs no diagnostic. Non-applicable/unavailable outcomes may have a fixed explanatory diagnostic.
 
@@ -519,6 +542,8 @@ Use controlled fake completion order. Verify at most three active targets, defau
 ### V-OUTPUT: Table contract
 
 Golden-test numeric and mixed-status outputs. Assert three headings, no separator/banner/color, exactly four logical lines by default, N+2 with N custom Codex homes, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
+For usage JSON, assert the exact field set, target order, number/null semantics,
+label normalization, privacy boundary, and one final newline.
 
 <a id="v-exit"></a>
 ### V-EXIT: Exit contract

@@ -37,8 +37,8 @@ README summarizes public behavior and is not a second product contract.
 The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN`
 and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history
 are preserved. Epic and task sequences are independent and monotonic; numbers
-are never reused. New allocations increment the current epic maximum of 7 and
-task maximum of 27.
+are never reused. New allocations increment the current epic maximum of 9 and
+task maximum of 29.
 Cross-scope qualification is unnecessary while this repository has one delivery
 scope.
 

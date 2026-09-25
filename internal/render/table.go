@@ -1,6 +1,6 @@
-// Package render turns domain results into the fixed logical table and
-// safe stderr diagnostics. Output is plain text only: no color, no
-// terminal control sequences, no provider payloads.
+// Package render turns domain results into the fixed logical table, JSON
+// snapshot, and safe stderr diagnostics. Output has no color, terminal
+// control sequences, or raw provider payloads.
 package render
 
 import (

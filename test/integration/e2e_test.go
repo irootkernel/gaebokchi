@@ -124,6 +124,29 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	return out.String(), errBuf.String(), code
 }
 
+type usageJSONRow struct {
+	TargetID      string   `json:"target_id"`
+	Provider      string   `json:"provider"`
+	Account       string   `json:"account"`
+	Status        string   `json:"status"`
+	UsedPercent   *float64 `json:"used_percent"`
+	CleanupFailed bool     `json:"cleanup_failed"`
+}
+
+func decodeUsageJSON(t testT, stdout string) []usageJSONRow {
+	t.Helper()
+	if strings.Count(stdout, "\n") != 1 || !strings.HasSuffix(stdout, "\n") {
+		t.Fatalf("usage JSON must be one newline-terminated line: %q", stdout)
+	}
+	var snapshot struct {
+		Results []usageJSONRow `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &snapshot); err != nil {
+		t.Fatalf("usage stdout is not one JSON document: %v; output: %q", err, stdout)
+	}
+	return snapshot.Results
+}
+
 // codexOK scripts a full successful Codex exchange.
 func codexOK(email string, pct int) []testutil.Step {
 	account := fmt.Sprintf(`{"id":2,"result":{"account":{"type":"chatgpt","email":%q,"planType":"pro"}}}`, email)
@@ -168,6 +191,62 @@ var _ = ginkgo.It("TestDefaultHappyPath", func() {
 	}
 	if strings.Contains(stdout, "FAKE") || strings.Contains(stdout, "jsonrpc") {
 		t.Fatalf("raw provider data on stdout:\n%s", stdout)
+	}
+})
+
+var _ = ginkgo.It("TestJSONExecutableHappyPath", func() {
+	t := testT{ginkgo.GinkgoT()}
+	stdout, stderr, code := runCLI(t, invocation{
+		args:  []string{"--json"},
+		codex: codexOK("account1@example.com", 37),
+		grok:  grokWeekly(28),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("JSON success: code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 4 || rows[0].TargetID != "codex:0" || rows[1].TargetID != "codex:1" ||
+		rows[2].TargetID != "grok:0" || rows[3].TargetID != "claude:0" ||
+		rows[0].Account != "account1@example.com [e2e-a]" ||
+		rows[1].Account != "account1@example.com [e2e-b]" {
+		t.Fatalf("JSON result order or identity: %+v", rows)
+	}
+	for i, want := range []float64{37, 37, 28, 43} {
+		if rows[i].Status != "ok" || rows[i].UsedPercent == nil ||
+			*rows[i].UsedPercent != want || rows[i].CleanupFailed {
+			t.Fatalf("JSON row %d: %+v", i, rows[i])
+		}
+	}
+})
+
+var _ = ginkgo.It("TestJSONExecutablePartialFailure", func() {
+	t := testT{ginkgo.GinkgoT()}
+	authFail := []testutil.Step{
+		{Wait: 1},
+		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
+		{Wait: 1},
+		{Emit: `{"id":2,"result":{"account":null}}` + "\n"},
+	}
+	stdout, stderr, code := runCLI(t, invocation{
+		args:  []string{"--json"},
+		codex: authFail,
+		grok:  grokWeekly(3),
+	})
+	if code != 1 {
+		t.Fatalf("JSON partial failure: code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 4 || rows[0].Status != "auth_required" ||
+		rows[1].Status != "auth_required" || rows[0].UsedPercent != nil ||
+		rows[1].UsedPercent != nil || rows[2].Status != "ok" ||
+		rows[2].UsedPercent == nil || *rows[2].UsedPercent != 3 ||
+		rows[3].Status != "ok" || rows[3].UsedPercent == nil ||
+		*rows[3].UsedPercent != 43 {
+		t.Fatalf("JSON partial results: %+v", rows)
+	}
+	if strings.Count(stderr, "gaebokchi: codex:") != 2 ||
+		!strings.Contains(stderr, "AUTH REQUIRED") || strings.Contains(stderr, `"account":null`) {
+		t.Fatalf("JSON partial diagnostics: %q", stderr)
 	}
 })
 

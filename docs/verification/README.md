@@ -10,8 +10,10 @@ current merely because a later tree retains the record.
   local-command qualification.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
-- `TASK-001.md` through `TASK-028.md` record task-scoped checks, findings,
-  supersessions, and platform limitations.
+- `TASK-001.md` through `TASK-028.md` record historical task-scoped checks,
+  findings, supersessions, and platform limitations.
+- [TASK-029.md](TASK-029.md) records the JSON output checks and task-scoped
+  commit subject.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
 

@@ -194,7 +194,6 @@ var _ = ginkgo.It("TestTimeoutValidation", func() {
 var _ = ginkgo.It("TestUnknownFlagAndPositional", func() {
 	t := testT{ginkgo.GinkgoT()}
 	mustFail(t, "--provider", "codex")
-	mustFail(t, "--json")
 	mustFail(t, "--version")
 	mustFail(t, "extra-arg")
 	mustFail(t, "--codex-home", "/a", "extra")
@@ -210,6 +209,7 @@ var _ = ginkgo.It("TestScalarFlagsOnlyOnce", func() {
 	mustFail(t, "--codex-bin", "codex2", "--codex-bin", "codex3")
 	mustFail(t, "--claude-bin", "claude2", "--claude-bin", "claude3")
 	mustFail(t, "--help", "--help")
+	mustFail(t, "--json", "--json")
 })
 
 var _ = ginkgo.It("TestEqualsForm", func() {
@@ -219,6 +219,7 @@ var _ = ginkgo.It("TestEqualsForm", func() {
 		t.Fatalf("equals form broken: %+v", o)
 	}
 	mustFail(t, "--help=true")
+	mustFail(t, "--json=true")
 })
 
 var _ = ginkgo.It("TestHelp", func() {
@@ -237,6 +238,17 @@ var _ = ginkgo.It("TestHelp", func() {
 	mustFail(t, "--help", "--unknown")
 	if len(failures) > 0 {
 		t.Fatalf("%s", strings.Join(failures, "\n"))
+	}
+})
+
+var _ = ginkgo.It("TestJSONFlag", func() {
+	t := testT{ginkgo.GinkgoT()}
+	if mustParse(t).JSON {
+		t.Fatal("default output must remain the table")
+	}
+	o := mustParse(t, "--json", "--timeout", "5s")
+	if !o.JSON || o.Timeout != 5*time.Second {
+		t.Fatalf("JSON option or adjacent flag not parsed: %+v", o)
 	}
 })
 

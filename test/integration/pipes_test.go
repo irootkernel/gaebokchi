@@ -104,6 +104,20 @@ var _ = ginkgo.It("TestClosedStdoutPipeExitsOneNotSignalled", func() {
 	}
 })
 
+var _ = ginkgo.It("TestJSONClosedStdoutPipeExitsOneNotSignalled", func() {
+	t := testT{ginkgo.GinkgoT()}
+	w := brokenStdoutPipe(t)
+	var errBuf bytes.Buffer
+	cmd := startWithFakes(t, []string{"--json"}, codexOK("a@example.com", 40), grokWeekly(41), w, &errBuf)
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	code := waitExitCode(t, cmd, cmd.Wait())
+	if code != 1 || !strings.Contains(errBuf.String(), "cannot write usage JSON to stdout") {
+		t.Fatalf("JSON broken pipe: code=%d stderr=%q", code, errBuf.String())
+	}
+})
+
 // TestSignalWithBrokenStdoutKeepsSignalCode pins the precedence the
 // audit found inverted: the first handled cancellation signal (130 for
 // SIGINT, 143 for SIGTERM) outranks the output failure that follows.
@@ -118,23 +132,31 @@ var _ = ginkgo.Describe("TestSignalWithBrokenStdoutKeepsSignalCode", func() {
 		{"SIGTERM", syscall.SIGTERM, 143},
 	}
 	for _, tc := range cases {
-		ginkgo.It(tc.name, func() {
-			t := testT{ginkgo.GinkgoT()}
-			w := brokenStdoutPipe(t)
-			var errBuf bytes.Buffer
-			cmd := startWithFakes(t, nil, hang, hang, w, &errBuf)
-			if err := w.Close(); err != nil {
-				t.Fatal(err)
-			}
-			time.Sleep(700 * time.Millisecond) // children admitted and hanging
-			if err := cmd.Process.Signal(tc.sig); err != nil {
-				t.Fatal(err)
-			}
-			code := waitExitCode(t, cmd, cmd.Wait())
-			if code != tc.want {
-				t.Fatalf("exit = %d, want %d (signal outranks output failure)", code, tc.want)
-			}
-		})
+		for _, mode := range []struct {
+			name string
+			args []string
+		}{{"table", nil}, {"JSON", []string{"--json"}}} {
+			ginkgo.It(tc.name+" "+mode.name, func() {
+				t := testT{ginkgo.GinkgoT()}
+				w := brokenStdoutPipe(t)
+				var errBuf bytes.Buffer
+				cmd := startWithFakes(t, mode.args, hang, hang, w, &errBuf)
+				if err := w.Close(); err != nil {
+					t.Fatal(err)
+				}
+				time.Sleep(700 * time.Millisecond) // children admitted and hanging
+				if err := cmd.Process.Signal(tc.sig); err != nil {
+					t.Fatal(err)
+				}
+				code := waitExitCode(t, cmd, cmd.Wait())
+				if code != tc.want {
+					t.Fatalf("exit = %d, want %d (signal outranks output failure)", code, tc.want)
+				}
+				if mode.name == "JSON" && !strings.Contains(errBuf.String(), "cannot write usage JSON to stdout") {
+					t.Fatalf("JSON output failure diagnostic missing: %q", errBuf.String())
+				}
+			})
+		}
 	}
 })
 
@@ -175,6 +197,34 @@ var _ = ginkgo.It("TestSignalMixedCompletionKeepsNumericRow", func() {
 	}
 	if lines := strings.Count(strings.TrimSuffix(stdout, "\n"), "\n") + 1; lines != 5 {
 		t.Fatalf("row count changed: %d lines:\n%s", lines, stdout)
+	}
+})
+
+var _ = ginkgo.It("TestJSONSignalMixedCompletionKeepsNumericRow", func() {
+	t := testT{ginkgo.GinkgoT()}
+	codexHangBeforeQuota := []testutil.Step{
+		{Wait: 1},
+		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
+		{Wait: 1},
+		{Emit: `{"id":2,"result":{"account":{"type":"chatgpt","email":"slow@example.com","planType":"pro"}}}` + "\n"},
+		{Wait: 1},
+		{SleepMs: 60000},
+	}
+	var out, errBuf bytes.Buffer
+	cmd := startWithFakes(t, []string{"--json"}, codexHangBeforeQuota, grokWeekly(33), &out, &errBuf)
+	time.Sleep(800 * time.Millisecond) // grok's numeric row is established
+	if err := cmd.Process.Signal(syscall.SIGINT); err != nil {
+		t.Fatal(err)
+	}
+	code := waitExitCode(t, cmd, cmd.Wait())
+	if code != 130 {
+		t.Fatalf("JSON signal exit = %d, want 130", code)
+	}
+	rows := decodeUsageJSON(t, out.String())
+	if len(rows) != 4 || rows[0].Status != "cancelled" || rows[1].Status != "cancelled" ||
+		rows[0].UsedPercent != nil || rows[1].UsedPercent != nil ||
+		rows[2].Status != "ok" || rows[2].UsedPercent == nil || *rows[2].UsedPercent != 33 {
+		t.Fatalf("JSON cancellation results: %+v; stderr=%q", rows, errBuf.String())
 	}
 })
 

@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: VERSION-CONTRACT COMPLETE — TASK-028 implemented and verified `version [--json]`, build metadata resolution, and v-prefixed release staging. REQ-048 remains the only unchecked requirement and needs separate owner-authorized live acceptance
+Status: EPIC-009 COMPLETE — REQ-052 usage snapshot JSON is implemented and verified. REQ-048 separately needs owner-authorized live acceptance
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -21,6 +21,13 @@ changed or absent weekly line produces `UNSUPPORTED`, never a guessed value.
 The [Claude compatibility record](../verification/claude-compatibility.md)
 captures the qualified installed version. This extension does not retroactively
 change v0.1 task checkboxes or release evidence.
+
+## Current JSON output extension
+
+The usage command also accepts `--json` to emit one machine-readable snapshot
+with every target in display order. The default table and the independent
+`version --json` command retain their established contracts. [REQ-052](#req-052)
+owns this addition; it does not retroactively alter v0.1 evidence.
 
 ## Document contract
 
@@ -318,6 +325,10 @@ Provider compatibility is an implementation gate. Published documentation/source
 <a id="req-051"></a>
 - [x] **REQ-051: Stable executable version contract.** Provide the project-independent commands `gaebokchi version` and `gaebokchi version --json`. Human output is `gaebokchi <version>`; JSON contains exactly `name` and `version`. Release versions and versioned staging paths use a `v` prefix, source builds without release metadata report `(devel)`, and `--version` is rejected. Version lookup must not launch providers or depend on HOME, the working directory, or project state.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-13](../architecture/README.md#arch-13). Owner: [TASK-028](../roadmap/README.md#task-028). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-BUILD](../architecture/README.md#v-build). Evidence: [TASK-028](../verification/TASK-028.md) records exact human/JSON behavior, development and release metadata, invalid syntax, output failure, full offline/race gates, four target builds, document-fresh archives, checksums, and native darwin/arm64 smoke.
+
+<a id="req-052"></a>
+- [x] **REQ-052: Machine-readable usage snapshot.** Accept `--json` on the usage command and emit one newline-terminated JSON object with a `results` array in target order. Each result contains exactly `target_id`, `provider`, normalized `account`, `status`, `used_percent` (a number for a measured weekly percentage, otherwise `null`), and `cleanup_failed`. Preserve numeric precision and zero, partial results, stderr diagnostics, and existing exit codes. Default table output, text help, and `version --json` remain unchanged; usage errors print no stdout snapshot. Exclude raw provider data and internal metadata.
+  - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-029](../roadmap/README.md#task-029). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: [TASK-029](../verification/TASK-029.md) records offline checks and the task-scoped commit subject.
 ## Completion rules
 
 A percentage is not required when the provider explicitly reports a monthly allowance or the account uses an out-of-scope API-key mode. Those are supported, truthful **non-applicable** outcomes. An unsupported method, missing weekly metadata, absent login, timeout, or missing executable is a supported **failure/unavailable presentation**, not evidence that the positive provider integration is complete.
@@ -358,5 +369,6 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-024](../roadmap/README.md#task-024) | Re-qualifies [REQ-050](#req-050) |
 | [TASK-025](../roadmap/README.md#task-025) | Final gate and candidate packaging evidence |
 | [TASK-028](../roadmap/README.md#task-028) | [REQ-051](#req-051) |
+| [TASK-029](../roadmap/README.md#task-029) | [REQ-052](#req-052) |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [plan.md](../roadmap/README.md#plan-roadmap).
