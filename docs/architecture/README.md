@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Architecture
 
 Version: 0.1 specification  
-Status: Implemented as designed; provider runtime compatibility qualified live on 2026-09-22 (see docs/verification/compatibility.md)  
+Status: Implemented as designed, except the planned EPIC-010 terminal view in ARCH-10; provider runtime compatibility qualified live on 2026-09-22 (see docs/verification/compatibility.md)  
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -25,6 +25,14 @@ The usage command's optional `--json` output is a projection of the same
 ordered results rendered by the table. It adds no provider request, storage,
 or credential access. The exact public fields and failure behavior are in
 [ARCH-10](#arch-10).
+
+## Planned terminal view extension
+
+[EPIC-010](../roadmap/README.md#epic-010) adds an inline live view for
+interactive terminals. It is designed but not implemented. The
+[planned design](#arch-10-terminal) in ARCH-10 is the implementation target,
+and the table rules keep governing non-JSON usage stdout until
+[TASK-030](../roadmap/README.md#task-030) is complete.
 
 ## Document contract and navigation
 
@@ -486,6 +494,99 @@ On signal cancellation, the first handled signal determines the cancellation exi
 
 A normal missing executable/home is target-specific, not a usage error. Example: no installed Grok still produces both Codex rows and a Grok `NOT INSTALLED` row, with exit 1.
 
+<a id="arch-10-terminal"></a>
+### Planned interactive terminal view (EPIC-010)
+
+Status: designed and owner-approved on 2026-09-25; not implemented. This
+subsection is the implementation target for
+[TASK-030](../roadmap/README.md#task-030) and covers
+[REQ-053](../specs/README.md#req-053) through
+[REQ-055](../specs/README.md#req-055). Until TASK-030 is complete, the rules
+above govern all stdout. TASK-030 then folds this design into the current-state
+text of ARCH-02, ARCH-05, this section, and V-OUTPUT.
+
+**Selection.** `cmd/gaebokchi` decides after option parsing. `--json` keeps
+the JSON projection. Otherwise the view applies only when stdout is an
+`*os.File` whose `TIOCGWINSZ` query succeeds with nonzero columns and rows and
+`TERM` is neither empty nor `dumb`. Pipes, regular files, `/dev/null`, and
+every other stdout get the unchanged table. Keep the decision in a pure,
+table-tested function, and keep the ioctl in a `//go:build unix` file,
+following `internal/process/process_unix.go`. A non-empty `NO_COLOR`
+suppresses the color parameters only; bold, faint, glyphs, and layout remain.
+[S-11](#s-11)
+
+**Rendering model.** `internal/render` builds each frame from lines of styled
+spans, so display width, clipping, and styling are computed without parsing
+escape sequences, and the colorless frame has the same layout. Reuse
+`SanitizeLabel`, `UsageCell`, `Status.Cell`, `Status.ExitClass`, and
+`ProviderKind.DisplayName`. Count cells with `golang.org/x/text/width`: East
+Asian Wide and Fullwidth runes take two cells, nonspacing and enclosing marks
+take none, and every other rune, including East Asian Ambiguous, takes one.
+[S-13](#s-13) Write the ANSI output directly instead of adopting a TUI
+framework. `golang.org/x/sys` (window size) and `golang.org/x/text` (display
+width) become the only direct runtime modules outside the standard library.
+Both are already pinned in `go.sum`, so the offline gate needs no network.
+
+**Frame.** The frame is a blank line, the title `🐡 gaebokchi · weekly usage`,
+a blank line, one row per target in target order, and a trailing blank line.
+A row is a two-space margin, the provider display name (blank when the
+previous row has the same provider), and the account label padded to the widest
+label, separated by two spaces. Numeric rows continue with the usage bar, the
+`UsageCell` percentage right-aligned in six cells, and, when present, the reset
+countdown. Other rows continue with their status cell text. The bar is 20 cells
+of left-eighth blocks (`▏▎▍▌▋▊▉█`) over a `░` track, rounded to the nearest
+eighth; a nonzero percentage shows at least one eighth. The countdown
+(`↻ 2d 4h`) uses whole truncated units: days and hours, hours and minutes,
+minutes, `<1m`, or `now` once the reset time has passed. It appears only on
+`OK` rows whose `ResetAt` came from the provider (Codex `resetsAt`, Grok period
+end). Claude rows and Grok monthly rows show none.
+
+| Element | Style (SGR parameters) |
+|---|---|
+| Title | `gaebokchi` bold (1); `· weekly usage` faint (2) |
+| Provider name | bold (1) |
+| Bar fill and percentage | green (32) below 50, yellow (33) from 50 to below 80, red (31) at 80 and above; the percentage is also bold |
+| Bar track, countdown, spinner, `querying…` | faint (2) |
+| `N/A (monthly)`, `N/A (API key)`, `CANCELLED` | faint (2) |
+| `AUTH REQUIRED`, `N/A (no weekly)`, `N/A (period)`, `N/A (no data)` | yellow (33) |
+| Every other status cell | red (31) |
+
+**Width and height.** Every row must fit within `columns - 1` cells. When a
+row does not fit, shrink the bar toward 10 cells, then drop the countdown, then
+drop the bar. Intermediate live frames clip any remaining overflow and end it
+with `…`. The final frame never truncates an account label; it may wrap
+instead, because nothing redraws after it. When the frame height (targets + 4)
+is not smaller than the terminal rows, skip live redraws and write only the
+final frame once.
+
+**Live progress.** `app.Runner` gains an optional observation callback that
+receives a target's index and terminal result as soon as its slot is set,
+including targets cancelled while queued. Several goroutines may call it at
+once, and it never changes admission, deadlines, or attempts. The live
+renderer hides the cursor and draws pending rows from each target's display
+name and fallback account with a braille spinner and `querying…`. A Codex
+row's label changes to the protocol email when its result arrives. The spinner
+advances about every 80 ms, and all drawing happens under one mutex. Each frame
+is a single write: carriage return, cursor up by the previously drawn line
+count, erase line plus content for every line, then erase below, which also
+clears a `^C` echo. After `Run` returns and `DisambiguateCodexAccounts` has
+run, the renderer draws the final frame from the ordered results and shows the
+cursor again. The first write error stops further drawing and becomes the
+command's output failure under the exit policy above. [S-12](#s-12)
+
+**Allowed sequences.** SGR (`ESC[…m`), cursor up (`ESC[nA`), erase line
+(`ESC[2K`), erase below (`ESC[J`), and cursor visibility (`ESC[?25l`,
+`ESC[?25h`), plus carriage return and newline. Emit no alternate screen,
+terminal queries, mouse modes, or other controls. Labels still pass the
+display-label policy above, and stderr diagnostics, help, `version`, and exit
+codes do not change.
+
+**Known limitations.** The block elements are East Asian Ambiguous, so bars
+misalign in terminals configured to draw ambiguous characters at double width.
+Narrowing the window during live redraws can leave reflowed lines above the
+final frame. Claude reports its reset time only as unqualified human-readable
+text; showing it would first need a new compatibility record.
+
 <a id="arch-11"></a>
 ## ARCH-11: Verification catalog
 
@@ -690,7 +791,7 @@ Use one planned review where appropriate, fix bounded blocking findings, and all
 <a id="arch-15"></a>
 ## ARCH-15: Primary-source references
 
-These sources were consulted for this specification on 2026-09-22. They document external interfaces, not the completion state of this project. The implementation must record observed binary versions separately. Source links can move; retain the fixed source revision used for fixtures.
+These sources were consulted for this specification on 2026-09-22; S-11 through S-13 were consulted on 2026-09-25 for the planned terminal view. They document external interfaces, not the completion state of this project. The implementation must record observed binary versions separately. Source links can move; retain the fixed source revision used for fixtures.
 
 <a id="s-01"></a>
 **S-01: OpenAI, Codex App Server.** Stdio framing, initialization, account reads, and quota fields.  
@@ -733,3 +834,15 @@ https://pkg.go.dev/text/tabwriter
 <a id="s-10"></a>
 **S-10: Go, installing from source, environment section.** GOOS/GOARCH build targets.  
 https://go.dev/doc/install/source#environment
+
+<a id="s-11"></a>
+**S-11: NO_COLOR.** A present, non-empty `NO_COLOR` prevents added ANSI color.  
+https://no-color.org/
+
+<a id="s-12"></a>
+**S-12: XTerm Control Sequences.** Cursor up (CUU), erase in line (EL), erase in display (ED), cursor visibility (DECTCEM), and character attributes (SGR).  
+https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+
+<a id="s-13"></a>
+**S-13: Unicode Standard Annex #11, East Asian Width.** Wide, fullwidth, and ambiguous display-width classes.  
+https://www.unicode.org/reports/tr11/

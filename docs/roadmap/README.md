@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: EPIC-009 COMPLETE — TASK-029 implemented and verified the usage snapshot JSON contract. REQ-048 separately requires owner-authorized live acceptance
+Status: EPIC-009 COMPLETE — TASK-029 implemented and verified the usage snapshot JSON contract. EPIC-010 NOT STARTED — TASK-030 is registered for the interactive terminal view. REQ-048 separately requires owner-authorized live acceptance
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -14,7 +14,7 @@ history and gates below retain their v0.1 meaning.
 
 ## How to use this plan
 
-This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; EPIC-007 completed the post-closeout corrective work. [EPIC-008](#epic-008) owns the version-command contract, and [EPIC-009](#epic-009) owns usage JSON.
+This document owns **execution order and completion state** for **Gaebokchi (개복치)**, an Aquarium tool. Implement against the [architecture](../architecture/README.md), and verify product coverage against the checkboxes in the [requirements](../specs/README.md). Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. The original six epics were implemented and committed with per-task verification records under docs/verification/; EPIC-007 completed the post-closeout corrective work. [EPIC-008](#epic-008) owns the version-command contract, [EPIC-009](#epic-009) owns usage JSON, and [EPIC-010](#epic-010) owns the planned interactive terminal view.
 
 Keep all three canonical documents under their role directories. Start with the [execution rules](#plan-execution), then the first incomplete task in the current epic. Read the linked architecture sections and requirements for that task rather than repeatedly loading all documentation for a narrow change.
 
@@ -36,7 +36,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -50,16 +50,18 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027) | [EPIC-006](#epic-006) implemented | COMPLETE (final release acceptance pending REQ-048) |
 | 8 | [EPIC-008: Version command and release identity](#epic-008) | [TASK-028](#task-028) | [EPIC-007](#epic-007) complete | COMPLETE (final release acceptance pending REQ-048) |
 | 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (final release acceptance pending REQ-048) |
+| 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | NOT STARTED |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
 implementation milestones and task commits (with EPIC-006's final acceptance
 superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record).
 EPIC-007's corrective work is complete. EPIC-008 is the version-contract
-extension; EPIC-009 completed the JSON-output extension. Full live release
+extension; EPIC-009 completed the JSON-output extension. EPIC-010 registers
+the interactive terminal view and has not started. Full live release
 acceptance remains pending REQ-048 as a separate owner-authorized gate.
 
-The task order is globally sequential: TASK-001 through TASK-029. Runtime
+The task order is globally sequential: TASK-001 through TASK-030. Runtime
 account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
@@ -1231,6 +1233,106 @@ the current query, diagnostic, and exit behavior.
 **Commit boundary:** `feat(TASK-029): add JSON usage output`. No release,
 installation, publication, or live provider query is implied.
 
+<a id="epic-010"></a>
+## EPIC-010: Interactive terminal view
+
+- [ ] Epic complete. **Status: NOT STARTED.**
+
+**Goal:** When a person runs the usage command in an interactive terminal,
+show every target's progress while queries run and finish with a glanceable
+frame of usage bars and reset countdowns. Piped, redirected, and JSON output
+stay byte-for-byte unchanged.
+
+**Entry:** EPIC-009 complete. On 2026-09-25 the owner approved an inline live
+view instead of a full-screen, alternate-screen, or watch-mode interface; one
+dashboard row per target; and a reset countdown as the only added datum.
+Inline failure hints and pace markers were considered and not adopted. This
+extension is separate from the historical v0.1 release gate and from REQ-048.
+
+**Task sequence:** [TASK-030](#task-030).
+
+**Local epic acceptance:** The task-scoped commit contains the implementation,
+offline regression evidence, a recorded real-terminal check, and synchronized
+public and canonical contracts.
+
+<a id="task-030"></a>
+### TASK-030: Add the live terminal usage view
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Replace the silent wait and plain table on an interactive
+terminal with the approved live view, while scripts keep receiving the current
+table and JSON.
+
+**Dependency:** TASK-029 complete.
+
+**Architecture:** [ARCH-05](../architecture/README.md#arch-05),
+[ARCH-10](../architecture/README.md#arch-10-terminal).
+
+**Primary requirement ownership:** [REQ-053](../specs/README.md#req-053),
+[REQ-054](../specs/README.md#req-054), [REQ-055](../specs/README.md#req-055).
+
+**Implementation scope:**
+
+- Implement the [planned terminal view](../architecture/README.md#arch-10-terminal):
+  the selection function and a `//go:build unix` window-size file in
+  `cmd/gaebokchi`, frame and live renderers in `internal/render` (suggested
+  `terminal.go` and `live.go`), and the optional observation callback on
+  `app.Runner`. The illustrative frame is in the
+  [requirements](../specs/README.md#planned-terminal-view-extension).
+- Write the ANSI output directly; add no TUI framework and no flag. Promote only
+  `golang.org/x/sys` and `golang.org/x/text` to direct requirements, and keep
+  the offline `GOPROXY=off` gate working.
+- Keep the plain table, JSON, help, `version`, stderr diagnostics, exit-code
+  precedence, provider queries, and deadlines unchanged.
+- On completion, turn the planned text into current-state documentation:
+  convert both "Planned terminal view extension" sections into current
+  extensions; fold the ARCH-10 planned subsection into ARCH-02 (layout and
+  dependency rationale), ARCH-05 (observation hook), ARCH-10, and V-OUTPUT;
+  add dated notes under REQ-011, REQ-012, and REQ-015 recording that the scope
+  change took effect; and update the README example, usage, and privacy
+  wording, the help text, and roadmap text that describes default stdout.
+  Leave historical evidence unchanged.
+
+**Acceptance criteria:**
+
+- [ ] Colorless golden frames at a fixed width and time cover numeric rows with
+  and without a countdown, provider grouping, every status class, sanitized
+  control characters, and an East Asian wide alias. Styled frames cover the
+  49.9/50/79.9/80 color boundaries and every status class, and every emitted
+  escape is on the ARCH-10 allowlist.
+- [ ] Bar eighths (0, 0.1, 37, 99.99, 100), countdown formatting, width tiers,
+  intermediate clipping, untruncated final labels, and the height fallback pass
+  focused tests.
+- [ ] A test-local screen model shows that successful live output ends with
+  exactly the final frame on screen and the cursor visible, including concurrent
+  observations under the race detector and cancellation.
+- [ ] With a failing writer, the first write error stops further drawing and
+  follows the existing output-failure exit policy; no final frame or cursor
+  restoration is required after that error.
+- [ ] Runner observation fires exactly once per target with the stored result,
+  including targets cancelled while queued.
+- [ ] With `TERM=xterm-256color`, piped stdout is byte-identical to the current
+  table; the existing table, JSON, help, version, diagnostic, and exit tests
+  pass unchanged.
+- [ ] A real-terminal check, for example tmux driving the fake providers,
+  records progress and the final frame at 100, 60, and 40 columns, with
+  `NO_COLOR=1`, `TERM=dumb`, a pipe, and Ctrl-C (exit 130, `CANCELLED` rows,
+  visible cursor).
+- [ ] `make test` and the documentation audit pass on the final tree, with
+  exact results and any unrun checks recorded in `docs/verification/TASK-030.md`.
+
+**Verification:** [V-OUTPUT](../architecture/README.md#v-output),
+[V-RUNNER](../architecture/README.md#v-runner),
+[V-EXIT](../architecture/README.md#v-exit),
+[V-E2E](../architecture/README.md#v-e2e).
+
+**Commit boundary:** `feat(TASK-030): add live terminal usage view`. No
+release, installation, publication, or live provider query is implied.
+
+**Next:** Stop. EPIC-010 closes with TASK-030. REQ-048 remains open unless a
+separate owner-authorized live campaign is performed.
+
 <a id="plan-release-gate"></a>
 ## Final release gate
 
@@ -1253,7 +1355,9 @@ A missing live environment is a real qualification gap, not a reason to invent e
 
 Return the implemented scope, task commit references, verification summary, local artifact locations/checksums, and remaining compatibility limitations. Explain any live monthly Grok result explicitly. Report failures or unrun environments without presenting them as completed support.
 
-Further product expansion beyond EPIC-009 remains outside this plan. In
-particular, persistent configuration, reset-time columns, additional Grok
-accounts, and watch mode require separate scope decisions. Claude support is
-described as a current extension above; its v0.1 exclusion remains historical.
+Further product expansion beyond EPIC-010 remains outside this plan. EPIC-010
+adopts a reset countdown only inside the interactive terminal view; the plain
+table and JSON keep no reset-time column or field. Persistent configuration,
+additional Grok accounts, full-screen interfaces, and watch mode still require
+separate scope decisions. Claude support is described as a current extension
+above; its v0.1 exclusion remains historical.
