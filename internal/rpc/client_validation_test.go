@@ -3,16 +3,19 @@ package rpc
 import (
 	"context"
 	"errors"
-	"testing"
+	ginkgo "github.com/onsi/ginkgo/v2"
 )
 
 // TestErrorNullWithoutResultIsMalformed pins the audit's primary
 // protocol finding: a response carrying error:null and no result is
 // malformed, never a successful response with a nil result.
-func TestErrorNullWithoutResultIsMalformed(t *testing.T) {
+var _ = ginkgo.It("TestErrorNullWithoutResultIsMalformed", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"id":1,"error":null}`+"\n")
 	}()
@@ -20,12 +23,12 @@ func TestErrorNullWithoutResultIsMalformed(t *testing.T) {
 	if !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v, want ErrMalformedMessage", err)
 	}
-}
+})
 
 // TestIncompleteErrorObjectIsMalformed requires the error member to be
 // structurally complete and correctly typed before it can satisfy a
 // pending call.
-func TestIncompleteErrorObjectIsMalformed(t *testing.T) {
+var _ = ginkgo.Describe("TestIncompleteErrorObjectIsMalformed", func() {
 	cases := []string{
 		`{"id":1,"error":{"code":-32000}}`,               // message missing
 		`{"id":1,"error":{"message":"x"}}`,               // code missing
@@ -34,10 +37,13 @@ func TestIncompleteErrorObjectIsMalformed(t *testing.T) {
 		`{"id":1,"error":"not an object"}`,               // wrong member type
 	}
 	for _, reply := range cases {
-		t.Run(reply, func(t *testing.T) {
+		ginkgo.It(reply, func() {
+			t := testT{ginkgo.GinkgoT()}
 			pp := newPipePair(t)
 			c := pp.conn(CodexCodec{})
 			go func() {
+				defer ginkgo.GinkgoRecover()
+				defer func() { _ = pp.serverW.Close() }()
 				readRequest(t, pp.serverR)
 				writeReply(t, pp.serverW, reply+"\n")
 			}()
@@ -47,23 +53,26 @@ func TestIncompleteErrorObjectIsMalformed(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
 // TestACPResponseRequiresJSONRPC2 pins the envelope rule: an inbound
 // ACP response must carry exactly "jsonrpc":"2.0" — a missing marker or
 // an incompatible one such as "1.0" is a protocol mismatch, not a
 // success.
-func TestACPResponseRequiresJSONRPC2(t *testing.T) {
+var _ = ginkgo.Describe("TestACPResponseRequiresJSONRPC2", func() {
 	cases := []string{
 		`{"id":1,"result":{}}`,
 		`{"jsonrpc":"1.0","id":1,"result":{}}`,
 		`{"jsonrpc":2.0,"id":1,"result":{}}`,
 	}
 	for _, reply := range cases {
-		t.Run(reply, func(t *testing.T) {
+		ginkgo.It(reply, func() {
+			t := testT{ginkgo.GinkgoT()}
 			pp := newPipePair(t)
 			c := pp.conn(ACPCodec{})
 			go func() {
+				defer ginkgo.GinkgoRecover()
+				defer func() { _ = pp.serverW.Close() }()
 				readRequest(t, pp.serverR)
 				writeReply(t, pp.serverW, reply+"\n")
 			}()
@@ -73,16 +82,19 @@ func TestACPResponseRequiresJSONRPC2(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
 // TestCodexToleratesAdditiveJSONRPCMember pins dialect separation: the
 // Codex dialect imposes no marker, so an additive jsonrpc member on an
 // otherwise valid Codex response stays tolerated (forward
 // compatibility), while the same member is mandatory on ACP.
-func TestCodexToleratesAdditiveJSONRPCMember(t *testing.T) {
+var _ = ginkgo.It("TestCodexToleratesAdditiveJSONRPCMember", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":1,"result":{"ok":true},"extra":"additive"}`+"\n")
 		_ = pp.serverW.Close()
@@ -94,4 +106,4 @@ func TestCodexToleratesAdditiveJSONRPCMember(t *testing.T) {
 	if string(resp.Result) != `{"ok":true}` {
 		t.Fatalf("result = %s", resp.Result)
 	}
-}
+})

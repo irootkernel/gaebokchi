@@ -3,10 +3,10 @@ package claude
 import (
 	"context"
 	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -17,7 +17,7 @@ func usageJSON(result string, turns int, cost float64) []byte {
 		turns, cost, result))
 }
 
-func TestParseUsageAcceptsOnlyWeeklyAllModels(t *testing.T) {
+var _ = ginkgo.Describe("TestParseUsageAcceptsOnlyWeeklyAllModels", func() {
 	cases := []struct {
 		name   string
 		text   string
@@ -36,7 +36,8 @@ func TestParseUsageAcceptsOnlyWeeklyAllModels(t *testing.T) {
 		{"cost", "Current week (all models): 1% used", 0, 0.01, 0, domain.StatusUnsupported},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			got, status := parseUsage(usageJSON(tc.text, tc.turns, tc.cost))
 			if status != tc.status || got != tc.want {
 				t.Fatalf("parseUsage = %v/%v, want %v/%v", got, status, tc.want, tc.status)
@@ -45,13 +46,16 @@ func TestParseUsageAcceptsOnlyWeeklyAllModels(t *testing.T) {
 	}
 	for _, raw := range [][]byte{[]byte(`not json`), []byte(`{"result":"Current week (all models): 1% used"}`),
 		[]byte(`{"local_command":"other","num_turns":0,"total_cost_usd":0,"is_error":false,"result":"Current week (all models): 1% used"}`)} {
-		if _, status := parseUsage(raw); status != domain.StatusUnsupported {
-			t.Fatalf("unexpected acceptance of %q: %v", raw, status)
-		}
+		ginkgo.It(string(raw), func() {
+			t := testT{ginkgo.GinkgoT()}
+			if _, status := parseUsage(raw); status != domain.StatusUnsupported {
+				t.Fatalf("unexpected acceptance of %q: %v", raw, status)
+			}
+		})
 	}
-}
+})
 
-func fakeClaude(t *testing.T, auth, usage string) (bin, log string) {
+func fakeClaude(t testT, auth, usage string) (bin, log string) {
 	t.Helper()
 	dir := t.TempDir()
 	bin = filepath.Join(dir, "claude")
@@ -71,7 +75,8 @@ func claudeTarget(bin string) domain.Target {
 	return domain.Target{ID: "claude:0", Provider: domain.ProviderClaude, FallbackAccount: "default", Bin: bin}
 }
 
-func TestQueryUsesOnlyLocalCommandAndPreservesMetadata(t *testing.T) {
+var _ = ginkgo.It("TestQueryUsesOnlyLocalCommandAndPreservesMetadata", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bin, log := fakeClaude(t, `{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`,
 		string(usageJSON("Current week (all models): 43.2% used", 0, 0)))
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -90,9 +95,9 @@ func TestQueryUsesOnlyLocalCommandAndPreservesMetadata(t *testing.T) {
 		!strings.Contains(lines[1], "--safe-mode --tools  -p /usage --max-turns 0 --output-format json --no-session-persistence") {
 		t.Fatalf("unexpected claude commands: %q", args)
 	}
-}
+})
 
-func TestQueryAuthAndMissingExecutable(t *testing.T) {
+var _ = ginkgo.Describe("TestQueryAuthAndMissingExecutable", func() {
 	cases := []struct {
 		name, auth string
 		want       domain.Status
@@ -102,7 +107,8 @@ func TestQueryAuthAndMissingExecutable(t *testing.T) {
 		{"unknown auth", `{"loggedIn":true,"authMethod":"bedrock","apiProvider":"aws"}`, domain.StatusUnsupported},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			bin, log := fakeClaude(t, tc.auth, string(usageJSON("Current week (all models): 5% used", 0, 0)))
 			result := New().Query(context.Background(), claudeTarget(bin))
 			if result.Status != tc.want {
@@ -114,13 +120,17 @@ func TestQueryAuthAndMissingExecutable(t *testing.T) {
 			}
 		})
 	}
-	missing := New().Query(context.Background(), claudeTarget(filepath.Join(t.TempDir(), "missing")))
-	if missing.Status != domain.StatusCLINotFound {
-		t.Fatalf("missing CLI status = %v", missing.Status)
-	}
-}
+	ginkgo.It("missing executable", func() {
+		t := testT{ginkgo.GinkgoT()}
+		missing := New().Query(context.Background(), claudeTarget(filepath.Join(t.TempDir(), "missing")))
+		if missing.Status != domain.StatusCLINotFound {
+			t.Fatalf("missing CLI status = %v", missing.Status)
+		}
+	})
+})
 
-func TestQueryUsageTimeout(t *testing.T) {
+var _ = ginkgo.It("TestQueryUsageTimeout", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bin := filepath.Join(t.TempDir(), "claude")
 	script := `#!/bin/sh
 case " $* " in
@@ -137,9 +147,10 @@ esac
 	if result.Status != domain.StatusTimeout {
 		t.Fatalf("status = %v, want TIMEOUT", result.Status)
 	}
-}
+})
 
-func TestChildEnvironmentDropsBillingOverrides(t *testing.T) {
+var _ = ginkgo.It("TestChildEnvironmentDropsBillingOverrides", func() {
+	t := testT{ginkgo.GinkgoT()}
 	t.Setenv("ANTHROPIC_API_KEY", "secret")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "secret")
 	t.Setenv("CLAUDE_CODE_USE_BEDROCK", "1")
@@ -154,7 +165,7 @@ func TestChildEnvironmentDropsBillingOverrides(t *testing.T) {
 	if !contains(env, "CLAUDE_CONFIG_DIR=/chosen/claude") {
 		t.Fatal("selected Claude config dir was lost")
 	}
-}
+})
 
 func contains(items []string, want string) bool {
 	for _, item := range items {

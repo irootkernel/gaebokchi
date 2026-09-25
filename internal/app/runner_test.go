@@ -3,10 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -98,7 +99,8 @@ func mkTargets(n int) []domain.Target {
 	return tgts
 }
 
-func TestDefaultThreeTargetsSimultaneousAdmission(t *testing.T) {
+var _ = ginkgo.It("TestDefaultThreeTargetsSimultaneousAdmission", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{delay: 100 * time.Millisecond}
 	r := &Runner{Codex: q, Grok: q}
 	targets := mkTargets(2)
@@ -111,9 +113,7 @@ func TestDefaultThreeTargetsSimultaneousAdmission(t *testing.T) {
 	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
 		t.Fatalf("default admission not simultaneous: %v", elapsed)
 	}
-	if q.maxSeen.Load() != 3 {
-		t.Fatalf("max concurrent = %d, want 3", q.maxSeen.Load())
-	}
+	gomega.Expect(q.maxSeen.Load()).To(gomega.Equal(int32(3)))
 	for i, res := range results {
 		if res.TargetID != targets[i].ID {
 			t.Fatalf("order broken at %d: %s", i, res.TargetID)
@@ -122,9 +122,10 @@ func TestDefaultThreeTargetsSimultaneousAdmission(t *testing.T) {
 			t.Fatalf("target %s status = %v", res.TargetID, res.Status)
 		}
 	}
-}
+})
 
-func TestDeterministicOrderUnderReversedCompletion(t *testing.T) {
+var _ = ginkgo.It("TestDeterministicOrderUnderReversedCompletion", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// codex:0 is slow, codex:1 and grok finish first.
 	responder := map[string]time.Duration{"codex:0": 300 * time.Millisecond, "codex:1": 20 * time.Millisecond, "grok:0": 20 * time.Millisecond}
 	q := &fakeQuerier{responder: func(_ context.Context, tgt domain.Target) domain.Result {
@@ -140,9 +141,10 @@ func TestDeterministicOrderUnderReversedCompletion(t *testing.T) {
 			t.Fatalf("slot %d = %s, want %s", i, results[i].TargetID, id)
 		}
 	}
-}
+})
 
-func TestAtMostThreeActiveWithFiveHomes(t *testing.T) {
+var _ = ginkgo.It("TestAtMostThreeActiveWithFiveHomes", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{delay: 120 * time.Millisecond}
 	r := &Runner{Codex: q, Grok: q}
 	targets := mkTargets(5)
@@ -156,9 +158,10 @@ func TestAtMostThreeActiveWithFiveHomes(t *testing.T) {
 	if q.callCount() != 6 {
 		t.Fatalf("query attempts = %d, want exactly one per target", q.callCount())
 	}
-}
+})
 
-func TestFailureDoesNotCancelSiblings(t *testing.T) {
+var _ = ginkgo.It("TestFailureDoesNotCancelSiblings", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{failID: "codex:1", responder: func(ctx context.Context, tgt domain.Target) domain.Result {
 		if tgt.ID == "codex:1" {
 			select { // exceeds the budget
@@ -179,9 +182,10 @@ func TestFailureDoesNotCancelSiblings(t *testing.T) {
 	if results[0].Status != domain.StatusOK || results[2].Status != domain.StatusOK {
 		t.Fatalf("siblings damaged: %v / %v", results[0].Status, results[2].Status)
 	}
-}
+})
 
-func TestQueuedTargetsCancelledWithoutLaunch(t *testing.T) {
+var _ = ginkgo.It("TestQueuedTargetsCancelledWithoutLaunch", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{delay: 400 * time.Millisecond}
 	r := &Runner{Codex: q, Grok: q}
 	targets := mkTargets(5) // 6 targets, bound 3
@@ -214,9 +218,10 @@ func TestQueuedTargetsCancelledWithoutLaunch(t *testing.T) {
 			t.Fatalf("cancelled target %s was launched", res.TargetID)
 		}
 	}
-}
+})
 
-func TestDeadlineStartsAtAdmission(t *testing.T) {
+var _ = ginkgo.It("TestDeadlineStartsAtAdmission", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// With bound 1, the second target's deadline must start after the
 	// first completes, so a short budget still succeeds sequentially.
 	q := &fakeQuerier{delay: 60 * time.Millisecond}
@@ -228,22 +233,24 @@ func TestDeadlineStartsAtAdmission(t *testing.T) {
 			t.Fatalf("%s status = %v (deadline should start at admission)", res.TargetID, res.Status)
 		}
 	}
-}
+})
 
-func TestOneQueryAttemptPerTarget(t *testing.T) {
+var _ = ginkgo.It("TestOneQueryAttemptPerTarget", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{}
 	r := &Runner{Codex: q, Grok: q}
 	r.Run(context.Background(), mkTargets(4), time.Second)
 	if q.callCount() != 5 {
 		t.Fatalf("attempts = %d, want 5", q.callCount())
 	}
-}
+})
 
 // TestValidResultSurvivesCleanupPastDeadline reproduces the audit's
 // executable-level finding at the runner boundary: a result established
 // within the query budget must survive bounded cleanup that crosses the
 // deadline before Query returns, instead of being rewritten to TIMEOUT.
-func TestValidResultSurvivesCleanupPastDeadline(t *testing.T) {
+var _ = ginkgo.It("TestValidResultSurvivesCleanupPastDeadline", func() {
+	t := testT{ginkgo.GinkgoT()}
 	q := &fakeQuerier{responder: func(ctx context.Context, tgt domain.Target) domain.Result {
 		res := okResult(tgt, 37) // established immediately, well in budget
 		<-time.After(700 * time.Millisecond)
@@ -257,12 +264,13 @@ func TestValidResultSurvivesCleanupPastDeadline(t *testing.T) {
 	if results[0].Status != domain.StatusOK || results[0].UsedPercent == nil || *results[0].UsedPercent != 37 {
 		t.Fatalf("timely result discarded: status=%v percent=%v", results[0].Status, results[0].UsedPercent)
 	}
-}
+})
 
 // TestEstablishedResultSurvivesRootCancellation pins REQ-023's
 // preservation clause: once a target's result is established, root
 // cancellation of the invocation must not erase it from the output.
-func TestEstablishedResultSurvivesRootCancellation(t *testing.T) {
+var _ = ginkgo.It("TestEstablishedResultSurvivesRootCancellation", func() {
+	t := testT{ginkgo.GinkgoT()}
 	established := make(chan struct{})
 	q := &fakeQuerier{responder: func(ctx context.Context, tgt domain.Target) domain.Result {
 		if tgt.ID == "grok:0" {
@@ -284,9 +292,10 @@ func TestEstablishedResultSurvivesRootCancellation(t *testing.T) {
 	if results[2].Status != domain.StatusOK || results[2].UsedPercent == nil || *results[2].UsedPercent != 11 {
 		t.Fatalf("established result lost: %+v", results[2])
 	}
-}
+})
 
-func TestOptionsTargetsFeedRunner(t *testing.T) {
+var _ = ginkgo.It("TestOptionsTargetsFeedRunner", func() {
+	t := testT{ginkgo.GinkgoT()}
 	o, err := options.Parse(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -301,9 +310,10 @@ func TestOptionsTargetsFeedRunner(t *testing.T) {
 	if results[0].TargetID != "codex:0" || results[2].TargetID != "grok:0" || results[3].TargetID != "claude:0" {
 		t.Fatalf("unexpected target order: %+v", targets)
 	}
-}
+})
 
-func TestDisambiguateCodexAccounts(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguateCodexAccounts", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/work", FallbackAccount: "work"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/work", FallbackAccount: "work"},
@@ -327,9 +337,10 @@ func TestDisambiguateCodexAccounts(t *testing.T) {
 	if results[2].Account != "other" {
 		t.Fatalf("unique label altered: %q", results[2].Account)
 	}
-}
+})
 
-func TestDisambiguateDifferentHomesNotMerged(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguateDifferentHomesNotMerged", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/.codex", FallbackAccount: ".codex"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/.codex-hsy", FallbackAccount: ".codex-hsy"},
@@ -345,13 +356,14 @@ func TestDisambiguateDifferentHomesNotMerged(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatal("row count changed")
 	}
-}
+})
 
 // TestDisambiguationOperatesOnNormalizedLabels pins the audit's
 // ordering finding: distinct raw labels that normalize to the same
 // visible label (NBSP vs space) must be disambiguated, not merged into
 // identical visible rows.
-func TestDisambiguationOperatesOnNormalizedLabels(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguationOperatesOnNormalizedLabels", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/one", FallbackAccount: "one"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/two", FallbackAccount: "two"},
@@ -370,13 +382,14 @@ func TestDisambiguationOperatesOnNormalizedLabels(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatal("row count changed")
 	}
-}
+})
 
 // TestDisambiguationSuffixLookalikeCollision pins the audit's generated-
 // suffix finding: a duplicate's generated label that collides with an
 // unrelated row's existing label (which merely resembles a generated
 // suffix) must be further suffixed instead of merging rows.
-func TestDisambiguationSuffixLookalikeCollision(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguationSuffixLookalikeCollision", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
@@ -401,13 +414,14 @@ func TestDisambiguationSuffixLookalikeCollision(t *testing.T) {
 	if results[2].Account != "a [b]" {
 		t.Fatalf("unique lookalike label must be preserved: %q", results[2].Account)
 	}
-}
+})
 
 // TestDisambiguationTargetIndexSuffix pins the confirmation review's
 // finding: the suffix is the row's own configured target index
 // (ARCH-04), so the same/other/same example labels the third target
 // "#3" — not a collision ordinal.
-func TestDisambiguationTargetIndexSuffix(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguationTargetIndexSuffix", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/same", FallbackAccount: "same"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/other", FallbackAccount: "other"},
@@ -443,13 +457,14 @@ func TestDisambiguationTargetIndexSuffix(t *testing.T) {
 			t.Fatalf("nondeterministic label at %d: %q vs %q", i, results[i].Account, again[i].Account)
 		}
 	}
-}
+})
 
 // TestDisambiguationIndexSuffixLookalikeCollision extends the lookalike
 // protection to the index-qualified form: a reserved original label
 // equal to the index suffix gets a deterministic extension that
 // preserves the index component.
-func TestDisambiguationIndexSuffixLookalikeCollision(t *testing.T) {
+var _ = ginkgo.It("TestDisambiguationIndexSuffixLookalikeCollision", func() {
+	t := testT{ginkgo.GinkgoT()}
 	targets := []domain.Target{
 		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
 		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
@@ -476,4 +491,4 @@ func TestDisambiguationIndexSuffixLookalikeCollision(t *testing.T) {
 	if got := results[1].Account; got != "a [b] #2-2" {
 		t.Fatalf("index component must be preserved with a deterministic extension: %q", got)
 	}
-}
+})

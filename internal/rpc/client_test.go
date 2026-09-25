@@ -3,14 +3,11 @@ package rpc
 import (
 	"context"
 	"errors"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
-	"os"
 	"strings"
 	"sync"
-	"testing"
 	"time"
-
-	"gaebokchi/internal/testutil"
 )
 
 // pipePair gives the client a writer/reader pair plus the server side.
@@ -43,7 +40,7 @@ func (a *abortLatch) count() int {
 	return a.n
 }
 
-func newPipePair(t *testing.T) *pipePair {
+func newPipePair(t testT) *pipePair {
 	t.Helper()
 	cr, sw := io.Pipe() // server writes -> client reads
 	sr, cw := io.Pipe() // client writes -> server reads
@@ -56,14 +53,14 @@ func newPipePair(t *testing.T) *pipePair {
 	return pp
 }
 
-func readRequest(t *testing.T, r io.Reader) {
+func readRequest(t testT, r io.Reader) {
 	t.Helper()
 	if _, err := testutilReadLine(r); err != nil {
 		t.Errorf("fake server could not read request: %v", err)
 	}
 }
 
-func writeReply(t *testing.T, w io.Writer, reply string) {
+func writeReply(t testT, w io.Writer, reply string) {
 	t.Helper()
 	if _, err := io.WriteString(w, reply); err != nil {
 		t.Errorf("fake server could not write reply: %v", err)
@@ -74,22 +71,15 @@ func (pp *pipePair) conn(codec Codec) *Conn {
 	return NewConn(pp.clientW, pp.clientR, codec, pp.abort.fire)
 }
 
-func TestFakeHelperProcess(t *testing.T) {
-	if os.Getenv("GAEBOKCHI_FAKE") != "1" {
-		return
-	}
-	if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
-func TestCallCorrelationWithNotificationsAndUnknownIDs(t *testing.T) {
+var _ = ginkgo.It("TestCallCorrelationWithNotificationsAndUnknownIDs", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	ctx := context.Background()
 
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		// Server: read the request, then send an unrelated notification,
 		// a response with an unknown id, and finally the real reply.
 		line, err := testutilReadLine(pp.serverR)
@@ -116,12 +106,15 @@ func TestCallCorrelationWithNotificationsAndUnknownIDs(t *testing.T) {
 	if resp.Err != nil {
 		t.Fatalf("unexpected remote error: %v", resp.Err)
 	}
-}
+})
 
-func TestCallRemoteError(t *testing.T) {
+var _ = ginkgo.It("TestCallRemoteError", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"auth required"}}`+"\n")
 		_ = pp.serverW.Close()
@@ -134,12 +127,15 @@ func TestCallRemoteError(t *testing.T) {
 	if rerr == nil || rerr.Code != -32000 || rerr.Message != "auth required" {
 		t.Fatalf("remote error = %+v", rerr)
 	}
-}
+})
 
-func TestEOFailsPendingCall(t *testing.T) {
+var _ = ginkgo.It("TestEOFailsPendingCall", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		_ = pp.serverW.Close() // EOF before response
 	}()
@@ -147,12 +143,15 @@ func TestEOFailsPendingCall(t *testing.T) {
 	if !errors.Is(err, ErrEOF) {
 		t.Fatalf("err = %v, want ErrEOF", err)
 	}
-}
+})
 
-func TestMalformedFrameFailsCall(t *testing.T) {
+var _ = ginkgo.It("TestMalformedFrameFailsCall", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, "this is not json\n")
 	}()
@@ -160,12 +159,15 @@ func TestMalformedFrameFailsCall(t *testing.T) {
 	if err == nil || !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v, want ErrMalformedMessage", err)
 	}
-}
+})
 
-func TestBatchTopLevelRejected(t *testing.T) {
+var _ = ginkgo.It("TestBatchTopLevelRejected", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, "[{\"id\":1,\"result\":{}}]\n")
 	}()
@@ -173,12 +175,15 @@ func TestBatchTopLevelRejected(t *testing.T) {
 	if !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v, want ErrMalformedMessage", err)
 	}
-}
+})
 
-func TestBothResultAndErrorRejected(t *testing.T) {
+var _ = ginkgo.It("TestBothResultAndErrorRejected", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"id":1,"result":{},"error":{"code":1,"message":"x"}}`+"\n")
 	}()
@@ -186,12 +191,15 @@ func TestBothResultAndErrorRejected(t *testing.T) {
 	if !errors.Is(err, ErrMalformedMessage) {
 		t.Fatalf("err = %v", err)
 	}
-}
+})
 
-func TestNullResultPreserved(t *testing.T) {
+var _ = ginkgo.It("TestNullResultPreserved", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"id":1,"result":null}`+"\n")
 		_ = pp.serverW.Close()
@@ -203,13 +211,16 @@ func TestNullResultPreserved(t *testing.T) {
 	if string(resp.Result) != "null" {
 		t.Fatalf("null result not preserved: %q", resp.Result)
 	}
-}
+})
 
-func TestServerInitiatedRequestRejectedAndAborts(t *testing.T) {
+var _ = ginkgo.It("TestServerInitiatedRequestRejectedAndAborts", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	received := make(chan string, 1)
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		// Consume the client's own request first.
 		readRequest(t, pp.serverR)
 		// Then deliver the server-initiated request.
@@ -232,13 +243,16 @@ func TestServerInitiatedRequestRejectedAndAborts(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("no rejection sent")
 	}
-}
+})
 
-func TestCodexRejectionOmitsJSONRPC(t *testing.T) {
+var _ = ginkgo.It("TestCodexRejectionOmitsJSONRPC", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	received := make(chan string, 1)
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"id":7,"method":"tool/approve"}`+"\n")
 		line, _ := testutilReadLine(pp.serverR)
@@ -259,14 +273,17 @@ func TestCodexRejectionOmitsJSONRPC(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("no rejection sent")
 	}
-}
+})
 
-func TestContextCancellationAbortsTransport(t *testing.T) {
+var _ = ginkgo.It("TestContextCancellationAbortsTransport", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		// Server reads the request but never answers.
 		readRequest(t, pp.serverR)
 		time.Sleep(5 * time.Second)
@@ -282,9 +299,10 @@ func TestContextCancellationAbortsTransport(t *testing.T) {
 	if pp.abort.count() == 0 {
 		t.Fatal("abort hook not fired")
 	}
-}
+})
 
-func TestBlockedWriteUnblockedByCancel(t *testing.T) {
+var _ = ginkgo.It("TestBlockedWriteUnblockedByCancel", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	// Server never reads: the client's write fills the pipe buffer.
@@ -294,9 +312,10 @@ func TestBlockedWriteUnblockedByCancel(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want DeadlineExceeded", err)
 	}
-}
+})
 
-func TestSingleOutstandingRequest(t *testing.T) {
+var _ = ginkgo.It("TestSingleOutstandingRequest", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -308,6 +327,8 @@ func TestSingleOutstandingRequest(t *testing.T) {
 	requestSeen := make(chan struct{}, 1)
 	release := make(chan struct{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		requestSeen <- struct{}{}
 		<-release
@@ -333,7 +354,7 @@ func TestSingleOutstandingRequest(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("first call never completed")
 	}
-}
+})
 
 // testutilReadLine reads one line from r (test-local helper).
 func testutilReadLine(r io.Reader) (string, error) {

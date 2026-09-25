@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/testutil"
@@ -23,7 +24,7 @@ var (
 )
 
 // gaebokchiBin builds the real executable once for the whole suite.
-func gaebokchiBin(t *testing.T) string {
+func gaebokchiBin(t testT) string {
 	t.Helper()
 	buildOnce.Do(func() {
 		dir, err := os.MkdirTemp("", "gaebokchi-e2e-")
@@ -45,7 +46,7 @@ func gaebokchiBin(t *testing.T) string {
 }
 
 // fakeBin is this test binary acting as the fake provider CLI.
-func fakeBin(t *testing.T) string {
+func fakeBin(t testT) string {
 	t.Helper()
 	p, err := os.Executable()
 	if err != nil {
@@ -64,7 +65,7 @@ type invocation struct {
 	envLog string
 }
 
-func runCLI(t *testing.T, inv invocation) (stdout, stderr string, code int) {
+func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	t.Helper()
 	bin := gaebokchiBin(t)
 	fake := fakeBin(t)
@@ -151,14 +152,13 @@ func grokWeekly(pct int) []testutil.Step {
 	}
 }
 
-func TestDefaultHappyPath(t *testing.T) {
+var _ = ginkgo.It("TestDefaultHappyPath", func() {
+	t := testT{ginkgo.GinkgoT()}
 	stdout, stderr, code := runCLI(t, invocation{
 		codex: codexOK("account1@example.com", 37),
 		grok:  grokWeekly(28),
 	})
-	if code != 0 {
-		t.Fatalf("code = %d, stderr:\n%s", code, stderr)
-	}
+	gomega.Expect(code).To(gomega.Equal(0), stderr)
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	if len(lines) != 5 {
 		t.Fatalf("lines = %d:\n%s", len(lines), stdout)
@@ -169,9 +169,10 @@ func TestDefaultHappyPath(t *testing.T) {
 	if strings.Contains(stdout, "FAKE") || strings.Contains(stdout, "jsonrpc") {
 		t.Fatalf("raw provider data on stdout:\n%s", stdout)
 	}
-}
+})
 
-func TestMissingExecutableKeepsOtherRows(t *testing.T) {
+var _ = ginkgo.It("TestMissingExecutableKeepsOtherRows", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	stdout, _, code := runCLI(t, invocation{
 		args:  []string{"--grok-bin", filepath.Join(dir, "no-such-grok")},
@@ -189,9 +190,10 @@ func TestMissingExecutableKeepsOtherRows(t *testing.T) {
 	if !strings.Contains(stdout, "11.0%") {
 		t.Fatalf("codex rows lost:\n%s", stdout)
 	}
-}
+})
 
-func TestMissingClaudeExecutableKeepsDefaultRow(t *testing.T) {
+var _ = ginkgo.It("TestMissingClaudeExecutableKeepsDefaultRow", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	stdout, stderr, code := runCLI(t, invocation{
 		args:  []string{"--claude-bin", filepath.Join(dir, "no-such-claude")},
@@ -203,9 +205,10 @@ func TestMissingClaudeExecutableKeepsDefaultRow(t *testing.T) {
 		!strings.Contains(stderr, "claude:0: NOT INSTALLED") {
 		t.Fatalf("missing Claude row: code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
-}
+})
 
-func TestMissingHomeRow(t *testing.T) {
+var _ = ginkgo.It("TestMissingHomeRow", func() {
+	t := testT{ginkgo.GinkgoT()}
 	stdout, _, code := runCLI(t, invocation{
 		args: []string{"--codex-home", "/definitely/not/here"},
 		grok: grokWeekly(5),
@@ -219,9 +222,10 @@ func TestMissingHomeRow(t *testing.T) {
 	if !strings.Contains(stdout, "5.0%") {
 		t.Fatalf("other rows lost:\n%s", stdout)
 	}
-}
+})
 
-func TestFailedAuthKeepsTable(t *testing.T) {
+var _ = ginkgo.It("TestFailedAuthKeepsTable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	authFail := []testutil.Step{
 		{Wait: 1},
 		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
@@ -241,9 +245,10 @@ func TestFailedAuthKeepsTable(t *testing.T) {
 	if !strings.Contains(stderr, "gaebokchi: codex:0: AUTH REQUIRED:") {
 		t.Fatalf("diagnostic missing:\n%s", stderr)
 	}
-}
+})
 
-func TestMonthlyGrokIsClean(t *testing.T) {
+var _ = ginkgo.It("TestMonthlyGrokIsClean", func() {
+	t := testT{ginkgo.GinkgoT()}
 	monthly := grokWeekly(88)
 	monthly[4] = testutil.Step{Wait: 1}
 	monthly = append(monthly[:4], testutil.Step{Wait: 1},
@@ -258,9 +263,10 @@ func TestMonthlyGrokIsClean(t *testing.T) {
 	if !strings.Contains(stdout, "N/A (monthly)") || strings.Contains(stdout, "88") {
 		t.Fatalf("monthly handling wrong:\n%s", stdout)
 	}
-}
+})
 
-func TestMalformedGrokResponseIsProtocolError(t *testing.T) {
+var _ = ginkgo.It("TestMalformedGrokResponseIsProtocolError", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bad := []testutil.Step{
 		{Wait: 1},
 		{Emit: "Grok CLI banner, not JSON\n"},
@@ -278,9 +284,10 @@ func TestMalformedGrokResponseIsProtocolError(t *testing.T) {
 	if strings.Contains(stdout, "banner") {
 		t.Fatalf("raw banner leaked:\n%s", stdout)
 	}
-}
+})
 
-func TestWrongIDsNeverSatisfyRequest(t *testing.T) {
+var _ = ginkgo.It("TestWrongIDsNeverSatisfyRequest", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// Keep the authenticate exchange, then answer only with a wrong
 	// id and exit: the billing request must fail, not be satisfied.
 	grok := append(grokWeekly(1)[:4],
@@ -295,9 +302,10 @@ func TestWrongIDsNeverSatisfyRequest(t *testing.T) {
 	if strings.Contains(stdout, "1.0%") {
 		t.Fatalf("wrong-id response satisfied the grok row:\n%s", stdout)
 	}
-}
+})
 
-func TestLongStderrDoesNotLeak(t *testing.T) {
+var _ = ginkgo.It("TestLongStderrDoesNotLeak", func() {
+	t := testT{ginkgo.GinkgoT()}
 	grok := grokWeekly(7)
 	grok = append([]testutil.Step{{EmitStderr: strings.Repeat("E2E-STDERR-NOISE ", 3800)}}, grok...)
 	stdout, stderr, code := runCLI(t, invocation{
@@ -313,9 +321,10 @@ func TestLongStderrDoesNotLeak(t *testing.T) {
 	if !strings.Contains(stdout, "7.0%") {
 		t.Fatalf("stderr flood broke the query:\n%s", stdout)
 	}
-}
+})
 
-func TestHungProviderTimesOut(t *testing.T) {
+var _ = ginkgo.It("TestHungProviderTimesOut", func() {
+	t := testT{ginkgo.GinkgoT()}
 	hung := []testutil.Step{{Wait: 1}, {SleepMs: 60000}}
 	stdout, _, code := runCLI(t, invocation{
 		args:  []string{"--timeout", "1s"},
@@ -331,9 +340,10 @@ func TestHungProviderTimesOut(t *testing.T) {
 	if !strings.Contains(stdout, "2.0%") {
 		t.Fatalf("healthy sibling lost:\n%s", stdout)
 	}
-}
+})
 
-func TestUnsafeCallbackRejected(t *testing.T) {
+var _ = ginkgo.It("TestUnsafeCallbackRejected", func() {
+	t := testT{ginkgo.GinkgoT()}
 	grok := grokWeekly(4)
 	grok[4] = testutil.Step{Emit: `{"jsonrpc":"2.0","id":77,"method":"session/prompt","params":{"prompt":"steal"}}` + "\n"}
 	grok = append(grok, testutil.Step{Wait: 1}, testutil.Step{Wait: 1})
@@ -350,9 +360,10 @@ func TestUnsafeCallbackRejected(t *testing.T) {
 	if strings.Contains(stdout, "steal") || strings.Contains(stderr, "steal") {
 		t.Fatal("callback payload leaked")
 	}
-}
+})
 
-func TestSecretMarkersNeverLeak(t *testing.T) {
+var _ = ginkgo.It("TestSecretMarkersNeverLeak", func() {
+	t := testT{ginkgo.GinkgoT()}
 	grok := grokWeekly(9)
 	grok[2] = testutil.Step{Reply: []testutil.ReplySpec{{Slot: 1, ErrCode: intPtr(-32000), ErrMsg: "SECRET-TOKEN-XYZ leaked"}}}
 	stdout, stderr, _ := runCLI(t, invocation{
@@ -367,9 +378,10 @@ func TestSecretMarkersNeverLeak(t *testing.T) {
 			}
 		}
 	}
-}
+})
 
-func TestEnvironmentIsolationAndArgv(t *testing.T) {
+var _ = ginkgo.It("TestEnvironmentIsolationAndArgv", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	argLog := filepath.Join(dir, "argv.log")
 	envLog := filepath.Join(dir, "env.log")
@@ -412,9 +424,10 @@ func TestEnvironmentIsolationAndArgv(t *testing.T) {
 			}
 		}
 	}
-}
+})
 
-func TestSignalCancellationExits130(t *testing.T) {
+var _ = ginkgo.It("TestSignalCancellationExits130", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bin := gaebokchiBin(t)
 	fake := fakeBin(t)
 	codexJSON, _ := json.Marshal([]testutil.Step{{Wait: 1}, {SleepMs: 60000}})
@@ -452,9 +465,10 @@ func TestSignalCancellationExits130(t *testing.T) {
 	if !strings.Contains(out.String(), "CANCELLED") {
 		t.Fatalf("cancelled table missing:\n%s", out.String())
 	}
-}
+})
 
-func TestConcurrentAccountIsolation(t *testing.T) {
+var _ = ginkgo.It("TestConcurrentAccountIsolation", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// Two homes with distinct scripted identities must not mix; the
 	// shared script serves both children identically, so verify via a
 	// second run with distinct homes through arg log cwd/env.
@@ -488,9 +502,12 @@ func TestConcurrentAccountIsolation(t *testing.T) {
 	if strings.Count(string(log), "app-server") != 2 {
 		t.Fatalf("expected two codex children, log: %q", log)
 	}
-}
+})
 
-func TestNoForbiddenProductionCapabilities(t *testing.T) {
+var _ = ginkgo.It("TestNoForbiddenProductionCapabilities", func() {
+	t := testT{ginkgo.GinkgoT()}
+	var failures []string
+	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
 	roots := []string{"../../internal", "../../cmd"}
 	forbidden := []string{
 		"net/http",    // no HTTP billing client or listener
@@ -523,7 +540,7 @@ func TestNoForbiddenProductionCapabilities(t *testing.T) {
 					continue // the allowlist must name forbidden methods to reject them
 				}
 				if strings.Contains(src, marker) {
-					t.Errorf("%s references forbidden %q", path, marker)
+					fail("%s references forbidden %q", path, marker)
 				}
 			}
 			return nil
@@ -531,7 +548,10 @@ func TestNoForbiddenProductionCapabilities(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-}
+	if len(failures) > 0 {
+		t.Fatalf("%s", strings.Join(failures, "\n"))
+	}
+})
 
 func hasFlag(args []string, flag string) bool {
 	for _, a := range args {

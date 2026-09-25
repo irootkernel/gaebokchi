@@ -19,16 +19,9 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version: "1.27.1"
-      - run: go vet ./...
-      - name: Check gofmt
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "files needing gofmt:"; echo "$unformatted"; exit 1
-          fi
-      - run: go test ./... -count=1
-      - run: go test -race ./internal/... ./test/... -count=1
-      - run: go run scripts/check-docs.go
+      - run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+      - run: go mod download
+      - run: make test
 
   build:
     runs-on: ubuntu-latest
@@ -37,18 +30,7 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version: "1.27.1"
+      - run: go mod download
       - run: sh scripts/build-release.sh v0.1.0
-      - run: GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go test ./scripts/ -run 'TestVerify|TestStagedReleaseArchives' -count=1
+      - run: GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go run github.com/onsi/ginkgo/v2/ginkgo --fail-on-empty --label-filter=staged-release ./scripts
       - run: grep -c '^' dist/gaebokchi-v0.1.0/SHA256SUMS
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-go@v7.0.0
-        with:
-          go-version: "1.27.1"
-      - uses: golangci/golangci-lint-action@v9.3.0
-        with:
-          version: v2.13.2
-          args: --max-issues-per-linter=0 --max-same-issues=0

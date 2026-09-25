@@ -6,11 +6,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"testing"
 )
 
 // member describes one synthetic archive entry for the checker tests.
@@ -23,7 +23,7 @@ type member struct {
 
 // writeTestRepo creates a disposable repository root whose four
 // documents match the bodies used by synthetic archives.
-func writeTestRepo(t *testing.T) string {
+func writeTestRepo(t testT) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, doc := range []string{"README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
@@ -58,7 +58,7 @@ func intendedLayoutFor(target string) []member {
 	}
 }
 
-func buildTestArchive(t *testing.T, path string, members []member) {
+func buildTestArchive(t testT, path string, members []member) {
 	t.Helper()
 	f, err := os.Create(path)
 	if err != nil {
@@ -96,26 +96,28 @@ func buildTestArchive(t *testing.T, path string, members []member) {
 	}
 }
 
-func wantErrContaining(t *testing.T, err error, fragment string) {
+func wantErrContaining(t testT, err error, fragment string) {
 	t.Helper()
 	if err == nil || !strings.Contains(err.Error(), fragment) {
 		t.Fatalf("err = %v, want it to contain %q", err, fragment)
 	}
 }
 
-func TestVerifyArchiveAcceptsIntendedLayout(t *testing.T) {
+var _ = ginkgo.It("TestVerifyArchiveAcceptsIntendedLayout", func() {
+	t := testT{ginkgo.GinkgoT()}
 	root := writeTestRepo(t)
 	path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, intendedLayoutFor("darwin-arm64"))
 	if err := verifyArchive(path, "darwin-arm64", root); err != nil {
 		t.Fatalf("intended layout rejected: %v", err)
 	}
-}
+})
 
 // TestVerifyArchiveRejectsSidecarMembers is the negative fixture for
 // the exact shape the confirmation review observed: AppleDouble ._*
 // entries for the directory, the binary, and a packaged document.
-func TestVerifyArchiveRejectsSidecarMembers(t *testing.T) {
+var _ = ginkgo.It("TestVerifyArchiveRejectsSidecarMembers", func() {
+	t := testT{ginkgo.GinkgoT()}
 	root := writeTestRepo(t)
 	for _, extra := range []member{
 		{name: "._gaebokchi-darwin-arm64", mode: 0o644, body: "x"},
@@ -127,9 +129,10 @@ func TestVerifyArchiveRejectsSidecarMembers(t *testing.T) {
 		buildTestArchive(t, path, append(intendedLayoutFor("darwin-arm64"), extra))
 		wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "unintended sidecar")
 	}
-}
+})
 
-func TestVerifyArchiveRejectsStructuralDefects(t *testing.T) {
+var _ = ginkgo.It("TestVerifyArchiveRejectsStructuralDefects", func() {
+	t := testT{ginkgo.GinkgoT()}
 	root := writeTestRepo(t)
 
 	// Missing intended member.
@@ -157,9 +160,10 @@ func TestVerifyArchiveRejectsStructuralDefects(t *testing.T) {
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, stale)
 	wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "differs from the finalized source")
-}
+})
 
-func TestVerifyChecksums(t *testing.T) {
+var _ = ginkgo.It("TestVerifyChecksums", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dist := t.TempDir()
 	write := func(name, body string) {
 		if err := os.WriteFile(filepath.Join(dist, name), []byte(body), 0o644); err != nil {
@@ -199,12 +203,12 @@ func TestVerifyChecksums(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantErrContaining(t, verifyChecksums(dist), "lacks the")
-}
+})
 
 // repoRoot locates the repository root by walking up from the test's
 // working directory to go.mod, so the staged-archive gate works no
 // matter which package directory the test binary runs from.
-func repoRoot(t *testing.T) string {
+func repoRoot(t testT) string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
@@ -228,7 +232,8 @@ func repoRoot(t *testing.T) string {
 // The release job opts in with GAEBOKCHI_REQUIRE_STAGED_RELEASE=1; local runs
 // can supply GAEBOKCHI_STAGED_RELEASE_DIR. checkStagedRelease's separate tests
 // still verify that any selected but incomplete staging fails.
-func TestStagedReleaseArchives(t *testing.T) {
+var _ = ginkgo.It("TestStagedReleaseArchives", ginkgo.Label("staged-release"), func() {
+	t := testT{ginkgo.GinkgoT()}
 	root := repoRoot(t)
 	dist := os.Getenv("GAEBOKCHI_STAGED_RELEASE_DIR") // test-only staging override
 	require := os.Getenv("GAEBOKCHI_REQUIRE_STAGED_RELEASE") == "1"
@@ -245,14 +250,13 @@ func TestStagedReleaseArchives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("staged release validation failed: %v", err)
 	}
-}
+})
 
 // TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers pins the
 // strict member-set contract: directories are allowlisted, every
 // intended entry appears exactly once, and an expected path presented
 // with the wrong entry type is rejected.
-func TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers(t *testing.T) {
-	root := writeTestRepo(t)
+var _ = ginkgo.Describe("TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers", func() {
 	d := "gaebokchi-darwin-arm64"
 	cases := []struct {
 		name  string
@@ -270,17 +274,19 @@ func TestVerifyArchiveRejectsUnexpectedAndDuplicateMembers(t *testing.T) {
 		{"expected directory path presented as file", []member{{name: d + "/docs", mode: 0o644, body: "x"}}, "unexpected regular member"},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
+			root := writeTestRepo(t)
 			path := filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 			buildTestArchive(t, path, append(intendedLayoutFor("darwin-arm64"), tc.extra...))
 			wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), tc.want)
 		})
 	}
-}
+})
 
 // writeCompleteStaging builds a complete, valid four-target staging
 // directory against the given repository root and returns its path.
-func writeCompleteStaging(t *testing.T, root string) string {
+func writeCompleteStaging(t testT, root string) string {
 	t.Helper()
 	dist := t.TempDir()
 	var manifest strings.Builder
@@ -303,34 +309,40 @@ func writeCompleteStaging(t *testing.T, root string) string {
 // TestCheckStagedReleaseDecision exercises the exact pass/fail/skip
 // decision the test entry point uses, over isolated test-owned
 // staging roots (never the canonical dist/).
-func TestCheckStagedReleaseDecision(t *testing.T) {
-	root := writeTestRepo(t)
+var _ = ginkgo.Describe("TestCheckStagedReleaseDecision", func() {
+	var root string
+	ginkgo.BeforeEach(func() { root = writeTestRepo(testT{ginkgo.GinkgoT()}) })
 
-	t.Run("absent staging skips in optional mode", func(t *testing.T) {
+	ginkgo.It("absent staging skips in optional mode", func() {
+		t := testT{ginkgo.GinkgoT()}
 		err := checkStagedRelease(root, filepath.Join(t.TempDir(), "absent"), false)
 		if !errors.Is(err, errReleaseNotStaged) {
 			t.Fatalf("err = %v, want the not-staged skip", err)
 		}
 	})
-	t.Run("absent staging fails in mandatory mode", func(t *testing.T) {
+	ginkgo.It("absent staging fails in mandatory mode", func() {
+		t := testT{ginkgo.GinkgoT()}
 		err := checkStagedRelease(root, filepath.Join(t.TempDir(), "absent"), true)
 		if err == nil || errors.Is(err, errReleaseNotStaged) {
 			t.Fatalf("err = %v, want a hard failure", err)
 		}
 	})
-	t.Run("existing but empty staging fails", func(t *testing.T) {
+	ginkgo.It("existing but empty staging fails", func() {
+		t := testT{ginkgo.GinkgoT()}
 		if err := checkStagedRelease(root, t.TempDir(), false); err == nil || errors.Is(err, errReleaseNotStaged) {
 			t.Fatalf("err = %v, want a hard failure for empty staging", err)
 		}
 	})
-	t.Run("partial staging fails", func(t *testing.T) {
+	ginkgo.It("partial staging fails", func() {
+		t := testT{ginkgo.GinkgoT()}
 		dist := t.TempDir()
 		buildTestArchive(t, filepath.Join(dist, "gaebokchi-darwin-arm64.tar.gz"), intendedLayoutFor("darwin-arm64"))
 		if err := checkStagedRelease(root, dist, false); err == nil {
 			t.Fatal("partial staging must fail, not pass or skip")
 		}
 	})
-	t.Run("missing manifest fails", func(t *testing.T) {
+	ginkgo.It("missing manifest fails", func() {
+		t := testT{ginkgo.GinkgoT()}
 		dist := t.TempDir()
 		for _, tgt := range releaseTargets {
 			buildTestArchive(t, filepath.Join(dist, "gaebokchi-"+tgt+".tar.gz"), intendedLayoutFor(tgt))
@@ -339,7 +351,8 @@ func TestCheckStagedReleaseDecision(t *testing.T) {
 			t.Fatal("missing manifest must fail")
 		}
 	})
-	t.Run("non-directory staging path fails", func(t *testing.T) {
+	ginkgo.It("non-directory staging path fails", func() {
+		t := testT{ginkgo.GinkgoT()}
 		path := filepath.Join(t.TempDir(), "not-a-dir")
 		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
@@ -348,7 +361,8 @@ func TestCheckStagedReleaseDecision(t *testing.T) {
 			t.Fatal("non-directory staging path must fail")
 		}
 	})
-	t.Run("inspection failure distinct from absence fails", func(t *testing.T) {
+	ginkgo.It("inspection failure distinct from absence fails", func() {
+		t := testT{ginkgo.GinkgoT()}
 		// Deterministic seam: an expected archive path occupied by a
 		// directory makes inspection fail on every platform without
 		// relying on permission bits.
@@ -361,7 +375,8 @@ func TestCheckStagedReleaseDecision(t *testing.T) {
 			t.Fatalf("err = %v, want an inspection failure, not a skip", err)
 		}
 	})
-	t.Run("complete valid staging passes in both modes", func(t *testing.T) {
+	ginkgo.It("complete valid staging passes in both modes", func() {
+		t := testT{ginkgo.GinkgoT()}
 		dist := writeCompleteStaging(t, root)
 		if err := checkStagedRelease(root, dist, false); err != nil {
 			t.Fatalf("optional mode rejected valid staging: %v", err)
@@ -370,20 +385,21 @@ func TestCheckStagedReleaseDecision(t *testing.T) {
 			t.Fatalf("mandatory mode rejected valid staging: %v", err)
 		}
 	})
-}
+})
 
 // TestMandatoryModeCommandExit runs the actual CI-facing command as a
 // subprocess and asserts its process exit: mandatory mode must exit
 // nonzero for absent and incomplete staging, while optional mode exits
 // zero (skip) for absent staging.
-func TestMandatoryModeCommandExit(t *testing.T) {
+var _ = ginkgo.It("TestMandatoryModeCommandExit", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain unavailable for the subprocess check")
 	}
 	root := repoRoot(t)
 	run := func(env ...string) int {
 		t.Helper()
-		cmd := exec.Command("go", "test", "./scripts/", "-run", "TestStagedReleaseArchives", "-count=1")
+		cmd := exec.Command("go", "run", "github.com/onsi/ginkgo/v2/ginkgo", "--fail-on-empty", "--label-filter=staged-release", "./scripts")
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), env...)
 		out, err := cmd.CombinedOutput()
@@ -410,4 +426,4 @@ func TestMandatoryModeCommandExit(t *testing.T) {
 	if code := run("GAEBOKCHI_REQUIRE_STAGED_RELEASE=1", "GAEBOKCHI_STAGED_RELEASE_DIR="+t.TempDir()); code == 0 {
 		t.Fatal("mandatory mode with empty staging exited 0, want nonzero")
 	}
-}
+})

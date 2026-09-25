@@ -2,13 +2,13 @@ package codex
 
 import (
 	"encoding/json"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
-	"testing"
 
 	"gaebokchi/internal/domain"
 )
 
-func mustStatus(t *testing.T, raw string) domain.Status {
+func mustStatus(t testT, raw string) domain.Status {
 	t.Helper()
 	return normalizeQuota(json.RawMessage(raw)).Status
 }
@@ -32,7 +32,8 @@ func window(pct, dur, reset any) string {
 	return string(b)
 }
 
-func TestNormalizeCapturedFixtureShapes(t *testing.T) {
+var _ = ginkgo.It("TestNormalizeCapturedFixtureShapes", func() {
+	t := testT{ginkgo.GinkgoT()}
 	for _, name := range []string{"ratelimits_weekly_home1.json", "ratelimits_weekly_home2.json"} {
 		var envelope struct {
 			Result json.RawMessage `json:"result"`
@@ -54,9 +55,9 @@ func TestNormalizeCapturedFixtureShapes(t *testing.T) {
 			t.Fatalf("%s: reset = %v", name, out.ResetAt)
 		}
 	}
-}
+})
 
-func TestNormalizeWindowSlotSelection(t *testing.T) {
+var _ = ginkgo.Describe("TestNormalizeWindowSlotSelection", func() {
 	cases := []struct {
 		name      string
 		primary   string
@@ -87,7 +88,8 @@ func TestNormalizeWindowSlotSelection(t *testing.T) {
 		{"duration string type", window(37, "10080", nil), "null", domain.StatusProtocolError, nil},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			raw := weeklyBucket(tc.primary, tc.secondary)
 			out := normalizeQuota(json.RawMessage(raw))
 			if out.Status != tc.want {
@@ -102,9 +104,9 @@ func TestNormalizeWindowSlotSelection(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
-func TestNormalizeBucketSelection(t *testing.T) {
+var _ = ginkgo.Describe("TestNormalizeBucketSelection", func() {
 	weekly := window(37, 10080, 1790411774)
 	cases := []struct {
 		name string
@@ -125,23 +127,26 @@ func TestNormalizeBucketSelection(t *testing.T) {
 		{"unrelated malformed bucket ignored", `{"rateLimitsByLimitId":{"broken":{"primary":"not-a-window"},"codex":{"limitId":"codex","primary":` + weekly + `}}}`, domain.StatusOK},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			if got := mustStatus(t, tc.raw); got != tc.want {
 				t.Fatalf("status = %v, want %v", got, tc.want)
 			}
 		})
 	}
-}
+})
 
-func TestNormalizeUnknownAdditiveFieldsIgnored(t *testing.T) {
+var _ = ginkgo.It("TestNormalizeUnknownAdditiveFieldsIgnored", func() {
+	t := testT{ginkgo.GinkgoT()}
 	raw := `{"rateLimitsByLimitId":{"codex":{"limitId":"codex","primary":{"usedPercent":37,"windowDurationMins":10080,"resetsAt":1790411774,"futureField":{"x":1}},"secondary":null,"credits":{"balance":"0"}}},"brandNewTopLevel":{"a":[1,2,3]}}`
 	out := normalizeQuota(json.RawMessage(raw))
 	if out.Status != domain.StatusOK || out.Percent == nil || *out.Percent != 37 {
 		t.Fatalf("additive fields broke parsing: %+v", out)
 	}
-}
+})
 
-func TestNormalizeMalformedOptionalResetDiscarded(t *testing.T) {
+var _ = ginkgo.It("TestNormalizeMalformedOptionalResetDiscarded", func() {
+	t := testT{ginkgo.GinkgoT()}
 	raw := weeklyBucket(`{"usedPercent":37,"windowDurationMins":10080,"resetsAt":"not-a-number"}`, "null")
 	out := normalizeQuota(json.RawMessage(raw))
 	if out.Status != domain.StatusOK || out.Percent == nil || *out.Percent != 37 {
@@ -150,19 +155,20 @@ func TestNormalizeMalformedOptionalResetDiscarded(t *testing.T) {
 	if out.ResetAt != nil {
 		t.Fatalf("malformed reset retained: %v", out.ResetAt)
 	}
-}
+})
 
-func TestNormalizeSignedZero(t *testing.T) {
+var _ = ginkgo.It("TestNormalizeSignedZero", func() {
+	t := testT{ginkgo.GinkgoT()}
 	raw := weeklyBucket(`{"usedPercent":0,"windowDurationMins":10080}`, "null")
 	out := normalizeQuota(json.RawMessage(raw))
 	if out.Status != domain.StatusOK || out.Percent == nil || *out.Percent != 0 {
 		t.Fatalf("genuine zero lost: %+v", out)
 	}
-}
+})
 
 func fp(v float64) *float64 { return &v }
 
-func readFixtureRaw(t *testing.T, name string) []byte {
+func readFixtureRaw(t testT, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
 	if err != nil {

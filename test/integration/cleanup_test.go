@@ -1,9 +1,9 @@
 package integration
 
 import (
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
-	"testing"
 )
 
 // TestCleanupRemovesOnlyOwnedDirs pins the audit's test-hygiene finding:
@@ -11,7 +11,8 @@ import (
 // similarly named directory belonging to someone else (a concurrent
 // invocation, a crashed run, or the user) must survive — a shared name
 // prefix is not ownership evidence.
-func TestCleanupRemovesOnlyOwnedDirs(t *testing.T) {
+var _ = ginkgo.It("TestCleanupRemovesOnlyOwnedDirs", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// Operate on a private registry so the suite's shared build
 	// directory (registered by gaebokchiBin) is never removed here,
 	// including under -count=N re-runs of the whole package.
@@ -50,4 +51,4 @@ func TestCleanupRemovesOnlyOwnedDirs(t *testing.T) {
 	if _, err := os.Stat(foreign); err != nil {
 		t.Fatalf("foreign directory %s removed on second cleanup: %v", foreign, err)
 	}
-}
+})

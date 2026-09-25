@@ -160,6 +160,9 @@ A monthly result is truthful non-applicability, not weekly usage.
 
 ## Documentation
 
+The root [TESTING.md](TESTING.md) documents the offline test gate and its
+local fake-provider E2E environment.
+
 The packaged product contract is split across the
 [requirements](docs/specs/README.md),
 [architecture](docs/architecture/README.md), and

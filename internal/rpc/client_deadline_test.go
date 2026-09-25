@@ -3,9 +3,9 @@ package rpc
 import (
 	"context"
 	"errors"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -14,12 +14,15 @@ import (
 // not become a clean result, whichever way the wake-up race resolves.
 // This prevents the regression where a late write could win the select
 // race against an already-expired context.
-func TestLateRoutedReplyNeverSatisfiesCall(t *testing.T) {
+var _ = ginkgo.It("TestLateRoutedReplyNeverSatisfiesCall", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		time.Sleep(300 * time.Millisecond) // reply crosses the deadline
 		// The client has already timed out and may have closed this pipe.
@@ -37,17 +40,20 @@ func TestLateRoutedReplyNeverSatisfiesCall(t *testing.T) {
 	if elapsed := time.Since(start); elapsed > 2*time.Second {
 		t.Fatalf("call took %v", elapsed)
 	}
-}
+})
 
 // TestTimelyReplyReturnedWhileConnectionLingers pins the other half of
 // the rule: a reply routed before the deadline is returned even though
 // the peer lingers afterwards (the slow-cleanup shape).
-func TestTimelyReplyReturnedWhileConnectionLingers(t *testing.T) {
+var _ = ginkgo.It("TestTimelyReplyReturnedWhileConnectionLingers", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"id":1,"result":{"ok":true}}`+"\n")
 		time.Sleep(400 * time.Millisecond) // linger after answering
@@ -60,12 +66,13 @@ func TestTimelyReplyReturnedWhileConnectionLingers(t *testing.T) {
 	if string(resp.Result) != `{"ok":true}` {
 		t.Fatalf("result = %s", resp.Result)
 	}
-}
+})
 
 // TestNotifyBlockedWriteCancellable covers the audit finding that a
 // context-less notification write could wedge a whole query: a server
 // that stops reading must not hold Notify past the caller's deadline.
-func TestNotifyBlockedWriteCancellable(t *testing.T) {
+var _ = ginkgo.It("TestNotifyBlockedWriteCancellable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	// The server never reads its stdin: the notification write blocks.
@@ -82,16 +89,19 @@ func TestNotifyBlockedWriteCancellable(t *testing.T) {
 	if pp.abort.count() == 0 {
 		t.Fatal("abort hook not fired")
 	}
-}
+})
 
 // TestBlockedRejectionWriteReleasedByAbort covers the audit's abandoned
 // writer: a callback rejection that cannot be delivered must not wedge
 // the read loop, and the stuck writer must be released by abort rather
 // than holding the write lock forever.
-func TestBlockedRejectionWriteReleasedByAbort(t *testing.T) {
+var _ = ginkgo.It("TestBlockedRejectionWriteReleasedByAbort", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(ACPCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		// Consume the client's request, then stop reading so the
 		// rejection write blocks on the full pipe.
 		readRequest(t, pp.serverR)
@@ -120,16 +130,19 @@ func TestBlockedRejectionWriteReleasedByAbort(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("write lock never released after abort")
 	}
-}
+})
 
 // TestCloseUnblocksTransportOnTerminalEOF pins die's abort ownership: a
 // terminal connection failure must tear the transport down so owned
 // readers and writers cannot stay blocked, and repeated Close stays a
 // safe no-op.
-func TestCloseUnblocksTransportOnTerminalEOF(t *testing.T) {
+var _ = ginkgo.It("TestCloseUnblocksTransportOnTerminalEOF", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pp := newPipePair(t)
 	c := pp.conn(CodexCodec{})
 	go func() {
+		defer ginkgo.GinkgoRecover()
+		defer func() { _ = pp.serverW.Close() }()
 		readRequest(t, pp.serverR)
 		_ = pp.serverW.Close() // EOF
 	}()
@@ -141,4 +154,4 @@ func TestCloseUnblocksTransportOnTerminalEOF(t *testing.T) {
 	}
 	c.Close()
 	c.Close() // repeated closure must stay safe
-}
+})

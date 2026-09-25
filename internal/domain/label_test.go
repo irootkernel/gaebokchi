@@ -1,12 +1,12 @@
 package domain
 
-import "testing"
+import ginkgo "github.com/onsi/ginkgo/v2"
 
 // TestNormalizeLabelUnicodeWhitespace pins the complete Unicode
 // whitespace policy: every White_Space rune normalizes to a space, a
 // whitespace-only label normalizes to empty, and ordinary printable
 // Unicode (including Korean/CJK) is preserved.
-func TestNormalizeLabelUnicodeWhitespace(t *testing.T) {
+var _ = ginkgo.Describe("TestNormalizeLabelUnicodeWhitespace", func() {
 	cases := []struct {
 		name string
 		in   string
@@ -27,10 +27,11 @@ func TestNormalizeLabelUnicodeWhitespace(t *testing.T) {
 		{"ordinary text unchanged", "simple@example.com", "simple@example.com"},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			if got := NormalizeLabel(tc.in); got != tc.want {
 				t.Fatalf("NormalizeLabel(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
 	}
-}
+})

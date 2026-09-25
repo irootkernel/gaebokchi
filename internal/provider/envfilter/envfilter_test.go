@@ -1,11 +1,12 @@
 package envfilter
 
 import (
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"reflect"
-	"testing"
 )
 
-func TestCodexRuleDropsAndReplaces(t *testing.T) {
+var _ = ginkgo.It("TestCodexRuleDropsAndReplaces", func() {
+	t := testT{ginkgo.GinkgoT()}
 	parent := []string{
 		"PATH=/usr/bin:/bin",
 		"HOME=/Users/tester",
@@ -33,9 +34,10 @@ func TestCodexRuleDropsAndReplaces(t *testing.T) {
 			t.Fatalf("credential override leaked: %q", kv)
 		}
 	}
-}
+})
 
-func TestGrokRuleDropsKeys(t *testing.T) {
+var _ = ginkgo.It("TestGrokRuleDropsKeys", func() {
+	t := testT{ginkgo.GinkgoT()}
 	parent := []string{
 		"PATH=/usr/bin",
 		"XAI_API_KEY=xai-secret",
@@ -47,22 +49,24 @@ func TestGrokRuleDropsKeys(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("grok env = %v, want %v", got, want)
 	}
-}
+})
 
-func TestParentEnvironmentNotMutated(t *testing.T) {
+var _ = ginkgo.It("TestParentEnvironmentNotMutated", func() {
+	t := testT{ginkgo.GinkgoT()}
 	parent := []string{"CODEX_HOME=/keep-me", "PATH=/bin"}
 	_ = Apply(parent, Rule{Drop: []string{"CODEX_HOME"}})
 	if parent[0] != "CODEX_HOME=/keep-me" {
 		t.Fatalf("parent slice mutated: %v", parent)
 	}
-}
+})
 
-func TestSetWithoutExistingEntryAppends(t *testing.T) {
+var _ = ginkgo.It("TestSetWithoutExistingEntryAppends", func() {
+	t := testT{ginkgo.GinkgoT()}
 	got := Apply([]string{"PATH=/bin"}, Rule{Set: map[string]string{"NEW_VAR": "v"}})
 	if !contains(got, "NEW_VAR=v") || !contains(got, "PATH=/bin") {
 		t.Fatalf("apply = %v", got)
 	}
-}
+})
 
 func contains(list []string, want string) bool {
 	for _, v := range list {

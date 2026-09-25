@@ -2,11 +2,12 @@ package rpc
 
 import (
 	"encoding/json"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"strings"
-	"testing"
 )
 
-func TestCodexCodecExactBytes(t *testing.T) {
+var _ = ginkgo.It("TestCodexCodecExactBytes", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := CodexCodec{}
 	got, err := c.EncodeRequest(1, "initialize", map[string]any{"name": "gaebokchi"})
 	if err != nil {
@@ -41,9 +42,10 @@ func TestCodexCodecExactBytes(t *testing.T) {
 	if string(resp) != `{"id":900,"error":{"code":-32601,"message":"nope"}}` {
 		t.Fatalf("error response = %s", resp)
 	}
-}
+})
 
-func TestACPCodecExactBytes(t *testing.T) {
+var _ = ginkgo.It("TestACPCodecExactBytes", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := ACPCodec{}
 	got, err := c.EncodeRequest(1, "initialize", map[string]any{"protocolVersion": 1})
 	if err != nil {
@@ -67,9 +69,10 @@ func TestACPCodecExactBytes(t *testing.T) {
 	if string(resp) != `{"jsonrpc":"2.0","id":"req-7","error":{"code":-32601,"message":"nope"}}` {
 		t.Fatalf("error response = %s", resp)
 	}
-}
+})
 
-func TestCodecAllowlists(t *testing.T) {
+var _ = ginkgo.It("TestCodecAllowlists", func() {
+	t := testT{ginkgo.GinkgoT()}
 	for _, c := range []Codec{CodexCodec{}, ACPCodec{}} {
 		for _, m := range c.Allowlist() {
 			if !c.Allowed(m) {
@@ -98,4 +101,4 @@ func TestCodecAllowlists(t *testing.T) {
 			t.Fatalf("acp codec allowed forbidden notification %q", m)
 		}
 	}
-}
+})

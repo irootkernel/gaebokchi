@@ -2,6 +2,7 @@ package process
 
 import (
 	"bytes"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
 	"os"
 	"os/exec"
@@ -10,13 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 )
 
-// TestHelperProcess is not a real test: the test binary re-executes itself
-// as the fake child. Scenarios are selected by the first argument.
-func TestHelperProcess(t *testing.T) {
+// runHelperProcess handles test-binary re-execution as a fake child.
+// Scenarios are selected by the first argument after --.
+func runHelperProcess() {
 	if os.Getenv("GO_GAEBOKCHI_HELPER") != "1" {
 		return
 	}
@@ -127,9 +127,9 @@ func itoa(n int64) string {
 }
 
 // startHelper launches the test binary as a fake child.
-func startHelper(t *testing.T, scenario string, extra ...string) *Child {
+func startHelper(t testT, scenario string, extra ...string) *Child {
 	t.Helper()
-	args := append([]string{"-test.run=TestHelperProcess", "--", scenario}, extra...)
+	args := append([]string{"--", scenario}, extra...)
 	c, err := Start(Config{
 		Bin:  os.Args[0],
 		Args: args,
@@ -141,7 +141,8 @@ func startHelper(t *testing.T, scenario string, extra ...string) *Child {
 	return c
 }
 
-func TestCleanExitAfterStdinEOF(t *testing.T) {
+var _ = ginkgo.It("TestCleanExitAfterStdinEOF", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "echo-stdin")
 	if _, err := io.WriteString(c.Stdin(), "hello"); err != nil {
 		t.Fatalf("write stdin: %v", err)
@@ -167,9 +168,10 @@ func TestCleanExitAfterStdinEOF(t *testing.T) {
 	if _, err := os.Stat(c.dir); !os.IsNotExist(err) {
 		t.Fatalf("temp dir not removed: %v", err)
 	}
-}
+})
 
-func TestEarlyExit(t *testing.T) {
+var _ = ginkgo.It("TestEarlyExit", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "exit-immediately")
 	select {
 	case <-c.Done():
@@ -184,9 +186,10 @@ func TestEarlyExit(t *testing.T) {
 	if err := c.Close(); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-}
+})
 
-func TestStuckChildTerminatedWithinBudget(t *testing.T) {
+var _ = ginkgo.It("TestStuckChildTerminatedWithinBudget", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "stuck")
 	start := time.Now()
 	if err := c.Close(); err != nil {
@@ -202,9 +205,10 @@ func TestStuckChildTerminatedWithinBudget(t *testing.T) {
 	default:
 		t.Fatal("child not reaped after close")
 	}
-}
+})
 
-func TestChildIgnoringSIGTERMKilled(t *testing.T) {
+var _ = ginkgo.It("TestChildIgnoringSIGTERMKilled", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "ignore-term")
 	start := time.Now()
 	if err := c.Close(); err != nil {
@@ -219,9 +223,10 @@ func TestChildIgnoringSIGTERMKilled(t *testing.T) {
 	default:
 		t.Fatal("child not reaped after SIGKILL")
 	}
-}
+})
 
-func TestStderrFloodBoundedAndDrained(t *testing.T) {
+var _ = ginkgo.It("TestStderrFloodBoundedAndDrained", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "flood-stderr")
 	<-c.Done()
 	// The drain goroutine keeps running past child exit until EOF; Close
@@ -236,9 +241,10 @@ func TestStderrFloodBoundedAndDrained(t *testing.T) {
 	if len(kept) == 0 {
 		t.Fatal("stderr retention lost the flood head")
 	}
-}
+})
 
-func TestPrivateTempWorkingDirectory(t *testing.T) {
+var _ = ginkgo.It("TestPrivateTempWorkingDirectory", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "print-cwd")
 	out, _ := io.ReadAll(c.Stdout())
 	<-c.Done()
@@ -253,12 +259,13 @@ func TestPrivateTempWorkingDirectory(t *testing.T) {
 	if same, err := samePath(wd, mustWd(t)); err == nil && same {
 		t.Fatalf("child cwd equals invocation dir %q", wd)
 	}
-}
+})
 
-func TestEnvironmentPassedVerbatim(t *testing.T) {
+var _ = ginkgo.It("TestEnvironmentPassedVerbatim", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c, err := Start(Config{
 		Bin:  os.Args[0],
-		Args: []string{"-test.run=TestHelperProcess", "--", "print-env"},
+		Args: []string{"--", "print-env"},
 		Env:  append(os.Environ(), "GO_GAEBOKCHI_HELPER=1", "GAEBOKCHI_TEST_MARKER=42"),
 	})
 	if err != nil {
@@ -275,9 +282,10 @@ func TestEnvironmentPassedVerbatim(t *testing.T) {
 	if bytes.Contains(out, []byte("GAEBOKCHI_TEST_MISSING")) {
 		t.Fatal("unexpected env content")
 	}
-}
+})
 
-func TestInheritedPipeHolderDoesNotBlockCleanup(t *testing.T) {
+var _ = ginkgo.It("TestInheritedPipeHolderDoesNotBlockCleanup", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// The grandchild (sleep) inherits stdout and outlives the direct
 	// child; Close must still reap, unblock readers, and return.
 	c := startHelper(t, "spawn-grandchild", "sleep", "30")
@@ -305,9 +313,10 @@ func TestInheritedPipeHolderDoesNotBlockCleanup(t *testing.T) {
 			t.Fatal("pipe reader never unblocked after close")
 		}
 	}
-}
+})
 
-func TestUnrelatedProcessSurvivesCleanup(t *testing.T) {
+var _ = ginkgo.It("TestUnrelatedProcessSurvivesCleanup", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// A process gaebokchi did not start must be untouched by cleanup.
 	other := exec.Command("sleep", "30")
 	if err := other.Start(); err != nil {
@@ -325,9 +334,10 @@ func TestUnrelatedProcessSurvivesCleanup(t *testing.T) {
 	if err := other.Process.Signal(syscall.Signal(0)); err != nil {
 		t.Fatalf("unrelated process was killed by cleanup: %v", err)
 	}
-}
+})
 
-func TestCloseIsIdempotent(t *testing.T) {
+var _ = ginkgo.It("TestCloseIsIdempotent", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "stuck")
 	if err := c.Close(); err != nil {
 		t.Fatal(err)
@@ -340,13 +350,14 @@ func TestCloseIsIdempotent(t *testing.T) {
 	default:
 		t.Fatal("exactly-once wait violated: child not reaped")
 	}
-}
+})
 
 // TestCloseHonorsSingleAbsoluteBudgetEndToEnd measures the whole Close
 // against the one absolute cleanup budget (EOF + SIGTERM + SIGKILL +
 // drain + temp-dir removal), not a sum of stage timers: the audit found
 // finish granting itself a fresh full budget after shutdown.
-func TestCloseHonorsSingleAbsoluteBudgetEndToEnd(t *testing.T) {
+var _ = ginkgo.It("TestCloseHonorsSingleAbsoluteBudgetEndToEnd", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "ignore-term")
 	start := time.Now()
 	if err := c.Close(); err != nil {
@@ -361,12 +372,12 @@ func TestCloseHonorsSingleAbsoluteBudgetEndToEnd(t *testing.T) {
 	default:
 		t.Fatal("child not reaped after close")
 	}
-}
+})
 
 // readGrandchildPID reads the helper's reported descendant pid without
 // waiting for EOF (the descendant inherits stdout, so EOF only arrives
 // when it exits).
-func readGrandchildPID(t *testing.T, c *Child) int {
+func readGrandchildPID(t testT, c *Child) int {
 	t.Helper()
 	pidLine := make(chan string, 1)
 	go func() {
@@ -406,7 +417,8 @@ func readGrandchildPID(t *testing.T, c *Child) int {
 // exit is preserved by cleanup. Group membership alone does not prove a
 // descendant is disposable — a provider-managed shared leader can be a
 // descendant — so stages 1 and 2 must not signal it.
-func TestDescendantsPreservedWhenDirectChildExits(t *testing.T) {
+var _ = ginkgo.It("TestDescendantsPreservedWhenDirectChildExits", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "spawn-grandchild-pid", "sleep", "30")
 	pid := readGrandchildPID(t, c)
 
@@ -420,7 +432,7 @@ func TestDescendantsPreservedWhenDirectChildExits(t *testing.T) {
 	// The descendant is the test's own helper process: end it explicitly
 	// rather than leaving it to its 30s sleep.
 	_ = syscall.Kill(pid, syscall.SIGKILL)
-}
+})
 
 // TestStuckDescendantSurvivesForcedDirectKill covers the forced side of
 // the ownership boundary: when the direct child we started refuses
@@ -428,7 +440,8 @@ func TestDescendantsPreservedWhenDirectChildExits(t *testing.T) {
 // child. The uncertain-ownership descendant survives even forced
 // cleanup — direct-child unresponsiveness does not prove the group is
 // disposable — while bounded cleanup still completes.
-func TestStuckDescendantSurvivesForcedDirectKill(t *testing.T) {
+var _ = ginkgo.It("TestStuckDescendantSurvivesForcedDirectKill", func() {
+	t := testT{ginkgo.GinkgoT()}
 	c := startHelper(t, "ignore-term-grandchild", "sleep", "30")
 	pid := readGrandchildPID(t, c)
 
@@ -450,9 +463,10 @@ func TestStuckDescendantSurvivesForcedDirectKill(t *testing.T) {
 	// The descendant is the test's own helper process: end it explicitly
 	// rather than leaving it to its 30s sleep.
 	_ = syscall.Kill(pid, syscall.SIGKILL)
-}
+})
 
-func TestStartFailureCleansUp(t *testing.T) {
+var _ = ginkgo.It("TestStartFailureCleansUp", func() {
+	t := testT{ginkgo.GinkgoT()}
 	before, _ := os.ReadDir(os.TempDir())
 	_, err := Start(Config{Bin: "/nonexistent/gaebokchi-no-such-bin", Args: nil, Env: nil})
 	if err == nil {
@@ -462,9 +476,9 @@ func TestStartFailureCleansUp(t *testing.T) {
 	if len(after) > len(before)+1 {
 		t.Fatalf("temp dirs leaked on start failure: before=%d after=%d", len(before), len(after))
 	}
-}
+})
 
-func mustWd(t *testing.T) string {
+func mustWd(t testT) string {
 	t.Helper()
 	wd, err := os.Getwd()
 	if err != nil {
@@ -491,14 +505,15 @@ func realpath(p string) (string, error) {
 // bit, the private directory cannot be unlinked, so Close must report
 // the failure, keep reporting the same outcome on repeated calls, and
 // still reap the child.
-func TestCloseReportsRemovalFailure(t *testing.T) {
+var _ = ginkgo.It("TestCloseReportsRemovalFailure", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if os.Getuid() == 0 {
 		t.Skip("permission-based removal failure does not apply as root")
 	}
 	parent := t.TempDir()
 	c, err := Start(Config{
 		Bin:        os.Args[0],
-		Args:       []string{"-test.run=TestHelperProcess", "--", "stuck"},
+		Args:       []string{"--", "stuck"},
 		Env:        append(os.Environ(), "GO_GAEBOKCHI_HELPER=1"),
 		TempParent: parent,
 	})
@@ -525,4 +540,4 @@ func TestCloseReportsRemovalFailure(t *testing.T) {
 	default:
 		t.Fatal("child not reaped despite incomplete removal")
 	}
-}
+})

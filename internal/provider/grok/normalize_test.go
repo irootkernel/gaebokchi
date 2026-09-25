@@ -3,9 +3,9 @@ package grok
 import (
 	"context"
 	"encoding/json"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -35,7 +35,7 @@ func billingConfig(periodType any, credit any, extra map[string]any) string {
 	return string(b)
 }
 
-func TestNormalizeBillingMatrix(t *testing.T) {
+var _ = ginkgo.Describe("TestNormalizeBillingMatrix", func() {
 	cases := []struct {
 		name      string
 		payload   string
@@ -67,7 +67,8 @@ func TestNormalizeBillingMatrix(t *testing.T) {
 		{"malformed optional end discarded", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 30, map[string]any{"periodEnd": "not-a-date"}), domain.StatusOK, fp(30), false},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			out := normalizeBilling(json.RawMessage(tc.payload))
 			if out.Status != tc.want {
 				t.Fatalf("status = %v, want %v", out.Status, tc.want)
@@ -90,9 +91,10 @@ func TestNormalizeBillingMatrix(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
-func TestMonthlyNeverBecomesWeeklyValue(t *testing.T) {
+var _ = ginkgo.It("TestMonthlyNeverBecomesWeeklyValue", func() {
+	t := testT{ginkgo.GinkgoT()}
 	out := normalizeBilling(json.RawMessage(billingConfig("USAGE_PERIOD_TYPE_MONTHLY", 88, nil)))
 	if out.Percent != nil || out.Period == domain.PeriodWeekly {
 		t.Fatalf("monthly payload leaked into weekly semantics: %+v", out)
@@ -100,14 +102,15 @@ func TestMonthlyNeverBecomesWeeklyValue(t *testing.T) {
 	if out.Status != domain.StatusNotApplicableMonthly {
 		t.Fatalf("status = %v", out.Status)
 	}
-}
+})
 
-func TestLegacyFieldsNeverConverted(t *testing.T) {
+var _ = ginkgo.It("TestLegacyFieldsNeverConverted", func() {
+	t := testT{ginkgo.GinkgoT()}
 	out := normalizeBilling(json.RawMessage(`{"config":{"monthlyLimit":100,"used":55,"prepaidBalance":{"val":10},"onDemandUsed":{"val":3}}}`))
 	if out.Percent != nil || out.Status != domain.StatusUnavailablePeriod {
 		t.Fatalf("legacy credits converted: %+v", out)
 	}
-}
+})
 
 func fp(v float64) *float64 { return &v }
 
@@ -124,7 +127,8 @@ func providerOver(child *process.Child) *Provider {
 	return &Provider{Start: func(process.Config) (*process.Child, error) { return child, nil }}
 }
 
-func TestQueryWeeklyFromCapturedFixture(t *testing.T) {
+var _ = ginkgo.It("TestQueryWeeklyFromCapturedFixture", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Emit: compactFixture(t, "initialize_response.json") + "\n"},
@@ -151,9 +155,10 @@ func TestQueryWeeklyFromCapturedFixture(t *testing.T) {
 	if res.ResetAt == nil {
 		t.Fatal("period end not preserved as reset metadata")
 	}
-}
+})
 
-func TestQueryMonthlyNonApplicable(t *testing.T) {
+var _ = ginkgo.It("TestQueryMonthlyNonApplicable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	monthly := billingConfig("USAGE_PERIOD_TYPE_MONTHLY", 88, map[string]any{"periodEnd": "2026-10-19T15:52:30Z"})
 	steps := []testutil.Step{
 		{Wait: 1},
@@ -186,11 +191,12 @@ func TestQueryMonthlyNonApplicable(t *testing.T) {
 	if res.ResetAt == nil {
 		t.Fatal("monthly period end must be preserved as reset metadata")
 	}
-}
+})
 
 // TestWeeklyMissingUsageKeepsPeriodProvenance pins that an established
 // weekly window keeps its period provenance when usage is missing.
-func TestWeeklyMissingUsageKeepsPeriodProvenance(t *testing.T) {
+var _ = ginkgo.It("TestWeeklyMissingUsageKeepsPeriodProvenance", func() {
+	t := testT{ginkgo.GinkgoT()}
 	noUsage := map[string]any{"currentPeriod": map[string]any{
 		"type": "USAGE_PERIOD_TYPE_WEEKLY",
 		"end":  "2026-09-26T15:52:30Z",
@@ -214,11 +220,12 @@ func TestWeeklyMissingUsageKeepsPeriodProvenance(t *testing.T) {
 	if res.UsedPercent != nil {
 		t.Fatal("missing usage must not invent a percentage")
 	}
-}
+})
 
-func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
+var _ = ginkgo.Describe("TestQueryAuthAndUnsupportedPaths", func() {
 	code := -32601
-	t.Run("api key only", func(t *testing.T) {
+	ginkgo.It("api key only", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{{Wait: 1}, {Emit: initReplyWith(1, "api_key") + "\n"}}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
@@ -226,7 +233,8 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v", res.Status)
 		}
 	})
-	t.Run("interactive only", func(t *testing.T) {
+	ginkgo.It("interactive only", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{{Wait: 1}, {Emit: initReplyWith(1, "grok.com") + "\n"}}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
@@ -234,7 +242,8 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v", res.Status)
 		}
 	})
-	t.Run("authenticate server error is generic", func(t *testing.T) {
+	ginkgo.It("authenticate server error is generic", func() {
+		t := testT{ginkgo.GinkgoT()}
 		code := -32000
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
@@ -256,7 +265,8 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("guessed authentication detail: %q", res.Diagnostic.Message)
 		}
 	})
-	t.Run("authenticate method not found is unsupported", func(t *testing.T) {
+	ginkgo.It("authenticate method not found is unsupported", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1},
@@ -268,7 +278,8 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v (%s), want unsupported", res.Status, res.Diagnostic.Message)
 		}
 	})
-	t.Run("billing method not found", func(t *testing.T) {
+	ginkgo.It("billing method not found", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1},
@@ -282,7 +293,8 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v", res.Status)
 		}
 	})
-	t.Run("version mismatch", func(t *testing.T) {
+	ginkgo.It("version mismatch", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{{Wait: 1}, {Emit: initReplyWith(2, "cached_token") + "\n"}}
 		child := testutil.StartFake(t, steps)
 		res := providerOver(child).Query(context.Background(), grokTarget("default"))
@@ -290,9 +302,10 @@ func TestQueryAuthAndUnsupportedPaths(t *testing.T) {
 			t.Fatalf("status = %v", res.Status)
 		}
 	})
-}
+})
 
-func TestQueryAliasOnEveryOutcome(t *testing.T) {
+var _ = ginkgo.It("TestQueryAliasOnEveryOutcome", func() {
+	t := testT{ginkgo.GinkgoT()}
 	alias := "personal"
 	authOK := testutil.Step{Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{}}}}}
 	weekly := testutil.Step{Reply: []testutil.ReplySpec{{Slot: 2, JSONRPC: true, RawResult: billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 5, nil)}}}
@@ -315,9 +328,10 @@ func TestQueryAliasOnEveryOutcome(t *testing.T) {
 			t.Fatalf("case %d: email leaked into account column", i)
 		}
 	}
-}
+})
 
-func TestQueryMissingExecutable(t *testing.T) {
+var _ = ginkgo.It("TestQueryMissingExecutable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	p := New()
 	tgt := grokTarget("default")
 	tgt.Bin = "/nonexistent/gaebokchi-grok-missing"
@@ -328,9 +342,10 @@ func TestQueryMissingExecutable(t *testing.T) {
 	if res.Account != "default" {
 		t.Fatalf("alias lost: %q", res.Account)
 	}
-}
+})
 
-func TestQueryTimeout(t *testing.T) {
+var _ = ginkgo.It("TestQueryTimeout", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{{Wait: 1}, {SleepMs: 30000}}
 	child := testutil.StartFake(t, steps)
 	p := providerOver(child)
@@ -343,14 +358,14 @@ func TestQueryTimeout(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
-}
+})
 
 // TestAuthenticateResultShapeValidation pins the audit's finding that a
 // malformed authenticate response (error:null, result:null, a shapeless
 // object, or an incompatible envelope) used to count as an
 // authenticated session: each must be a protocol failure, never a
 // numeric success and never an unsupported authentication claim.
-func TestAuthenticateResultShapeValidation(t *testing.T) {
+var _ = ginkgo.Describe("TestAuthenticateResultShapeValidation", func() {
 	cases := []struct {
 		name string
 		auth string
@@ -363,7 +378,8 @@ func TestAuthenticateResultShapeValidation(t *testing.T) {
 		{"missing jsonrpc marker", `{"id":2,"result":{"_meta":{}}}`},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			steps := []testutil.Step{
 				{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 				{Wait: 1}, {Emit: tc.auth + "\n"},
@@ -375,7 +391,8 @@ func TestAuthenticateResultShapeValidation(t *testing.T) {
 			}
 		})
 	}
-	t.Run("qualified shape proceeds to billing", func(t *testing.T) {
+	ginkgo.It("qualified shape proceeds to billing", func() {
+		t := testT{ginkgo.GinkgoT()}
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: initReplyWith(1, "cached_token") + "\n"},
 			{Wait: 1}, {Reply: []testutil.ReplySpec{{Slot: 1, JSONRPC: true, Result: map[string]any{"_meta": map[string]any{"auth_mode": "Oidc"}, "additive": true}}}},
@@ -387,4 +404,4 @@ func TestAuthenticateResultShapeValidation(t *testing.T) {
 			t.Fatalf("status = %v percent = %v; qualified shape must authenticate", res.Status, res.UsedPercent)
 		}
 	})
-}
+})

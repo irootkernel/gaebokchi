@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -59,7 +59,7 @@ func fakes() (codexQuerier, grokQuerier, claudeQuerier) {
 
 func ptr(v float64) *float64 { return &v }
 
-func parse(t *testing.T, args ...string) options.Options {
+func parse(t testT, args ...string) options.Options {
 	t.Helper()
 	o, err := options.Parse(args)
 	if err != nil {
@@ -68,7 +68,8 @@ func parse(t *testing.T, args ...string) options.Options {
 	return o
 }
 
-func TestUsageErrorsExitTwo(t *testing.T) {
+var _ = ginkgo.It("TestUsageErrorsExitTwo", func() {
+	t := testT{ginkgo.GinkgoT()}
 	var stdout, stderr bytes.Buffer
 	if code := runWithIO([]string{"--bogus"}, &stdout, &stderr, fakes); code != 2 {
 		t.Fatalf("code = %d, want 2", code)
@@ -78,9 +79,10 @@ func TestUsageErrorsExitTwo(t *testing.T) {
 	if code := runWithIO([]string{"extra-arg"}, &stdout, &stderr, fakes); code != 2 {
 		t.Fatalf("positional code = %d, want 2", code)
 	}
-}
+})
 
-func TestVersionDispatchPrecedesOptionsAndProviders(t *testing.T) {
+var _ = ginkgo.It("TestVersionDispatchPrecedesOptionsAndProviders", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bomb := &fakeProv{results: map[string]domain.Result{"codex:0": {Status: domain.StatusProtocolError}}}
 	newProviders := func() (codexQuerier, grokQuerier, claudeQuerier) { return bomb, bomb, bomb }
 	var stdout, stderr bytes.Buffer
@@ -101,7 +103,7 @@ func TestVersionDispatchPrecedesOptionsAndProviders(t *testing.T) {
 	if len(bomb.calls) != 0 {
 		t.Fatal("removed version flag launched a provider")
 	}
-}
+})
 
 // executeWith runs execute with test fakes.
 func executeWith(opts options.Options, stdout, stderr *bytes.Buffer) int {
@@ -109,7 +111,8 @@ func executeWith(opts options.Options, stdout, stderr *bytes.Buffer) int {
 	return execute(opts, stdout, stderr, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, cl })
 }
 
-func TestDefaultTableExactlyFiveLines(t *testing.T) {
+var _ = ginkgo.It("TestDefaultTableExactlyFiveLines", func() {
+	t := testT{ginkgo.GinkgoT()}
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
 	code := executeWith(opts, &out, &errBuf)
@@ -129,9 +132,10 @@ func TestDefaultTableExactlyFiveLines(t *testing.T) {
 	if errBuf.Len() != 0 {
 		t.Fatalf("clean run produced diagnostics:\n%s", errBuf.String())
 	}
-}
+})
 
-func TestCustomHomesNPlusTwoLines(t *testing.T) {
+var _ = ginkgo.It("TestCustomHomesNPlusTwoLines", func() {
+	t := testT{ginkgo.GinkgoT()}
 	home := t.TempDir()
 	opts := parse(t, "--codex-home", home+"/a", "--codex-home", home+"/b", "--codex-home", home+"/c", "--timeout", "5s")
 	var out, errBuf bytes.Buffer
@@ -143,9 +147,10 @@ func TestCustomHomesNPlusTwoLines(t *testing.T) {
 	if len(lines) != 6 { // N=3 codex homes + header + grok + claude
 		t.Fatalf("lines = %d, want 6:\n%s", len(lines), out.String())
 	}
-}
+})
 
-func TestPartialFailureKeepsTableExitOne(t *testing.T) {
+var _ = ginkgo.It("TestPartialFailureKeepsTableExitOne", func() {
+	t := testT{ginkgo.GinkgoT()}
 	cx := &fakeProv{results: map[string]domain.Result{
 		"codex:0": {Account: "a@example.com", AccountSource: domain.AccountSourceProtocolEmail, Status: domain.StatusOK, UsedPercent: ptr(37)},
 		"codex:1": {Account: ".codex-hsy", AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusAuthRequired,
@@ -171,9 +176,10 @@ func TestPartialFailureKeepsTableExitOne(t *testing.T) {
 	if !strings.Contains(errBuf.String(), "gaebokchi: codex:1: AUTH REQUIRED:") {
 		t.Fatalf("diagnostic missing:\n%s", errBuf.String())
 	}
-}
+})
 
-func TestMonthlyAndAPIKeyAreCleanExitZero(t *testing.T) {
+var _ = ginkgo.It("TestMonthlyAndAPIKeyAreCleanExitZero", func() {
+	t := testT{ginkgo.GinkgoT()}
 	cx := &fakeProv{results: map[string]domain.Result{
 		"codex:0": {Account: "a@example.com", Status: domain.StatusOK, UsedPercent: ptr(1)},
 		"codex:1": {Account: ".x", Status: domain.StatusNotApplicableAPIKey},
@@ -187,9 +193,10 @@ func TestMonthlyAndAPIKeyAreCleanExitZero(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("code = %d, want 0 for non-applicable outcomes", code)
 	}
-}
+})
 
-func TestHelpLaunchesNoProviders(t *testing.T) {
+var _ = ginkgo.It("TestHelpLaunchesNoProviders", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// The fake providers fail the test if queried.
 	bomb := &fakeProv{results: map[string]domain.Result{
 		"codex:0": {Status: domain.StatusProtocolError},
@@ -202,9 +209,10 @@ func TestHelpLaunchesNoProviders(t *testing.T) {
 	if len(bomb.calls) != 0 {
 		t.Fatal("help must not launch providers")
 	}
-}
+})
 
-func TestBrokenStdoutExitsOne(t *testing.T) {
+var _ = ginkgo.It("TestBrokenStdoutExitsOne", func() {
+	t := testT{ginkgo.GinkgoT()}
 	opts := parse(t, "--timeout", "5s")
 	errBuf := &bytes.Buffer{}
 	code := execute(opts, errWriter{}, errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return fakes() })
@@ -214,7 +222,7 @@ func TestBrokenStdoutExitsOne(t *testing.T) {
 	if !strings.Contains(errBuf.String(), "cannot write") {
 		t.Fatalf("safe diagnostic missing: %q", errBuf.String())
 	}
-}
+})
 
 type errWriter struct{}
 
@@ -223,15 +231,9 @@ func (errWriter) Write(p []byte) (int, error) { return 0, fmt.Errorf("broken pip
 // TestSignalCancelsAndExitsWithSignalCode re-executes the test binary
 // as a child, sends SIGINT mid-query, and asserts exit code 130 with a
 // CANCELLED table still rendered.
-func TestSignalCancelsAndExitsWithSignalCode(t *testing.T) {
-	if os.Getenv("GAEBOKCHI_SIG_TEST") == "1" {
-		slow := &fakeProv{delay: 30 * time.Second}
-		opts := parse(t, "--timeout", "20s")
-		var out, errBuf bytes.Buffer
-		code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return slow, slow, slow })
-		fmt.Fprintf(os.Stderr, "SIGTEST-TABLE:\n%s", out.String())
-		os.Exit(code)
-	}
+var _ = ginkgo.It("TestSignalCancelsAndExitsWithSignalCode", func() {
+	t := testT{ginkgo.GinkgoT()}
+
 	proc, err := os.StartProcess(os.Args[0], os.Args, &os.ProcAttr{
 		Env:   append(os.Environ(), "GAEBOKCHI_SIG_TEST=1"),
 		Files: []*os.File{os.Stdin, os.Stderr, os.Stderr},
@@ -252,23 +254,11 @@ func TestSignalCancelsAndExitsWithSignalCode(t *testing.T) {
 	if ws.ExitStatus() != 130 {
 		t.Fatalf("child exit = %d, want 130 (SIGINT)", ws.ExitStatus())
 	}
-}
-
-// TestFakeHelperProcess is not a real test: the re-executed child for
-// the cleanup-propagation tests runs the scripted fake provider.
-func TestFakeHelperProcess(t *testing.T) {
-	if os.Getenv("GAEBOKCHI_FAKE") != "1" {
-		return
-	}
-	if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
+})
 
 // startFakeChild starts a scripted fake child whose private directory
 // lives under the given parent (see process.Config.TempParent).
-func startFakeChild(t *testing.T, parent string, steps []testutil.Step) *process.Child {
+func startFakeChild(t testT, parent string, steps []testutil.Step) *process.Child {
 	t.Helper()
 	script, err := json.Marshal(steps)
 	if err != nil {
@@ -276,7 +266,7 @@ func startFakeChild(t *testing.T, parent string, steps []testutil.Step) *process
 	}
 	c, err := process.Start(process.Config{
 		Bin:        os.Args[0],
-		Args:       []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Args:       []string{"--", "fake"},
 		Env:        append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
 		TempParent: parent,
 	})
@@ -318,7 +308,8 @@ func cmdGrokSteps(pct int) []testutil.Step {
 // directories cannot be removed — and pins the contract: both quotas
 // stay numeric, exactly one bounded safe diagnostic names the failing
 // target, healthy siblings are untouched, and the command exits 1.
-func TestCleanupFailureKeepsRowsAndExitsOne(t *testing.T) {
+var _ = ginkgo.It("TestCleanupFailureKeepsRowsAndExitsOne", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if os.Getuid() == 0 {
 		t.Skip("permission-based removal failure does not apply as root")
 	}
@@ -369,12 +360,13 @@ func TestCleanupFailureKeepsRowsAndExitsOne(t *testing.T) {
 	if len(lines) != 1 || !strings.Contains(lines[0], "codex:1") || !strings.Contains(lines[0], "provider cleanup incomplete") {
 		t.Fatalf("expected exactly one safe cleanup diagnostic for codex:1, got:\n%s", errBuf.String())
 	}
-}
+})
 
 // TestFinalExitPrecedenceWithCleanupFailure pins the centralized exit
 // precedence: a handled signal outranks a cleanup failure, which
 // outranks clean rows.
-func TestFinalExitPrecedenceWithCleanupFailure(t *testing.T) {
+var _ = ginkgo.It("TestFinalExitPrecedenceWithCleanupFailure", func() {
+	t := testT{ginkgo.GinkgoT()}
 	failing := []domain.Result{{TargetID: "codex:0", Status: domain.StatusOK, UsedPercent: ptr(5), CleanupFailed: true}}
 	clean := []domain.Result{{TargetID: "codex:0", Status: domain.StatusOK, UsedPercent: ptr(5)}}
 	if got := finalExit(int64(syscall.SIGINT), false, failing); got != 130 {
@@ -389,16 +381,29 @@ func TestFinalExitPrecedenceWithCleanupFailure(t *testing.T) {
 	if got := finalExit(0, false, clean); got != 0 {
 		t.Fatalf("clean run = %d, want 0", got)
 	}
-}
+})
 
 // TestUnicodeWhitespaceAliasExitsTwoBeforeProviders pins the
 // confirmation review's finding through the actual CLI entry: an alias
 // built only from Unicode spaces is a usage error (exit 2) before any
 // provider can launch.
-func TestUnicodeWhitespaceAliasExitsTwoBeforeProviders(t *testing.T) {
+var _ = ginkgo.It("TestUnicodeWhitespaceAliasExitsTwoBeforeProviders", func() {
+	t := testT{ginkgo.GinkgoT()}
 	for _, alias := range []string{"\u3000", "\u205f", "\u1680", " \u3000\t\u205f"} {
 		if code := run([]string{"--grok-account", alias}); code != 2 {
 			t.Fatalf("alias %q: code = %d, want 2", alias, code)
 		}
 	}
+})
+
+func runSignalTestChild() {
+	slow := &fakeProv{delay: 30 * time.Second}
+	opts, err := options.Parse([]string{"--timeout", "20s"})
+	if err != nil {
+		os.Exit(2)
+	}
+	var out, errBuf bytes.Buffer
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return slow, slow, slow })
+	fmt.Fprintf(os.Stderr, "SIGTEST-TABLE:\n%s", out.String())
+	os.Exit(code)
 }

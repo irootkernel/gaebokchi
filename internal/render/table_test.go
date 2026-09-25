@@ -2,8 +2,8 @@ package render
 
 import (
 	"bytes"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -11,7 +11,8 @@ import (
 
 func pct(v float64) *float64 { return &v }
 
-func TestTableGoldenMixedStatuses(t *testing.T) {
+var _ = ginkgo.It("TestTableGoldenMixedStatuses", func() {
+	t := testT{ginkgo.GinkgoT()}
 	results := []domain.Result{
 		{Provider: domain.ProviderCodex, Account: "account1@example.com", Status: domain.StatusOK, UsedPercent: pct(37)},
 		{Provider: domain.ProviderCodex, Account: ".codex-hsy", Status: domain.StatusAuthRequired},
@@ -43,9 +44,10 @@ func TestTableGoldenMixedStatuses(t *testing.T) {
 			t.Fatal("separator or border emitted")
 		}
 	}
-}
+})
 
-func TestTableAllNumeric(t *testing.T) {
+var _ = ginkgo.It("TestTableAllNumeric", func() {
+	t := testT{ginkgo.GinkgoT()}
 	results := []domain.Result{
 		{Provider: domain.ProviderCodex, Account: "a@example.com", Status: domain.StatusOK, UsedPercent: pct(0)},
 		{Provider: domain.ProviderCodex, Account: "b@example.com", Status: domain.StatusOK, UsedPercent: pct(12.25)},
@@ -58,19 +60,22 @@ func TestTableAllNumeric(t *testing.T) {
 	if strings.Contains(got, "54.00%") {
 		t.Fatal("not one decimal place")
 	}
-}
+})
 
-func TestUsageCellOneDecimal(t *testing.T) {
+var _ = ginkgo.Describe("TestUsageCellOneDecimal", func() {
 	cases := map[float64]string{0: "0.0%", 100: "100.0%", 37.06: "37.1%", 99.94: "99.9%", 5.5: "5.5%"}
 	for v, want := range cases {
-		got := UsageCell(domain.Result{Status: domain.StatusOK, UsedPercent: pct(v)})
-		if got != want {
-			t.Errorf("UsageCell(%v) = %q, want %q", v, got, want)
-		}
+		ginkgo.It(want, func() {
+			t := testT{ginkgo.GinkgoT()}
+			got := UsageCell(domain.Result{Status: domain.StatusOK, UsedPercent: pct(v)})
+			if got != want {
+				t.Fatalf("UsageCell(%v) = %q, want %q", v, got, want)
+			}
+		})
 	}
-}
+})
 
-func TestSanitizeLabel(t *testing.T) {
+var _ = ginkgo.Describe("TestSanitizeLabel", func() {
 	cases := map[string]string{
 		"plain":                  "plain",
 		"injected\tcol":          "injected col",
@@ -85,13 +90,17 @@ func TestSanitizeLabel(t *testing.T) {
 		"c1\x9bcontrol":          "c1 control",
 	}
 	for in, want := range cases {
-		if got := SanitizeLabel(in); got != want {
-			t.Errorf("SanitizeLabel(%q) = %q, want %q", in, got, want)
-		}
+		ginkgo.It(in, func() {
+			t := testT{ginkgo.GinkgoT()}
+			if got := SanitizeLabel(in); got != want {
+				t.Fatalf("SanitizeLabel(%q) = %q, want %q", in, got, want)
+			}
+		})
 	}
-}
+})
 
-func TestSanitizedLabelCannotAddColumnsOrRows(t *testing.T) {
+var _ = ginkgo.It("TestSanitizedLabelCannotAddColumnsOrRows", func() {
+	t := testT{ginkgo.GinkgoT()}
 	results := []domain.Result{
 		{Provider: domain.ProviderGrok, Account: "a\tb\nc\x1b[2J", Status: domain.StatusOK, UsedPercent: pct(1)},
 	}
@@ -103,9 +112,10 @@ func TestSanitizedLabelCannotAddColumnsOrRows(t *testing.T) {
 	if strings.Count(lines[1], "\t") != 0 {
 		t.Fatalf("tab survived sanitization: %q", lines[1])
 	}
-}
+})
 
-func TestDiagnosticsOnlyForNonCleanRows(t *testing.T) {
+var _ = ginkgo.It("TestDiagnosticsOnlyForNonCleanRows", func() {
+	t := testT{ginkgo.GinkgoT()}
 	results := []domain.Result{
 		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "a@example.com", Status: domain.StatusOK, UsedPercent: pct(1)},
 		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: ".codex-hsy", Status: domain.StatusAuthRequired,
@@ -128,9 +138,10 @@ func TestDiagnosticsOnlyForNonCleanRows(t *testing.T) {
 	if strings.Contains(out, "codex:0") {
 		t.Fatal("successful row produced a diagnostic")
 	}
-}
+})
 
-func TestResetAndProvenanceNeverRendered(t *testing.T) {
+var _ = ginkgo.It("TestResetAndProvenanceNeverRendered", func() {
+	t := testT{ginkgo.GinkgoT()}
 	reset := time.Unix(1790411774, 0)
 	results := []domain.Result{{
 		Provider: domain.ProviderCodex, Account: "a@example.com", Status: domain.StatusOK, UsedPercent: pct(7),
@@ -140,4 +151,4 @@ func TestResetAndProvenanceNeverRendered(t *testing.T) {
 	if strings.Contains(got, "codex") || strings.Contains(got, "app_server") || strings.Contains(got, "2026") {
 		t.Fatalf("window provenance leaked into the table:\n%s", got)
 	}
-}
+})

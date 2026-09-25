@@ -2,12 +2,16 @@ package rpc
 
 import (
 	"bytes"
+	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
 	"strings"
-	"testing"
 )
 
-func TestFrameReaderBasics(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderBasics", func() {
+	t := testT{ginkgo.GinkgoT()}
+	var failures []string
+	fail := func(format string, args ...any) { failures = append(failures, fmt.Sprintf(format, args...)) }
 	input := "\n\n{\"a\":1}\r\n{\"b\":2}\n\n\n{\"c\":3}\r\n"
 	fr := NewFrameReader(strings.NewReader(input))
 	var got []string
@@ -27,12 +31,16 @@ func TestFrameReaderBasics(t *testing.T) {
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("frame %d = %q, want %q", i, got[i], want[i])
+			fail("frame %d = %q, want %q", i, got[i], want[i])
 		}
 	}
-}
+	if len(failures) > 0 {
+		t.Fatalf("%s", strings.Join(failures, "\n"))
+	}
+})
 
-func TestFrameReaderFragmentedAndCoalesced(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderFragmentedAndCoalesced", func() {
+	t := testT{ginkgo.GinkgoT()}
 	pr := newPieceReader([][]byte{
 		[]byte("{\"id\":1,\"resu"),
 		[]byte("lt\":{}}\n{\"id\":2,\"re"),
@@ -50,9 +58,10 @@ func TestFrameReaderFragmentedAndCoalesced(t *testing.T) {
 	if _, err := fr.Next(); err != io.EOF {
 		t.Fatalf("want EOF, got %v", err)
 	}
-}
+})
 
-func TestFrameReaderRejectsOversize(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderRejectsOversize", func() {
+	t := testT{ginkgo.GinkgoT()}
 	big := make([]byte, MaxFrameBytes+16)
 	for i := range big {
 		big[i] = 'a'
@@ -62,9 +71,10 @@ func TestFrameReaderRejectsOversize(t *testing.T) {
 	if _, err := fr.Next(); err != ErrFrameTooLarge {
 		t.Fatalf("err = %v, want ErrFrameTooLarge", err)
 	}
-}
+})
 
-func TestFrameReaderRejectsBoundarySize(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderRejectsBoundarySize", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// Exactly MaxFrameBytes of payload plus newline is over the ceiling
 	// (delimiter accounting included).
 	line := bytes.Repeat([]byte("a"), MaxFrameBytes)
@@ -81,22 +91,24 @@ func TestFrameReaderRejectsBoundarySize(t *testing.T) {
 	if err != nil || len(got) != MaxFrameBytes-2 {
 		t.Fatalf("boundary frame rejected: len=%d err=%v", len(got), err)
 	}
-}
+})
 
-func TestFrameReaderRejectsInvalidUTF8(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderRejectsInvalidUTF8", func() {
+	t := testT{ginkgo.GinkgoT()}
 	bad := []byte("{\"x\":\"\xff\xfe\"}\n")
 	fr := NewFrameReader(bytes.NewReader(bad))
 	if _, err := fr.Next(); err != ErrInvalidUTF8 {
 		t.Fatalf("err = %v, want ErrInvalidUTF8", err)
 	}
-}
+})
 
-func TestFrameReaderRejectsMissingFinalNewline(t *testing.T) {
+var _ = ginkgo.It("TestFrameReaderRejectsMissingFinalNewline", func() {
+	t := testT{ginkgo.GinkgoT()}
 	fr := NewFrameReader(strings.NewReader("{\"id\":1}"))
 	if _, err := fr.Next(); err != ErrTruncated {
 		t.Fatalf("err = %v, want ErrTruncated", err)
 	}
-}
+})
 
 // pieceReader serves reads from fixed chunks to simulate fragmentation.
 type pieceReader struct {

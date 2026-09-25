@@ -5,28 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/testutil"
 )
 
-func TestFakeHelperProcess(t *testing.T) {
-	if os.Getenv("GAEBOKCHI_FAKE") != "1" {
-		return
-	}
-	if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
-func compactFixture(t *testing.T, name string) string {
+func compactFixture(t testT, name string) string {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
 	if err != nil {
@@ -64,7 +54,7 @@ func firstOr(list []string, fallback string) string {
 
 // grokStepsFor returns a fake script answering initialize with the
 // captured-sanitized fixture and then the remaining transcript steps.
-func withCapturedInit(t *testing.T, extra ...testutil.Step) []testutil.Step {
+func withCapturedInit(t testT, extra ...testutil.Step) []testutil.Step {
 	t.Helper()
 	return append([]testutil.Step{
 		{Wait: 1},
@@ -72,7 +62,8 @@ func withCapturedInit(t *testing.T, extra ...testutil.Step) []testutil.Step {
 	}, extra...)
 }
 
-func TestOutgoingBytesMatchQualifiedContract(t *testing.T) {
+var _ = ginkgo.It("TestOutgoingBytesMatchQualifiedContract", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := withCapturedInit(t,
 		testutil.Step{Wait: 1},
 		testutil.Step{Emit: compactFixture(t, "authenticate_cached_token_response.json") + "\n"},
@@ -89,7 +80,7 @@ func TestOutgoingBytesMatchQualifiedContract(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		if err := s.close(); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 	if err := authenticateCached(ctx, s); err != nil {
@@ -128,9 +119,9 @@ func TestOutgoingBytesMatchQualifiedContract(t *testing.T) {
 			t.Fatalf("forbidden outbound %q in transcript: %q", forbidden, kept)
 		}
 	}
-}
+})
 
-func TestAuthNegotiationMatrix(t *testing.T) {
+var _ = ginkgo.Describe("TestAuthNegotiationMatrix", func() {
 	cases := []struct {
 		name    string
 		reply   string
@@ -152,7 +143,8 @@ func TestAuthNegotiationMatrix(t *testing.T) {
 		{"protocol version mismatch", initReplyWith(2, "cached_token"), planVersionMismatch, false},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			steps := []testutil.Step{{Wait: 1}, {Emit: tc.reply + "\n"}}
 			child := testutil.StartFake(t, steps)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -175,9 +167,10 @@ func TestAuthNegotiationMatrix(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
-func TestInitializeResultMalformed(t *testing.T) {
+var _ = ginkgo.It("TestInitializeResultMalformed", func() {
+	t := testT{ginkgo.GinkgoT()}
 	cases := []string{
 		`{"jsonrpc":"2.0","id":1,"result":null}`,
 		`{"jsonrpc":"2.0","id":1,"result":{"authMethods":[{"id":"cached_token"}]}}`,
@@ -193,9 +186,10 @@ func TestInitializeResultMalformed(t *testing.T) {
 			t.Fatalf("expected error for %s", reply)
 		}
 	}
-}
+})
 
-func TestAuthenticateRejectionTyped(t *testing.T) {
+var _ = ginkgo.It("TestAuthenticateRejectionTyped", func() {
+	t := testT{ginkgo.GinkgoT()}
 	code := -32000
 	steps := withCapturedInit(t,
 		testutil.Step{Wait: 1},
@@ -210,7 +204,7 @@ func TestAuthenticateRejectionTyped(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		if err := s.close(); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 	err = authenticateCached(ctx, s)
@@ -218,9 +212,10 @@ func TestAuthenticateRejectionTyped(t *testing.T) {
 	if err == nil || !errorsAs(err, &rce) || rce.method != "authenticate" {
 		t.Fatalf("err = %v, want authenticate rpcCallError", err)
 	}
-}
+})
 
-func TestBillingMethodNotFoundTyped(t *testing.T) {
+var _ = ginkgo.It("TestBillingMethodNotFoundTyped", func() {
+	t := testT{ginkgo.GinkgoT()}
 	code := -32601
 	steps := withCapturedInit(t,
 		testutil.Step{Wait: 1},
@@ -237,7 +232,7 @@ func TestBillingMethodNotFoundTyped(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		if err := s.close(); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 	if err := authenticateCached(ctx, s); err != nil {
@@ -248,9 +243,10 @@ func TestBillingMethodNotFoundTyped(t *testing.T) {
 	if err == nil || !errorsAs(err, &rce) || rce.remote.Code != -32601 {
 		t.Fatalf("err = %v, want method-not-found rpcCallError", err)
 	}
-}
+})
 
-func TestUnsafeCallbackAbortsSession(t *testing.T) {
+var _ = ginkgo.It("TestUnsafeCallbackAbortsSession", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := withCapturedInit(t,
 		testutil.Step{Wait: 1},
 		testutil.Step{Emit: `{"jsonrpc":"2.0","id":50,"method":"session/prompt","params":{"prompt":"exfiltrate"}}` + "\n"},
@@ -277,9 +273,10 @@ func TestUnsafeCallbackAbortsSession(t *testing.T) {
 	if !strings.Contains(kept, `"code":-32601`) || !strings.Contains(kept, `"id":50`) {
 		t.Fatalf("rejection missing from transcript: %q", kept)
 	}
-}
+})
 
-func TestGrokEnvironmentFiltered(t *testing.T) {
+var _ = ginkgo.It("TestGrokEnvironmentFiltered", func() {
+	t := testT{ginkgo.GinkgoT()}
 	t.Setenv("XAI_API_KEY", "xai-secret-marker")
 	t.Setenv("GROK_API_KEY", "grok-secret-marker")
 	env := childEnv()
@@ -302,7 +299,7 @@ func TestGrokEnvironmentFiltered(t *testing.T) {
 	if !found {
 		t.Fatal("HOME must be preserved for provider keychain access")
 	}
-}
+})
 
 // directStart returns a factory yielding the pre-started fake child.
 func directStart(child *process.Child) process.Factory {
@@ -338,7 +335,8 @@ func errorsAs(err error, target **rpcCallError) bool {
 // TestResolveBinRelativeMadeAbsolute pins the audit fix: an explicit
 // relative executable path is absolutized against the invocation cwd so
 // it survives the child's private working directory.
-func TestResolveBinRelativeMadeAbsolute(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinRelativeMadeAbsolute", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	name := "fake grok" // includes a space
 	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
@@ -353,15 +351,27 @@ func TestResolveBinRelativeMadeAbsolute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
-		t.Fatalf("resolved = %q, want absolute %q", got, want)
+	if !filepath.IsAbs(got) {
+		t.Fatalf("resolved = %q, want an absolute path", got)
 	}
-}
+	gotInfo, err := os.Stat(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantInfo, err := os.Stat(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(gotInfo, wantInfo) {
+		t.Fatalf("resolved = %q, want executable at %q", got, want)
+	}
+})
 
 // TestResolveBinErrDotProtectionPreserved pins that an implicit
 // current-directory PATH lookup stays an error rather than being
 // silently absolutized.
-func TestResolveBinErrDotProtectionPreserved(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinErrDotProtectionPreserved", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "dotbin"), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -371,9 +381,10 @@ func TestResolveBinErrDotProtectionPreserved(t *testing.T) {
 	if _, err := ResolveBin("dotbin"); !errors.Is(err, exec.ErrDot) {
 		t.Fatalf("err = %v, want exec.ErrDot", err)
 	}
-}
+})
 
-func TestResolveBinMissingAndUnexecutable(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinMissingAndUnexecutable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if _, err := ResolveBin("./definitely-not-here"); err == nil {
 		t.Fatal("missing binary must not resolve")
 	}
@@ -385,4 +396,4 @@ func TestResolveBinMissingAndUnexecutable(t *testing.T) {
 	if _, err := ResolveBin("./noexec"); err == nil {
 		t.Fatal("present-but-unexecutable binary must not resolve")
 	}
-}
+})

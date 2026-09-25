@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/process"
@@ -15,23 +15,13 @@ import (
 	"gaebokchi/internal/testutil"
 )
 
-func TestFakeHelperProcess(t *testing.T) {
-	if os.Getenv("GAEBOKCHI_FAKE") != "1" {
-		return
-	}
-	if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(0)
-}
-
 // newTestConn wires a fake child into an rpc connection with the Codex
 // codec and the child teardown hook.
 func newTestConn(child *process.Child) *rpc.Conn {
 	return rpc.NewConn(child.Stdin(), child.Stdout(), rpc.CodexCodec{}, func() { _ = child.Close() })
 }
 
-func fixture(t *testing.T, name string) string {
+func fixture(t testT, name string) string {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
 	if err != nil {
@@ -49,7 +39,7 @@ func fixture(t *testing.T, name string) string {
 // handshake performs the qualified initialize -> initialized sequence
 // against a fake that replies to initialize, leaving the connection
 // ready for account/read.
-func handshake(t *testing.T, conn *rpc.Conn) {
+func handshake(t testT, conn *rpc.Conn) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -68,7 +58,8 @@ func handshake(t *testing.T, conn *rpc.Conn) {
 	}
 }
 
-func TestHandshakeOrderAndOutgoingSurface(t *testing.T) {
+var _ = ginkgo.It("TestHandshakeOrderAndOutgoingSurface", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
@@ -117,9 +108,10 @@ func TestHandshakeOrderAndOutgoingSurface(t *testing.T) {
 	if strings.Contains(kept, `"jsonrpc"`) {
 		t.Fatalf("codex wire must not carry jsonrpc: %q", kept)
 	}
-}
+})
 
-func TestAccountMappingChatGPTFromFixture(t *testing.T) {
+var _ = ginkgo.It("TestAccountMappingChatGPTFromFixture", func() {
+	t := testT{ginkgo.GinkgoT()}
 	acc := fixture(t, "account_chatgpt_home1.json")
 	steps := []testutil.Step{
 		{Wait: 1},
@@ -143,9 +135,9 @@ func TestAccountMappingChatGPTFromFixture(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})
 
-func TestAccountMappingVariants(t *testing.T) {
+var _ = ginkgo.Describe("TestAccountMappingVariants", func() {
 	cases := []struct {
 		name       string
 		account    string
@@ -158,7 +150,8 @@ func TestAccountMappingVariants(t *testing.T) {
 		{"chatgpt without email", `{"id":2,"result":{"account":{"type":"chatgpt"}}}`, AuthChatGPT},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			steps := []testutil.Step{
 				{Wait: 1},
 				{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
@@ -185,9 +178,9 @@ func TestAccountMappingVariants(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
-func TestAccountEmailNormalizationPolicy(t *testing.T) {
+var _ = ginkgo.Describe("TestAccountEmailNormalizationPolicy", func() {
 	cases := []struct {
 		name  string
 		email string
@@ -208,7 +201,8 @@ func TestAccountEmailNormalizationPolicy(t *testing.T) {
 		{"format-character-only email", "\u200e\u202e", ""},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			payload, _ := json.Marshal(map[string]any{
 				"id": 2,
 				"result": map[string]any{
@@ -241,11 +235,12 @@ func TestAccountEmailNormalizationPolicy(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
 // Two sessions over two homes keep independent identity: each
 // readAccount answer comes from its own fake child and connection.
-func TestTwoHomesIsolatedIdentity(t *testing.T) {
+var _ = ginkgo.It("TestTwoHomesIsolatedIdentity", func() {
+	t := testT{ginkgo.GinkgoT()}
 	mk := func(email string) []testutil.Step {
 		acc := fmt.Sprintf(`{"id":2,"result":{"account":{"type":"chatgpt","email":%q}}}`, email)
 		return []testutil.Step{
@@ -262,11 +257,10 @@ func TestTwoHomesIsolatedIdentity(t *testing.T) {
 	handshake(t, connA)
 	handshake(t, connB)
 	t.Cleanup(func() {
-		if err := childA.Close(); err != nil {
-			t.Error(err)
-		}
-		if err := childB.Close(); err != nil {
-			t.Error(err)
+		errA := childA.Close()
+		errB := childB.Close()
+		if errA != nil || errB != nil {
+			t.Fatalf("close child A: %v; close child B: %v", errA, errB)
 		}
 	})
 
@@ -285,9 +279,10 @@ func TestTwoHomesIsolatedIdentity(t *testing.T) {
 	if infoA.Email != "a@example.com" || infoB.Email != "b@example.com" {
 		t.Fatalf("identity mixed across homes: %q / %q", infoA.Email, infoB.Email)
 	}
-}
+})
 
-func TestRemoteAuthErrorIsTypedNotGuessed(t *testing.T) {
+var _ = ginkgo.It("TestRemoteAuthErrorIsTypedNotGuessed", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
@@ -310,9 +305,10 @@ func TestRemoteAuthErrorIsTypedNotGuessed(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})
 
-func TestInspectHome(t *testing.T) {
+var _ = ginkgo.It("TestInspectHome", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	if InspectHome(dir) != HomeOK {
 		t.Fatal("existing dir not OK")
@@ -327,7 +323,7 @@ func TestInspectHome(t *testing.T) {
 	if InspectHome(file) != HomeInvalid {
 		t.Fatal("non-directory should be HomeInvalid")
 	}
-}
+})
 
 func intPtr(i int) *int { return &i }
 

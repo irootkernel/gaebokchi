@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 	"errors"
-	"testing"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"time"
 
 	"gaebokchi/internal/testutil"
@@ -12,7 +12,8 @@ import (
 // These tests drive the real process pipes through the scripted fake
 // child, verifying the transport against actual subprocess I/O.
 
-func TestFakeChildFragmentedReplyOverPipes(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildFragmentedReplyOverPipes", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Emit: "{\"id\":1,\"res"},
@@ -33,9 +34,10 @@ func TestFakeChildFragmentedReplyOverPipes(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})
 
-func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildStderrFloodDoesNotBreakProtocol", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{EmitStderr: "warning: flood line\n"},
 		{Wait: 1},
@@ -58,9 +60,10 @@ func TestFakeChildStderrFloodDoesNotBreakProtocol(t *testing.T) {
 	if len(child.StderrKept()) == 0 {
 		t.Fatal("stderr retention empty despite flood")
 	}
-}
+})
 
-func TestFakeChildBannerIsProtocolError(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildBannerIsProtocolError", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Emit: "Grok CLI v1.0 ready.\n"},
 	}
@@ -73,9 +76,10 @@ func TestFakeChildBannerIsProtocolError(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})
 
-func TestFakeChildOversizeFrameKillsConnection(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildOversizeFrameKillsConnection", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Oversize: 5<<20 + 128},
@@ -89,9 +93,10 @@ func TestFakeChildOversizeFrameKillsConnection(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})
 
-func TestFakeChildHungServerTimesOut(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildHungServerTimesOut", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{SleepMs: 30000},
@@ -111,9 +116,10 @@ func TestFakeChildHungServerTimesOut(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatalf("close hung child: %v", err)
 	}
-}
+})
 
-func TestFakeChildCRLFAndDuplicateID(t *testing.T) {
+var _ = ginkgo.It("TestFakeChildCRLFAndDuplicateID", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Emit: "{\"id\":1,\"result\":{\"dup\":true}}\r\n"},
@@ -138,4 +144,4 @@ func TestFakeChildCRLFAndDuplicateID(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatal(err)
 	}
-}
+})

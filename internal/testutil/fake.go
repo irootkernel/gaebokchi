@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/process"
@@ -62,10 +61,13 @@ type ReplySpec struct {
 }
 
 // StartFake launches the current test binary as a scripted fake child.
-// The calling package's test binary must define a TestFakeHelperProcess
-// that delegates to RunFakeScript (see fake_helper_test.go in this
-// package for the exact shape to copy).
-func StartFake(t *testing.T, steps []Step) *process.Child {
+// The calling package's TestMain must run RunFakeScript when
+// GAEBOKCHI_FAKE=1, before starting its Ginkgo suite.
+func StartFake(t interface {
+	Helper()
+	Fatalf(string, ...any)
+	Cleanup(func())
+}, steps []Step) *process.Child {
 	t.Helper()
 	script, err := json.Marshal(steps)
 	if err != nil {
@@ -73,7 +75,7 @@ func StartFake(t *testing.T, steps []Step) *process.Child {
 	}
 	c, err := process.Start(process.Config{
 		Bin:  os.Args[0],
-		Args: []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Args: []string{"--", "fake"},
 		Env:  append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
 	})
 	if err != nil {
@@ -84,7 +86,7 @@ func StartFake(t *testing.T, steps []Step) *process.Child {
 }
 
 // RunFakeScript executes the scripted steps against the process stdio;
-// it is the body of TestFakeHelperProcess.
+// it is called by the test binary's fake-child TestMain path.
 func RunFakeScript(stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	var steps []Step
 	if err := json.Unmarshal([]byte(os.Getenv("GAEBOKCHI_FAKE_STEPS")), &steps); err != nil {

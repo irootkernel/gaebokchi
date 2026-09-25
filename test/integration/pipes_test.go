@@ -3,13 +3,13 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/testutil"
@@ -19,7 +19,7 @@ import (
 // wiring but caller-provided stdout/stderr, for real-OS-pipe and signal
 // scenarios that need control over the process's actual file
 // descriptors.
-func startWithFakes(t *testing.T, extraArgs []string, codexSteps, grokSteps []testutil.Step, stdout, stderr io.Writer) *exec.Cmd {
+func startWithFakes(t testT, extraArgs []string, codexSteps, grokSteps []testutil.Step, stdout, stderr io.Writer) *exec.Cmd {
 	t.Helper()
 	bin := gaebokchiBin(t)
 	fake := fakeBin(t)
@@ -54,7 +54,7 @@ func startWithFakes(t *testing.T, extraArgs []string, codexSteps, grokSteps []te
 
 // waitExitCode waits for the command and returns its exit code,
 // requiring a normal exit (no signal death).
-func waitExitCode(t *testing.T, cmd *exec.Cmd, waitErr error) int {
+func waitExitCode(t testT, cmd *exec.Cmd, waitErr error) int {
 	t.Helper()
 	if waitErr == nil {
 		t.Fatal("expected a nonzero exit")
@@ -72,7 +72,7 @@ func waitExitCode(t *testing.T, cmd *exec.Cmd, waitErr error) int {
 
 // brokenStdoutPipe returns a pipe write end whose reader is already
 // closed: every write raises EPIPE and (for fd 1) SIGPIPE.
-func brokenStdoutPipe(t *testing.T) *os.File {
+func brokenStdoutPipe(t testT) *os.File {
 	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -87,7 +87,8 @@ func brokenStdoutPipe(t *testing.T) *os.File {
 // TestClosedStdoutPipeExitsOneNotSignalled pins the SIGPIPE policy
 // against the audit finding: a closed stdout reader is the documented
 // output failure (exit 1), never SIGPIPE signal death.
-func TestClosedStdoutPipeExitsOneNotSignalled(t *testing.T) {
+var _ = ginkgo.It("TestClosedStdoutPipeExitsOneNotSignalled", func() {
+	t := testT{ginkgo.GinkgoT()}
 	w := brokenStdoutPipe(t)
 	var errBuf bytes.Buffer
 	cmd := startWithFakes(t, nil, codexOK("a@example.com", 40), grokWeekly(41), w, &errBuf)
@@ -101,12 +102,12 @@ func TestClosedStdoutPipeExitsOneNotSignalled(t *testing.T) {
 	if !strings.Contains(errBuf.String(), "cannot write the usage table to stdout") {
 		t.Fatalf("safe diagnostic missing:\n%s", errBuf.String())
 	}
-}
+})
 
 // TestSignalWithBrokenStdoutKeepsSignalCode pins the precedence the
 // audit found inverted: the first handled cancellation signal (130 for
 // SIGINT, 143 for SIGTERM) outranks the output failure that follows.
-func TestSignalWithBrokenStdoutKeepsSignalCode(t *testing.T) {
+var _ = ginkgo.Describe("TestSignalWithBrokenStdoutKeepsSignalCode", func() {
 	hang := []testutil.Step{{Wait: 1}, {SleepMs: 60000}}
 	cases := []struct {
 		name string
@@ -117,7 +118,8 @@ func TestSignalWithBrokenStdoutKeepsSignalCode(t *testing.T) {
 		{"SIGTERM", syscall.SIGTERM, 143},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			w := brokenStdoutPipe(t)
 			var errBuf bytes.Buffer
 			cmd := startWithFakes(t, nil, hang, hang, w, &errBuf)
@@ -134,13 +136,14 @@ func TestSignalWithBrokenStdoutKeepsSignalCode(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
 // TestSignalMixedCompletionKeepsNumericRow exercises the full signal
 // contract end to end: a completed target stays numeric, in-flight
 // targets render CANCELLED, the row count is unchanged, and the exit
 // code is the signal's.
-func TestSignalMixedCompletionKeepsNumericRow(t *testing.T) {
+var _ = ginkgo.It("TestSignalMixedCompletionKeepsNumericRow", func() {
+	t := testT{ginkgo.GinkgoT()}
 	// Codex children complete the handshake and account read, then hang
 	// before the quota read; grok answers fully and quickly.
 	codexHangBeforeQuota := []testutil.Step{
@@ -173,11 +176,12 @@ func TestSignalMixedCompletionKeepsNumericRow(t *testing.T) {
 	if lines := strings.Count(strings.TrimSuffix(stdout, "\n"), "\n") + 1; lines != 5 {
 		t.Fatalf("row count changed: %d lines:\n%s", lines, stdout)
 	}
-}
+})
 
 // TestHelpVersionBrokenPipeExitsOne covers output failures on the
 // help/version paths, which never launch providers.
-func TestHelpVersionBrokenPipeExitsOne(t *testing.T) {
+var _ = ginkgo.It("TestHelpVersionBrokenPipeExitsOne", func() {
+	t := testT{ginkgo.GinkgoT()}
 	for _, args := range [][]string{{"--help"}, {"version"}} {
 		w := brokenStdoutPipe(t)
 		var errBuf bytes.Buffer
@@ -195,13 +199,14 @@ func TestHelpVersionBrokenPipeExitsOne(t *testing.T) {
 			t.Fatalf("%v: exit = %d, want 1 for output failure", args, code)
 		}
 	}
-}
+})
 
 // TestRelativeBinaryOverrideFromInvocationCwd pins the audit finding
 // that an explicit relative --codex-bin used to become NOT INSTALLED
 // because the child runs from its private directory: the resolver must
 // absolutize against the invocation cwd, including names with spaces.
-func TestRelativeBinaryOverrideFromInvocationCwd(t *testing.T) {
+var _ = ginkgo.It("TestRelativeBinaryOverrideFromInvocationCwd", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	fake := fakeBin(t)
 	script := filepath.Join(dir, "my codex") // includes a space
@@ -252,4 +257,4 @@ func TestRelativeBinaryOverrideFromInvocationCwd(t *testing.T) {
 	if !strings.Contains(out.String(), "44.0%") {
 		t.Fatalf("relative binary did not complete its query:\n%s", out.String())
 	}
-}
+})

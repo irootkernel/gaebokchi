@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"testing"
 	"time"
 
 	"gaebokchi/internal/domain"
@@ -18,7 +18,7 @@ import (
 
 // fullScript builds a fake transcript answering the complete metadata
 // sequence: initialize, account/read (chatgpt+email), rateLimits/read.
-func fullScript(t *testing.T, accountFixture, quotaFixture string) []testutil.Step {
+func fullScript(t testT, accountFixture, quotaFixture string) []testutil.Step {
 	t.Helper()
 	return []testutil.Step{
 		{Wait: 1},
@@ -30,7 +30,7 @@ func fullScript(t *testing.T, accountFixture, quotaFixture string) []testutil.St
 	}
 }
 
-func compactFixture(t *testing.T, name string) string {
+func compactFixture(t testT, name string) string {
 	t.Helper()
 	var envelope map[string]json.RawMessage
 	b, err := os.ReadFile(filepath.Join("testdata", name))
@@ -74,7 +74,8 @@ func providerOver(child *process.Child) *Provider {
 	return &Provider{Start: func(process.Config) (*process.Child, error) { return child, nil }}
 }
 
-func TestQueryFullLifecycleFromFixtures(t *testing.T) {
+var _ = ginkgo.It("TestQueryFullLifecycleFromFixtures", func() {
+	t := testT{ginkgo.GinkgoT()}
 	home := t.TempDir()
 	child := testutil.StartFake(t, fullScript(t, "account_chatgpt_home1.json", "ratelimits_weekly_home1.json"))
 	p := providerOver(child)
@@ -101,9 +102,10 @@ func TestQueryFullLifecycleFromFixtures(t *testing.T) {
 	if !containsStr(kept, `"method":"account/rateLimits/read"`) {
 		t.Fatalf("quota read missing from transcript: %q", kept)
 	}
-}
+})
 
-func TestQueryTwoHomesDifferentValues(t *testing.T) {
+var _ = ginkgo.It("TestQueryTwoHomesDifferentValues", func() {
+	t := testT{ginkgo.GinkgoT()}
 	homeA := t.TempDir()
 	homeB := t.TempDir()
 	childA := testutil.StartFake(t, fullScript(t, "account_chatgpt_home1.json", "ratelimits_weekly_home1.json"))
@@ -123,9 +125,10 @@ func TestQueryTwoHomesDifferentValues(t *testing.T) {
 	if resA.Account == resB.Account {
 		t.Fatalf("accounts must differ per home: %q", resA.Account)
 	}
-}
+})
 
-func TestQueryHomePreflight(t *testing.T) {
+var _ = ginkgo.It("TestQueryHomePreflight", func() {
+	t := testT{ginkgo.GinkgoT()}
 	p := New()
 	missing := p.Query(context.Background(), codexTarget("/definitely/not/here"))
 	if missing.Status != domain.StatusHomeNotFound {
@@ -139,9 +142,10 @@ func TestQueryHomePreflight(t *testing.T) {
 	if invalid.Status != domain.StatusHomeError {
 		t.Fatalf("invalid home status = %v", invalid.Status)
 	}
-}
+})
 
-func TestQueryMissingExecutable(t *testing.T) {
+var _ = ginkgo.It("TestQueryMissingExecutable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	p := New()
 	tgt := codexTarget(t.TempDir())
 	tgt.Bin = "/nonexistent/gaebokchi-codex-missing"
@@ -152,9 +156,9 @@ func TestQueryMissingExecutable(t *testing.T) {
 	if res.Account == "" {
 		t.Fatal("fallback alias must be preserved")
 	}
-}
+})
 
-func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
+var _ = ginkgo.Describe("TestQueryAuthOutcomesShortCircuit", func() {
 	accountPayload := func(account string) []testutil.Step {
 		return []testutil.Step{
 			{Wait: 1},
@@ -173,7 +177,8 @@ func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
 		{"unknown", `{"type":"device"}`, domain.StatusUnsupported},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			child := testutil.StartFake(t, accountPayload(tc.account))
 			p := providerOver(child)
 			res := p.Query(context.Background(), codexTarget(t.TempDir()))
@@ -189,7 +194,7 @@ func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
 			}
 		})
 	}
-}
+})
 
 // TestQueryValidResultSurvivesSlowCleanup reproduces the audit's
 // executable-level finding at the provider boundary: every response is
@@ -197,7 +202,8 @@ func TestQueryAuthOutcomesShortCircuit(t *testing.T) {
 // its final reply, so deferred cleanup crosses the deadline inside
 // Query. The numeric result must survive; only a response established
 // after the deadline may time out.
-func TestQueryValidResultSurvivesSlowCleanup(t *testing.T) {
+var _ = ginkgo.It("TestQueryValidResultSurvivesSlowCleanup", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := fullScript(t, "account_chatgpt_home1.json", "ratelimits_weekly_home1.json")
 	steps = append(steps, testutil.Step{SleepMs: 600}) // linger like a slow provider
 	child := testutil.StartFake(t, steps)
@@ -211,9 +217,10 @@ func TestQueryValidResultSurvivesSlowCleanup(t *testing.T) {
 	if res.UsedPercent == nil || *res.UsedPercent != 37 {
 		t.Fatalf("percent = %v", res.UsedPercent)
 	}
-}
+})
 
-func TestQueryTimeoutClassification(t *testing.T) {
+var _ = ginkgo.It("TestQueryTimeoutClassification", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{SleepMs: 30000}, // never answers initialize
@@ -232,9 +239,10 @@ func TestQueryTimeoutClassification(t *testing.T) {
 	if err := child.Close(); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
-}
+})
 
-func TestQueryProtocolErrorClassification(t *testing.T) {
+var _ = ginkgo.It("TestQueryProtocolErrorClassification", func() {
+	t := testT{ginkgo.GinkgoT()}
 	steps := []testutil.Step{
 		{Wait: 1},
 		{Emit: "banner-not-json\n"},
@@ -248,7 +256,7 @@ func TestQueryProtocolErrorClassification(t *testing.T) {
 	if containsStr(res.Diagnostic.Message, "banner") {
 		t.Fatalf("raw provider data leaked into diagnostic: %q", res.Diagnostic.Message)
 	}
-}
+})
 
 func containsStr(haystack, needle string) bool {
 	return strings.Contains(haystack, needle)
@@ -257,7 +265,8 @@ func containsStr(haystack, needle string) bool {
 // TestResolveBinRelativeMadeAbsolute pins the audit fix: an explicit
 // relative executable path is absolutized against the invocation cwd so
 // it survives the child's private working directory.
-func TestResolveBinRelativeMadeAbsolute(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinRelativeMadeAbsolute", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	name := "fake provider" // includes a space
 	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
@@ -272,15 +281,27 @@ func TestResolveBinRelativeMadeAbsolute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != want {
-		t.Fatalf("resolved = %q, want absolute %q", got, want)
+	if !filepath.IsAbs(got) {
+		t.Fatalf("resolved = %q, want an absolute path", got)
 	}
-}
+	gotInfo, err := os.Stat(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantInfo, err := os.Stat(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(gotInfo, wantInfo) {
+		t.Fatalf("resolved = %q, want executable at %q", got, want)
+	}
+})
 
 // TestResolveBinErrDotProtectionPreserved pins that an implicit
 // current-directory PATH lookup stays an error rather than being
 // silently absolutized.
-func TestResolveBinErrDotProtectionPreserved(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinErrDotProtectionPreserved", func() {
+	t := testT{ginkgo.GinkgoT()}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "dotbin"), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -290,9 +311,10 @@ func TestResolveBinErrDotProtectionPreserved(t *testing.T) {
 	if _, err := ResolveBin("dotbin"); !errors.Is(err, exec.ErrDot) {
 		t.Fatalf("err = %v, want exec.ErrDot", err)
 	}
-}
+})
 
-func TestResolveBinMissingAndUnexecutable(t *testing.T) {
+var _ = ginkgo.It("TestResolveBinMissingAndUnexecutable", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if _, err := ResolveBin("./definitely-not-here"); err == nil {
 		t.Fatal("missing binary must not resolve")
 	}
@@ -304,13 +326,13 @@ func TestResolveBinMissingAndUnexecutable(t *testing.T) {
 	if _, err := ResolveBin("./noexec"); err == nil {
 		t.Fatal("present-but-unexecutable binary must not resolve")
 	}
-}
+})
 
 // TestInitializeResultShapeValidation pins the audit's finding that any
 // shapeless initialize response used to complete the handshake: a
 // malformed or shape-missing reply must yield a protocol error, while
 // the qualified shape (with additive members) proceeds.
-func TestInitializeResultShapeValidation(t *testing.T) {
+var _ = ginkgo.Describe("TestInitializeResultShapeValidation", func() {
 	cases := []struct {
 		name string
 		init string
@@ -324,7 +346,8 @@ func TestInitializeResultShapeValidation(t *testing.T) {
 		{"platformOs not a string", `{"id":1,"result":{"platformOs":7}}`, domain.StatusProtocolError},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		ginkgo.It(tc.name, func() {
+			t := testT{ginkgo.GinkgoT()}
 			steps := []testutil.Step{{Wait: 1}, {Emit: tc.init + "\n"}}
 			child := testutil.StartFake(t, steps)
 			res := providerOver(child).Query(context.Background(), codexTarget(t.TempDir()))
@@ -336,7 +359,8 @@ func TestInitializeResultShapeValidation(t *testing.T) {
 			}
 		})
 	}
-	t.Run("qualified shape with additive members proceeds", func(t *testing.T) {
+	ginkgo.It("qualified shape with additive members proceeds", func() {
+		t := testT{ginkgo.GinkgoT()}
 		init := `{"id":1,"result":{"platformOs":"macos","futureField":{"x":1}}}`
 		steps := []testutil.Step{
 			{Wait: 1}, {Emit: init + "\n"},
@@ -350,12 +374,12 @@ func TestInitializeResultShapeValidation(t *testing.T) {
 			t.Fatalf("status = %v (%s); qualified shape must complete the handshake", res.Status, res.Diagnostic.Message)
 		}
 	})
-}
+})
 
 // startFakeIn starts a scripted fake child whose private directory
 // lives under the given parent, so a test that owns the parent can make
 // removal fail deterministically.
-func startFakeIn(t *testing.T, parent string, steps []testutil.Step) *process.Child {
+func startFakeIn(t testT, parent string, steps []testutil.Step) *process.Child {
 	t.Helper()
 	script, err := json.Marshal(steps)
 	if err != nil {
@@ -363,7 +387,7 @@ func startFakeIn(t *testing.T, parent string, steps []testutil.Step) *process.Ch
 	}
 	c, err := process.Start(process.Config{
 		Bin:        os.Args[0],
-		Args:       []string{"-test.run=TestFakeHelperProcess", "--", "fake"},
+		Args:       []string{"--", "fake"},
 		Env:        append(os.Environ(), "GAEBOKCHI_FAKE=1", "GAEBOKCHI_FAKE_STEPS="+string(script)),
 		TempParent: parent,
 	})
@@ -377,7 +401,8 @@ func startFakeIn(t *testing.T, parent string, steps []testutil.Step) *process.Ch
 // TestQueryCleanupFailureFlaggedOnSuccess pins the propagation contract
 // on a successful query: the measured percentage stays, CleanupFailed
 // is set, and the safe fixed diagnostic replaces the empty one.
-func TestQueryCleanupFailureFlaggedOnSuccess(t *testing.T) {
+var _ = ginkgo.It("TestQueryCleanupFailureFlaggedOnSuccess", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if os.Getuid() == 0 {
 		t.Skip("permission-based removal failure does not apply as root")
 	}
@@ -398,13 +423,14 @@ func TestQueryCleanupFailureFlaggedOnSuccess(t *testing.T) {
 	if res.Diagnostic.Code != "cleanup_failed" || res.Diagnostic.Message != "provider cleanup incomplete" {
 		t.Fatalf("diagnostic = %+v", res.Diagnostic)
 	}
-}
+})
 
 // TestQueryCleanupFailureFlaggedViaRPCAbort pins that cleanup failures
 // initiated by the RPC abort path (a timed-out query whose transport
 // teardown cannot complete) still reach the result: the timeout keeps
 // its primary diagnostic and gains the CleanupFailed flag.
-func TestQueryCleanupFailureFlaggedViaRPCAbort(t *testing.T) {
+var _ = ginkgo.It("TestQueryCleanupFailureFlaggedViaRPCAbort", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if os.Getuid() == 0 {
 		t.Skip("permission-based removal failure does not apply as root")
 	}
@@ -427,4 +453,4 @@ func TestQueryCleanupFailureFlaggedViaRPCAbort(t *testing.T) {
 	if !res.CleanupFailed {
 		t.Fatal("RPC-abort cleanup failure not propagated to the result")
 	}
-}
+})

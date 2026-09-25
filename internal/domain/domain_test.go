@@ -1,11 +1,12 @@
 package domain
 
 import (
+	ginkgo "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"math"
-	"testing"
 )
 
-func TestValidatePercent(t *testing.T) {
+var _ = ginkgo.Describe("TestValidatePercent", func() {
 	cases := []struct {
 		name string
 		v    float64
@@ -22,24 +23,23 @@ func TestValidatePercent(t *testing.T) {
 		{"minus inf", math.Inf(-1), false},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ValidatePercent(tc.v); got != tc.want {
-				t.Fatalf("ValidatePercent(%v) = %v, want %v", tc.v, got, tc.want)
-			}
+		ginkgo.It(tc.name, func() {
+			gomega.Expect(ValidatePercent(tc.v)).To(gomega.Equal(tc.want), tc.name)
 		})
 	}
-}
+})
 
-func TestNormalizePercentSignedZero(t *testing.T) {
+var _ = ginkgo.It("TestNormalizePercentSignedZero", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if v := NormalizePercentSignedZero(math.Copysign(0, -1)); math.Signbit(v) {
 		t.Fatalf("negative zero preserved: %v", v)
 	}
 	if v := NormalizePercentSignedZero(-5.5); v != -5.5 {
 		t.Fatalf("negative value altered: %v", v)
 	}
-}
+})
 
-func TestStatusCells(t *testing.T) {
+var _ = ginkgo.Describe("TestStatusCells", func() {
 	bogus := Status("bogus")
 	cases := map[Status]string{
 		StatusOK:                   "",
@@ -60,13 +60,16 @@ func TestStatusCells(t *testing.T) {
 		bogus:                      "ERROR",
 	}
 	for s, want := range cases {
-		if got := s.Cell(); got != want {
-			t.Errorf("Status(%q).Cell() = %q, want %q", s, got, want)
-		}
+		ginkgo.It(string(s), func() {
+			t := testT{ginkgo.GinkgoT()}
+			if got := s.Cell(); got != want {
+				t.Fatalf("Status(%q).Cell() = %q, want %q", s, got, want)
+			}
+		})
 	}
-}
+})
 
-func TestStatusExitClass(t *testing.T) {
+var _ = ginkgo.Describe("TestStatusExitClass", func() {
 	clean := []Status{StatusOK, StatusNotApplicableMonthly, StatusNotApplicableAPIKey}
 	incomplete := []Status{
 		StatusUnavailableNoWeekly, StatusUnavailablePeriod, StatusUnavailableNoData,
@@ -74,25 +77,35 @@ func TestStatusExitClass(t *testing.T) {
 		StatusHomeError, StatusTimeout, StatusProtocolError, StatusProviderError,
 	}
 	for _, s := range clean {
-		if got := s.ExitClass(); got != ExitClean {
-			t.Errorf("Status(%q).ExitClass() = %v, want clean", s, got)
-		}
+		ginkgo.It("clean: "+string(s), func() {
+			t := testT{ginkgo.GinkgoT()}
+			if got := s.ExitClass(); got != ExitClean {
+				t.Fatalf("Status(%q).ExitClass() = %v, want clean", s, got)
+			}
+		})
 	}
 	for _, s := range incomplete {
-		if got := s.ExitClass(); got != ExitIncomplete {
-			t.Errorf("Status(%q).ExitClass() = %v, want incomplete", s, got)
+		ginkgo.It("incomplete: "+string(s), func() {
+			t := testT{ginkgo.GinkgoT()}
+			if got := s.ExitClass(); got != ExitIncomplete {
+				t.Fatalf("Status(%q).ExitClass() = %v, want incomplete", s, got)
+			}
+		})
+	}
+	ginkgo.It("cancelled", func() {
+		t := testT{ginkgo.GinkgoT()}
+		if got := StatusCancelled.ExitClass(); got != ExitSignal {
+			t.Fatalf("cancelled ExitClass() = %v, want signal", got)
 		}
-	}
-	if got := StatusCancelled.ExitClass(); got != ExitSignal {
-		t.Errorf("cancelled ExitClass() = %v, want signal", got)
-	}
-}
+	})
+})
 
-func TestProviderDisplayName(t *testing.T) {
+var _ = ginkgo.It("TestProviderDisplayName", func() {
+	t := testT{ginkgo.GinkgoT()}
 	if ProviderCodex.DisplayName() != "ChatGPT" {
 		t.Fatalf("codex display name = %q", ProviderCodex.DisplayName())
 	}
 	if ProviderGrok.DisplayName() != "Grok" {
 		t.Fatalf("grok display name = %q", ProviderGrok.DisplayName())
 	}
-}
+})
