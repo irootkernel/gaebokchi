@@ -247,9 +247,6 @@ func TerminalFrame(results []domain.Result, columns int, now time.Time, color, i
 		}
 		previous = result.Provider
 		line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, now, spinner)
-		if intermediate {
-			line = clipLine(line, columns-1)
-		}
 		lines = append(lines, line)
 	}
 	lines = append(lines, nil)

@@ -227,6 +227,24 @@ var _ = ginkgo.It("TestJSONOutputFailureExitsOne", func() {
 	}
 })
 
+var _ = ginkgo.It("treats short stdout writes as output failures", func() {
+	t := testT{ginkgo.GinkgoT()}
+	for _, tc := range []struct {
+		args    []string
+		message string
+	}{
+		{nil, "cannot write the usage table to stdout"},
+		{[]string{"--json"}, "cannot write usage JSON to stdout"},
+		{[]string{"--help"}, "cannot write help to stdout"},
+	} {
+		var errBuf bytes.Buffer
+		code := runWithIO(tc.args, shortWriter{}, &errBuf, fakes)
+		if code != 1 || !strings.Contains(errBuf.String(), tc.message) {
+			t.Fatalf("args=%v code=%d stderr=%q", tc.args, code, errBuf.String())
+		}
+	}
+})
+
 var _ = ginkgo.It("TestJSONCleanHelpAndInvalidUsage", func() {
 	t := testT{ginkgo.GinkgoT()}
 	var out, errBuf bytes.Buffer
@@ -238,7 +256,9 @@ var _ = ginkgo.It("TestJSONCleanHelpAndInvalidUsage", func() {
 	}
 	out.Reset()
 	if code := runWithIO([]string{"--json", "--help"}, &out, &errBuf, fakes); code != 0 ||
-		!strings.HasPrefix(out.String(), "Usage:\n") || !strings.Contains(out.String(), "--json") {
+		!strings.HasPrefix(out.String(), "Usage:\n") || !strings.Contains(out.String(), "--json") ||
+		!strings.Contains(out.String(), "Interactive terminals show a live usage view.") ||
+		!strings.Contains(out.String(), "Pipes and redirects keep the") {
 		t.Fatalf("JSON help: code=%d stdout=%q", code, out.String())
 	}
 	out.Reset()
@@ -296,6 +316,10 @@ var _ = ginkgo.It("TestBrokenStdoutExitsOne", func() {
 type errWriter struct{}
 
 func (errWriter) Write(p []byte) (int, error) { return 0, fmt.Errorf("broken pipe") }
+
+type shortWriter struct{}
+
+func (shortWriter) Write(p []byte) (int, error) { return max(0, len(p)-1), nil }
 
 // TestSignalCancelsAndExitsWithSignalCode re-executes the test binary
 // as a child, sends SIGINT mid-query, and asserts exit code 130 with a

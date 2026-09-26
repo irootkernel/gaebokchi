@@ -131,8 +131,8 @@ func executeWithTerminal(opts options.Options, stdout, stderr io.Writer, newProv
 	}()
 
 	writeOut := func(s string) bool {
-		_, err := io.WriteString(stdout, s)
-		return err == nil
+		n, err := io.WriteString(stdout, s)
+		return err == nil && n == len(s)
 	}
 
 	// Help never launches a provider process; its output failure is an
@@ -146,11 +146,15 @@ func executeWithTerminal(opts options.Options, stdout, stderr io.Writer, newProv
 	}
 	targets := opts.Targets()
 	var live *render.LiveRenderer
-	if file, ok := stdout.(*os.File); ok && !opts.JSON {
-		columns, rows, err := size(file)
-		if terminalSelection(false, getenv("TERM"), true, columns, rows, err == nil) {
-			live = render.NewLiveRenderer(stdout, targets, columns, rows, getenv("NO_COLOR") == "")
-		}
+	file, isFile := stdout.(*os.File)
+	columns, rows, sizeOK := 0, 0, false
+	if isFile && !opts.JSON {
+		var err error
+		columns, rows, err = size(file)
+		sizeOK = err == nil
+	}
+	if terminalSelection(opts.JSON, getenv("TERM"), isFile, columns, rows, sizeOK) {
+		live = render.NewLiveRenderer(stdout, targets, columns, rows, getenv("NO_COLOR") == "")
 	}
 	cx, gk, cl := newProviders()
 	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl}

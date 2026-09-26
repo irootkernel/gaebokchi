@@ -554,9 +554,10 @@ end). Claude rows and Grok monthly rows show none.
 | Every other status cell | red (31) |
 
 **Width and height.** Every row must fit within `columns - 1` cells. When a
-row does not fit, shrink the bar toward 10 cells, then drop the countdown, then
-drop the bar. Intermediate live frames clip any remaining overflow and end it
-with `…`. The final frame never truncates an account label; it may wrap
+row does not fit, shrink the bar toward 10 cells, then drop the countdown.
+After that, restore the bar toward 20 cells and shrink it to the available
+width before dropping it. Intermediate live frames clip remaining overflow
+and end it with `…`. The final frame never truncates an account label; it may wrap
 instead, because nothing redraws after it. When the frame height (targets + 4)
 is not smaller than the terminal rows, skip live redraws and write only the
 final frame once.
