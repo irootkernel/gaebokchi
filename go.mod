@@ -5,6 +5,8 @@ go 1.27
 require (
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.1
+	golang.org/x/sys v0.46.0
+	golang.org/x/text v0.38.0
 )
 
 require (
@@ -17,7 +19,5 @@ require (
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 )

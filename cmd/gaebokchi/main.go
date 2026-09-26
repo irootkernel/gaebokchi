@@ -41,13 +41,14 @@ Flags:
   --claude-bin PATH     claude executable path or name (default "claude")
   --grok-account LABEL  display alias for the Grok row (default "default")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
-  --json                emit one JSON usage snapshot instead of the table
+  --json                emit one JSON usage snapshot instead of the terminal view or table
   -h, --help            show this help and exit
 
 Exit codes: 0 ok, 1 incomplete rows, 2 usage error, 130 SIGINT, 143 SIGTERM.
 
-stdout carries the account table or JSON snapshot and can contain account
-identifiers; diagnostics go to stderr.
+Interactive terminals show a live usage view. Pipes and redirects keep the
+plain account table. stdout can contain account identifiers; diagnostics go
+to stderr.
 `
 
 func main() {
@@ -85,6 +86,11 @@ type codexQuerier = app.Querier
 type grokQuerier = app.Querier
 type claudeQuerier = app.Querier
 
+// terminalSelection keeps the output-mode policy independent of the ioctl.
+func terminalSelection(jsonOutput bool, term string, file bool, columns, rows int, sizeOK bool) bool {
+	return !jsonOutput && file && sizeOK && columns > 0 && rows > 0 && term != "" && term != "dumb"
+}
+
 // execute runs the snapshot and implements the exit contract of
 // ARCH-10. Exit-code precedence is centralized in finalExit: the first
 // handled cancellation signal outranks an output failure, which
@@ -94,6 +100,11 @@ type claudeQuerier = app.Querier
 // failing write itself returns an error the output-failure path acts
 // on.
 func execute(opts options.Options, stdout, stderr io.Writer, newProviders providers) int {
+	return executeWithTerminal(opts, stdout, stderr, newProviders, terminalSize, os.Getenv)
+}
+
+func executeWithTerminal(opts options.Options, stdout, stderr io.Writer, newProviders providers,
+	size func(*os.File) (int, int, error), getenv func(string) string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var signalNum atomic.Int64
@@ -134,35 +145,46 @@ func execute(opts options.Options, stdout, stderr io.Writer, newProviders provid
 		return finalExit(signalNum.Load(), false, nil)
 	}
 	targets := opts.Targets()
+	var live *render.LiveRenderer
+	if file, ok := stdout.(*os.File); ok && !opts.JSON {
+		columns, rows, err := size(file)
+		if terminalSelection(false, getenv("TERM"), true, columns, rows, err == nil) {
+			live = render.NewLiveRenderer(stdout, targets, columns, rows, getenv("NO_COLOR") == "")
+		}
+	}
 	cx, gk, cl := newProviders()
 	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl}
+	if live != nil {
+		runner.Observe = live.Observe
+	}
 	results := runner.Run(ctx, targets, opts.Timeout)
 	app.DisambiguateCodexAccounts(results, targets)
+	finish := func(outputOK bool, failureMessage string) int {
+		if !outputOK {
+			_, _ = fmt.Fprintln(stderr, failureMessage)
+		}
+		render.WriteDiagnostics(stderr, results)
+		return finalExit(signalNum.Load(), !outputOK, results)
+	}
+	if live != nil {
+		return finish(live.Finish(results) == nil, "gaebokchi: cannot write the usage view to stdout")
+	}
 
 	var output string
 	if opts.JSON {
 		var err error
 		output, err = render.JSON(results)
 		if err != nil {
-			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot encode usage JSON")
-			render.WriteDiagnostics(stderr, results)
-			return finalExit(signalNum.Load(), true, results)
+			return finish(false, "gaebokchi: cannot encode usage JSON")
 		}
 	} else {
 		output = render.Table(results)
 	}
-	outputOK := writeOut(output)
-	if !outputOK {
-		// Without a writable stdout a complete snapshot cannot be
-		// guaranteed; write only safe diagnostics where possible.
-		if opts.JSON {
-			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write usage JSON to stdout")
-		} else {
-			_, _ = fmt.Fprintln(stderr, "gaebokchi: cannot write the usage table to stdout")
-		}
+	failureMessage := "gaebokchi: cannot write the usage table to stdout"
+	if opts.JSON {
+		failureMessage = "gaebokchi: cannot write usage JSON to stdout"
 	}
-	render.WriteDiagnostics(stderr, results)
-	return finalExit(signalNum.Load(), !outputOK, results)
+	return finish(writeOut(output), failureMessage)
 }
 
 // finalExit picks the process exit code by the documented precedence:

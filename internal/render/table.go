@@ -1,6 +1,7 @@
-// Package render turns domain results into the fixed logical table, JSON
-// snapshot, and safe stderr diagnostics. Output has no color, terminal
-// control sequences, or raw provider payloads.
+// Package render turns domain results into the interactive terminal view,
+// the plain table, the JSON snapshot, and safe stderr diagnostics. The table,
+// JSON, and diagnostics contain no color, terminal controls, or raw provider
+// payloads; only the selected terminal view emits its documented ANSI controls.
 package render
 
 import (

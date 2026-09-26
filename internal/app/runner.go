@@ -26,8 +26,18 @@ type Runner struct {
 	Codex  Querier
 	Grok   Querier
 	Claude Querier
+	// Observe receives a stored terminal result once for each target. Calls
+	// can arrive concurrently; the observer must not mutate the result.
+	Observe func(index int, result domain.Result)
 	// MaxActive defaults to DefaultMaxActive.
 	MaxActive int
+}
+
+func (r *Runner) store(results []domain.Result, tgt domain.Target, result domain.Result) {
+	results[tgt.Index] = result
+	if r.Observe != nil {
+		r.Observe(tgt.Index, result)
+	}
 }
 
 func (r *Runner) maxActive() int {
@@ -66,11 +76,11 @@ func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.
 				// A slot freed after cancellation must not launch
 				// a queued target.
 				<-sem
-				results[tgt.Index] = cancelledResult(tgt)
+				r.store(results, tgt, cancelledResult(tgt))
 				continue
 			}
 		case <-ctx.Done():
-			results[tgt.Index] = cancelledResult(tgt)
+			r.store(results, tgt, cancelledResult(tgt))
 			continue
 		}
 		wg.Add(1)
@@ -85,7 +95,7 @@ func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.
 			// it survives even when the provider's bounded cleanup runs
 			// past the deadline inside Query.
 			res := r.querierFor(tgt.Provider).Query(qctx, tgt)
-			results[tgt.Index] = res
+			r.store(results, tgt, res)
 		}()
 	}
 	wg.Wait()

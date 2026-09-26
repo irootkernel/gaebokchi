@@ -4,6 +4,22 @@ A small, read-only command-line tool in the Aquarium ecosystem that shows
 **weekly subscription usage** for your Codex (ChatGPT), Grok, and Claude
 accounts in one shot, reusing the logins managed by their installed CLIs.
 
+On an interactive terminal, rows appear as queries finish and the command
+leaves this kind of final frame:
+
+```text
+
+  🐡 gaebokchi · weekly usage
+
+  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░   37.0%  ↻ 2d 4h
+           account2@example.com  ██▍░░░░░░░░░░░░░░░░░   12.0%  ↻ 5d 1h
+  Grok     default               ██████████▊░░░░░░░░░   54.0%  ↻ 3d 11h
+  Claude   default               ████████▋░░░░░░░░░░░   43.0%
+
+```
+
+Pipes and redirects keep the plain table:
+
 ```text
 AI PROVIDER  ACCOUNT                WEEKLY USAGE
 ChatGPT      account1@example.com   37.0%
@@ -12,8 +28,7 @@ Grok         default                54.0%
 Claude       default                43.0%
 ```
 
-(Illustrative output; the ACCOUNT column can contain your real account
-identifiers.)
+(Illustrative output; stdout can contain your real account identifiers.)
 
 ## What it does (and does not do)
 
@@ -22,8 +37,8 @@ identifiers.)
 - Shows the percentage already consumed in the provider-reported
   **weekly subscription quota**. It never shows remaining quota, local
   token totals, API spend, or a calendar-week guess.
-- One snapshot, then exit. No daemon, watch mode, polling, retries,
-  history, or cache.
+- One snapshot, then exit. Terminal progress does not re-query. No daemon,
+  watch mode, polling, retries, history, or cache.
 - Read-only on the business level: no model turns, tool actions,
   login/logout, or billing mutations are issued. Provider
   startup itself may refresh tokens, update provider logs/caches, or use
@@ -82,6 +97,7 @@ gaebokchi --codex-home ~/.codex-work --codex-home ~/.codex-personal
 gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi --json                                    # machine-readable usage snapshot
+NO_COLOR=1 gaebokchi                                # terminal layout without color
 gaebokchi version
 gaebokchi version --json
 ```
@@ -119,6 +135,13 @@ example, a successful row may look like:
 The example shows one result for brevity; actual output retains every target,
 including failures. Diagnostics remain on stderr, and exit codes do not change.
 Help remains text. Invalid arguments produce no stdout JSON.
+
+Without `--json`, an interactive terminal with a readable size and a usable
+`TERM` shows one live row per target, then a final usage bar or status. A reset
+countdown appears only when the provider supplied a weekly reset time.
+`NO_COLOR` suppresses color but keeps the layout. Pipes, redirects,
+`TERM=dumb`, and terminals without a readable size retain the previous table
+bytes. The view adds no flag, JSON reset field, or table column.
 
 JSON `status` values are `ok`, `not_applicable/monthly`,
 `not_applicable/api_key`, `unavailable/no_weekly`, `unavailable/period`,
@@ -167,7 +190,7 @@ A monthly result is truthful non-applicability, not weekly usage.
   while keeping `HOME` and `CLAUDE_CONFIG_DIR`.
 - Children run in private temporary directories outside your project;
   the directories are removed after each run.
-- stdout contains the table or JSON snapshot (with account identifiers); diagnostics go
+- stdout contains the terminal view, table, or JSON snapshot (with account identifiers); diagnostics go
   to stderr as fixed, application-owned messages only.
 
 ## Troubleshooting

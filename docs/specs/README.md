@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Requirements
 
 Version: 0.1 specification  
-Status: EPIC-009 COMPLETE — REQ-052 usage snapshot JSON is implemented and verified. EPIC-010 NOT STARTED — REQ-053 through REQ-055 specify the planned interactive terminal view. REQ-048 separately needs owner-authorized live acceptance
+Status: EPIC-009 COMPLETE — REQ-052 usage snapshot JSON is implemented and verified. EPIC-010 COMPLETE — REQ-053 through REQ-055 define the verified interactive terminal view. REQ-048 separately needs owner-authorized live acceptance
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -25,14 +25,14 @@ change v0.1 task checkboxes or release evidence.
 ## Current JSON output extension
 
 The usage command also accepts `--json` to emit one machine-readable snapshot
-with every target in display order. The default table and the independent
+with every target in display order. The non-interactive table and the independent
 `version --json` command retain their established contracts. [REQ-052](#req-052)
 owns this addition; it does not retroactively alter v0.1 evidence.
 
-## Planned terminal view extension
+## Current terminal view extension
 
-[EPIC-010](../roadmap/README.md#epic-010) is registered but not started. When a
-person runs the usage command in an interactive terminal, the planned view shows
+[EPIC-010](../roadmap/README.md#epic-010) adds an inline terminal view. When a
+person runs the usage command in an interactive terminal, the view shows
 every target while it is being queried and ends with a styled usage frame. The
 synthetic frame below shows the view mid-query; colors are defined in
 [REQ-054](#req-054):
@@ -48,10 +48,9 @@ synthetic frame below shows the view mid-query; colors are defined in
 
 ```
 
-[REQ-053](#req-053) through [REQ-055](#req-055) own this addition. Until
-[TASK-030](../roadmap/README.md#task-030) is complete, [REQ-011](#req-011)
-governs non-JSON usage stdout. Afterwards it governs non-interactive, non-JSON
-usage stdout. [REQ-012](#req-012) still requires label sanitization and
+[REQ-053](#req-053) through [REQ-055](#req-055) own this addition.
+[REQ-011](#req-011) governs non-interactive, non-JSON usage stdout.
+[REQ-012](#req-012) still requires label sanitization and
 stdout/stderr separation in every mode; only the ban on color and terminal
 control sequences changes for the terminal view. [REQ-015](#req-015) continues
 to require in-memory window provenance. Pipes, redirects, and JSON keep their
@@ -63,7 +62,7 @@ This document owns **what must be delivered**. The [architecture](../architectur
 
 The three canonical documents live in role directories below `docs/` and are indexed by `docs/README.md`. Release archives carry this three-document contract, while links to verification records resolve only in a source checkout. Explicit anchors and IDs are stable. An implementation AI must not weaken a requirement merely because an upstream CLI is unsupported. Resolve contradictions across the three documents in the same task-scoped change.
 
-The original campaign checked 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`. A later adversarial audit of executable-level behavior superseded that result: 17 requirements were unchecked in TASK-015 with supersession notes naming the defect and the re-qualifying task under [EPIC-007](../roadmap/README.md#epic-007). TASK-021 re-verified each full acceptance scope against the corrected tree and restored 16 of them. TASK-028 added and closed REQ-051 for the approved version-command contract. REQ-048 remains open because the provider-display comparison requires owner authorization that was not available. REQ-053 through REQ-055 are open because EPIC-010 has not started. Unaffected requirements kept their original evidence throughout.
+The original campaign checked 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`. A later adversarial audit of executable-level behavior superseded that result: 17 requirements were unchecked in TASK-015 with supersession notes naming the defect and the re-qualifying task under [EPIC-007](../roadmap/README.md#epic-007). TASK-021 re-verified each full acceptance scope against the corrected tree and restored 16 of them. TASK-028 added and closed REQ-051 for the approved version-command contract. REQ-048 remains open because the provider-display comparison requires owner authorization that was not available. REQ-053 through REQ-055 have offline and fake-provider terminal evidence in [TASK-030](../verification/TASK-030.md). Unaffected requirements kept their original evidence throughout.
 
 ## Product outcome
 
@@ -143,14 +142,14 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Reopened 2026-09-22 by the confirmation review of `c340245`: Unicode-whitespace labels bypassed validity checks and duplicate suffixes used a collision counter instead of the documented target-index rule. Re-qualification: [TASK-023](../roadmap/README.md#task-023).
   - Re-qualified 2026-09-22 under EPIC-007 follow-up (TASK-023): Unicode-whitespace-only emails fall back to their home basenames, and duplicate suffixes follow the documented target-index rule (`#<index+1>`, with the deterministic index-preserving extension for lookalike collisions). Checkbox restored.
 <a id="req-011"></a>
-- [x] **REQ-011: Fixed logical table.** Use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
+- [x] **REQ-011: Fixed logical table.** For non-interactive, non-JSON usage, use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. With N Codex homes, emit N+2 newline-terminated logical lines, including the header and one Grok row.
   - - Architecture: [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [docs/verification/TASK-010.md](../verification/TASK-010.md) golden tests — three headings, no extras, 4 lines default, N+2 rule, final newline.
-  - Planned scope change registered 2026-09-25 under [EPIC-010](../roadmap/README.md#epic-010): once [TASK-030](../roadmap/README.md#task-030) is complete, this table governs non-interactive, non-JSON usage stdout ([REQ-053](#req-053)). Until then it governs all non-JSON usage stdout.
+  - Scope change effective 2026-09-26 under [EPIC-010](../roadmap/README.md#epic-010): this table governs non-interactive, non-JSON usage stdout ([REQ-053](#req-053)); interactive terminals use the live view.
 
 <a id="req-012"></a>
-- [x] **REQ-012: Safe, plain output.** Write the table only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Emit no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
+- [x] **REQ-012: Safe output.** Write usage output only to stdout and concise diagnostics only to stderr. Do not forward raw provider output. Non-interactive stdout has no color or terminal control sequences. Sanitize account text so embedded tabs, newlines, escape sequences, and control/format characters cannot add columns or rows.
   - - Architecture: [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [docs/verification/TASK-010.md](../verification/TASK-010.md) — stdout table only, stderr diagnostics only, no raw provider output, control-character sanitization.
-  - Planned scope change registered 2026-09-25 under [EPIC-010](../roadmap/README.md#epic-010): once [TASK-030](../roadmap/README.md#task-030) is complete, the ban on color and terminal control sequences governs only stdout that is not an interactive terminal. The terminal view still keeps stdout/stderr separation, excludes raw provider output, and sanitizes labels ([REQ-054](#req-054)).
+  - Scope change effective 2026-09-26 under [EPIC-010](../roadmap/README.md#epic-010): the ban on color and terminal control sequences governs non-interactive stdout. The terminal view keeps stdout/stderr separation, excludes raw provider output, and sanitizes labels ([REQ-054](#req-054)).
 
 ### Usage semantics
 
@@ -169,7 +168,7 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-04](../architecture/README.md#arch-04). Owner: [TASK-008](../roadmap/README.md#task-008). Verification: [V-QUOTA](../architecture/README.md#v-quota). Evidence: [docs/verification/TASK-006.md](../verification/TASK-006.md) and TASK-008 — quota id, period kind, source, and optional reset preserved in domain results and never rendered as columns.
   - Superseded 2026-09-22 by the corrective audit: the Grok monthly billing branch drops the established period kind from the in-memory result. Re-qualification: [TASK-019](../roadmap/README.md#task-019).
   - Re-qualified 2026-09-22 under EPIC-007: monthly and weekly branches retain Period (and optional reset/source) provenance, including weekly windows with missing usage; no quota identifier is invented.
-  - Planned scope change registered 2026-09-25 under [EPIC-010](../roadmap/README.md#epic-010): once [TASK-030](../roadmap/README.md#task-030) is complete, the interactive terminal view may show a countdown from optional reset metadata ([REQ-054](#req-054)). The plain table and JSON still add no reset column or field.
+  - Scope change effective 2026-09-26 under [EPIC-010](../roadmap/README.md#epic-010): the interactive terminal view may show a countdown from optional reset metadata ([REQ-054](#req-054)). The plain table and JSON still add no reset column or field.
 
 ### Protocol and execution
 
@@ -358,20 +357,21 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-13](../architecture/README.md#arch-13). Owner: [TASK-028](../roadmap/README.md#task-028). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-BUILD](../architecture/README.md#v-build). Evidence: [TASK-028](../verification/TASK-028.md) records exact human/JSON behavior, development and release metadata, invalid syntax, output failure, full offline/race gates, four target builds, document-fresh archives, checksums, and native darwin/arm64 smoke.
 
 <a id="req-052"></a>
-- [x] **REQ-052: Machine-readable usage snapshot.** Accept `--json` on the usage command and emit one newline-terminated JSON object with a `results` array in target order. Each result contains exactly `target_id`, `provider`, normalized `account`, `status`, `used_percent` (a number for a measured weekly percentage, otherwise `null`), and `cleanup_failed`. Preserve numeric precision and zero, partial results, stderr diagnostics, and existing exit codes. Default table output, text help, and `version --json` remain unchanged; usage errors print no stdout snapshot. Exclude raw provider data and internal metadata.
+- [x] **REQ-052: Machine-readable usage snapshot.** Accept `--json` on the usage command and emit one newline-terminated JSON object with a `results` array in target order. Each result contains exactly `target_id`, `provider`, normalized `account`, `status`, `used_percent` (a number for a measured weekly percentage, otherwise `null`), and `cleanup_failed`. Preserve numeric precision and zero, partial results, stderr diagnostics, and existing exit codes. Non-interactive table output, text help, and `version --json` remain unchanged; usage errors print no stdout snapshot. Exclude raw provider data and internal metadata.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-029](../roadmap/README.md#task-029). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: [TASK-029](../verification/TASK-029.md) records offline checks and the task-scoped commit subject.
 
 <a id="req-053"></a>
-- [ ] **REQ-053: Terminal view selection.** When `--json` is present, emit only the [REQ-052](#req-052) JSON snapshot on stdout, regardless of terminal state. Without `--json`, use the interactive terminal view only when stdout is a terminal whose window size can be read and `TERM` is neither empty nor `dumb`. In every other non-JSON case, including pipes, regular files, and `/dev/null`, stdout stays byte-for-byte identical to the [REQ-011](#req-011) table. A non-empty `NO_COLOR` suppresses color while keeping the layout, glyphs, bold, and faint text. Help, `version`, stderr diagnostics, and exit codes do not change, and the view adds no flag.
-  - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e). Evidence: pending TASK-030.
+- [x] **REQ-053: Terminal view selection.** When `--json` is present, emit only the [REQ-052](#req-052) JSON snapshot on stdout, regardless of terminal state. Without `--json`, use the interactive terminal view only when stdout is a terminal whose window size can be read and `TERM` is neither empty nor `dumb`. In every other non-JSON case, including pipes, regular files, and `/dev/null`, stdout stays byte-for-byte identical to the [REQ-011](#req-011) table. A non-empty `NO_COLOR` suppresses color while keeping the layout, glyphs, bold, and faint text. Help flags, structure, and exit behavior, `version`, stderr diagnostics, and exit codes do not change, and the view adds no flag. Help usage wording describes the interactive terminal view and the unchanged non-interactive table.
+  - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e). Evidence: [TASK-030](../verification/TASK-030.md).
+  - Scope clarification effective 2026-09-26: help retains its command and flag contract while its usage description names the new terminal view. The help text still performs no provider query.
 
 <a id="req-054"></a>
-- [ ] **REQ-054: Terminal usage frame.** Render a title line and then one row per target in target order. Each row shows the provider display name, left blank when it repeats the previous row's provider; the normalized account label, disambiguated as in the table once the final frame is drawn; and either a usage bar with one-eighth-cell resolution followed by the [REQ-013](#req-013) percentage, or the existing status cell text. Color numeric rows green below 50%, yellow from 50% to below 80%, and red at 80% and above. Show non-applicable and cancelled rows faint, `AUTH REQUIRED` and unavailable rows yellow, and every other failure red. Show a reset countdown only on numeric rows whose provider supplied reset metadata, in whole truncated units (`2d 4h`, `4h 12m`, `12m`, `<1m`, or `now`), and never derive a reset time. Fit rows within the terminal width by shrinking the bar to no fewer than 10 cells, then dropping the countdown, then dropping the bar; never truncate an account label in the final frame. Count East Asian wide characters as two cells, keep the [REQ-012](#req-012) label sanitization, and emit only the control sequences that the architecture allows.
-  - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: pending TASK-030.
+- [x] **REQ-054: Terminal usage frame.** Render a title line and then one row per target in target order. Each row shows the provider display name, left blank when it repeats the previous row's provider; the normalized account label, disambiguated as in the table once the final frame is drawn; and either a usage bar with one-eighth-cell resolution followed by the [REQ-013](#req-013) percentage, or the existing status cell text. Color numeric rows green below 50%, yellow from 50% to below 80%, and red at 80% and above. Show non-applicable and cancelled rows faint, `AUTH REQUIRED` and unavailable rows yellow, and every other failure red. Show a reset countdown only on numeric rows whose provider supplied reset metadata, in whole truncated units (`2d 4h`, `4h 12m`, `12m`, `<1m`, or `now`), and never derive a reset time. Fit rows within the terminal width by shrinking the bar to no fewer than 10 cells, then dropping the countdown, then dropping the bar; never truncate an account label in the final frame. Count East Asian wide characters as two cells, keep the [REQ-012](#req-012) label sanitization, and emit only the control sequences that the architecture allows.
+  - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [TASK-030](../verification/TASK-030.md).
 
 <a id="req-055"></a>
-- [ ] **REQ-055: Live query progress.** While queries run, show every target row in place: unfinished rows with a spinner and `querying…`, and finished rows as soon as their results are known. Redraw without scrolling and keep intermediate frames within the terminal width. When the frame does not fit the terminal height, write only the final frame, once. After completion or SIGINT/SIGTERM cancellation, leave the final frame in the scrollback and restore cursor visibility. After an output failure, stop drawing and apply the existing output-failure exit policy. Progress rendering must not change target admission, deadlines, or query attempts.
-  - Architecture: [ARCH-05](../architecture/README.md#arch-05), [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-RUNNER](../architecture/README.md#v-runner), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: pending TASK-030.
+- [x] **REQ-055: Live query progress.** While queries run, show every target row in place: unfinished rows with a spinner and `querying…`, and finished rows as soon as their results are known. Redraw without scrolling and keep intermediate frames within the terminal width. When the frame is not strictly shorter than the terminal height (leaving one cursor row), write only the final frame, once. After completion or SIGINT/SIGTERM cancellation, leave the final frame in the scrollback and restore cursor visibility. After an output failure, stop drawing and apply the existing output-failure exit policy. Progress rendering must not change target admission, deadlines, or query attempts.
+  - Architecture: [ARCH-05](../architecture/README.md#arch-05), [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-RUNNER](../architecture/README.md#v-runner), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: [TASK-030](../verification/TASK-030.md).
 
 ## Completion rules
 
@@ -414,6 +414,6 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-025](../roadmap/README.md#task-025) | Final gate and candidate packaging evidence |
 | [TASK-028](../roadmap/README.md#task-028) | [REQ-051](#req-051) |
 | [TASK-029](../roadmap/README.md#task-029) | [REQ-052](#req-052) |
-| [TASK-030](../roadmap/README.md#task-030) | [REQ-053](#req-053), [REQ-054](#req-054), [REQ-055](#req-055) (planned; EPIC-010 not started) |
+| [TASK-030](../roadmap/README.md#task-030) | [REQ-053](#req-053), [REQ-054](#req-054), [REQ-055](#req-055) |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [plan.md](../roadmap/README.md#plan-roadmap).

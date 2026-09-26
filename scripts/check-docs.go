@@ -37,6 +37,12 @@ func main() {
 			if d.Name() == ".git" || d.Name() == "dist" {
 				return filepath.SkipDir
 			}
+			// Local tool output is not part of the source documentation graph.
+			switch path {
+			case filepath.Join(root, ".mulgae"), filepath.Join(root, ".sorage"),
+				filepath.Join(root, ".gaori", "runs"), filepath.Join(root, ".podway", "runtime"):
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".md") {

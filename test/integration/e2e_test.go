@@ -488,20 +488,30 @@ var _ = ginkgo.It("TestEnvironmentIsolationAndArgv", func() {
 	if err != nil {
 		t.Fatal(err)
 	}
+	seenCodex, seenGrok := false, false
 	for _, block := range strings.Split(string(envDump), "=== child") {
-		if strings.Contains(block, "app-server") {
-			if strings.Contains(block, "OPENAI_API_KEY=CODEX-ENV-SECRET") {
+		header, environment, ok := strings.Cut(block, "\n")
+		if !ok {
+			continue
+		}
+		if strings.Contains(header, "app-server") {
+			seenCodex = true
+			if strings.Contains("\n"+environment, "\nOPENAI_API_KEY=CODEX-ENV-SECRET\n") {
 				t.Fatal("openai key override reached the codex child")
 			}
-			if !strings.Contains(block, "CODEX_HOME=") {
+			if !strings.Contains("\n"+environment, "\nCODEX_HOME=") {
 				t.Fatal("CODEX_HOME not set for codex child")
 			}
 		}
-		if strings.Contains(block, "agent") && strings.Contains(block, "stdio") {
-			if strings.Contains(block, "XAI_API_KEY=GROK-ENV-SECRET") {
+		if strings.Contains(header, "agent") && strings.Contains(header, "stdio") {
+			seenGrok = true
+			if strings.Contains("\n"+environment, "\nXAI_API_KEY=GROK-ENV-SECRET\n") {
 				t.Fatal("xai key override reached the grok child")
 			}
 		}
+	}
+	if !seenCodex || !seenGrok {
+		t.Fatalf("missing child environment blocks: codex=%t grok=%t", seenCodex, seenGrok)
 	}
 })
 

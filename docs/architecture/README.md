@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Architecture
 
 Version: 0.1 specification  
-Status: Implemented as designed, except the planned EPIC-010 terminal view in ARCH-10; provider runtime compatibility qualified live on 2026-09-22 (see docs/verification/compatibility.md)  
+Status: EPIC-010 terminal view complete; provider runtime compatibility qualified live on 2026-09-22 (see docs/verification/compatibility.md)
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
@@ -26,13 +26,12 @@ ordered results rendered by the table. It adds no provider request, storage,
 or credential access. The exact public fields and failure behavior are in
 [ARCH-10](#arch-10).
 
-## Planned terminal view extension
+## Current terminal view extension
 
 [EPIC-010](../roadmap/README.md#epic-010) adds an inline live view for
-interactive terminals. It is designed but not implemented. The
-[planned design](#arch-10-terminal) in ARCH-10 is the implementation target,
-and the table rules keep governing non-JSON usage stdout until
-[TASK-030](../roadmap/README.md#task-030) is complete.
+interactive terminals. [ARCH-10](#arch-10-terminal) defines the current
+layout, selection, and redraw behavior. The existing table remains the
+non-interactive, non-JSON output contract.
 
 ## Document contract and navigation
 
@@ -100,7 +99,7 @@ cmd/gaebokchi (composition root, flags, signals, exit)
     |                                 |
     |                                 +--> internal/process (owned child lifecycle)
     |
-    +--> internal/render (domain result -> plain table and safe diagnostics)
+    +--> internal/render (domain result -> terminal frame, table, JSON, diagnostics)
 
 All application/adapters/render packages depend inward on internal/domain.
 The domain does not import a provider, RPC, process, or rendering package.
@@ -138,7 +137,7 @@ scripts/build-release.sh
 .github/workflows/ci.yml            # when the repository uses GitHub
 ```
 
-Prefer constructors and ordinary functions over a service container, plugin registry, event bus, job framework, or generic agent SDK. Avoid a new dependency merely for a three-column table. Test process injection through a narrow factory, not global monkey patching. The actual module path and maintained Go toolchain are recorded by TASK-002, based on the real repository/environment; this specification invents neither a remote repository nor an installed compiler version.
+Prefer constructors and ordinary functions over a service container, plugin registry, event bus, job framework, or generic agent SDK. The terminal path uses `golang.org/x/sys/unix` for window size and `golang.org/x/text/width` for display cells; it adds no TUI framework. Test process injection through a narrow factory, not global monkey patching. The actual module path and maintained Go toolchain are recorded by TASK-002, based on the real repository/environment; this specification invents neither a remote repository nor an installed compiler version.
 
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
@@ -253,10 +252,15 @@ parse/validate -> build ordered targets -> admit up to 3 targets
         preflight -> private temporary cwd -> start child + pipes
         -> initialize -> account/auth -> quota request -> normalize
         -> bounded cleanup -> terminal result
-all terminal results -> account-label disambiguation -> table -> exit code
+all terminal results -> account-label disambiguation -> selected output -> exit code
 ```
 
 Use a fixed result slice and index-based assignment. A target's deadline starts when admitted, not when first queued. At most three are active. Default operation admits all three immediately. Additional Codex homes use the same bounded worker pool. A failed target does not cancel the invocation context.
+
+The optional `Runner.Observe` callback receives each stored terminal result
+once, including a target cancelled while queued. The CLI observer copies the
+result into renderer-owned state; a separate writer serializes terminal
+frames. This does not change target admission, query attempts, or deadlines.
 
 The application issues no automatic RPC retries or process restarts. A provider can internally refresh credentials or retry its own network requests, but the outer deadline still applies. Do not wait for a quota notification as a substitute for the explicit read response.
 
@@ -449,7 +453,7 @@ Treat error data as untrusted. Convert only verified structured codes to named s
 
 Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024), [REQ-052](../specs/README.md#req-052). Owners: [TASK-010](../roadmap/README.md#task-010), [TASK-029](../roadmap/README.md#task-029).
 
-Render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the program must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
+For the plain table, render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the table renderer must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
 
 Sanitize all externally supplied labels before rendering: replace control/format characters and non-space whitespace with safe spaces, trim, and collapse whitespace. Never emit ESC or bidi formatting controls. A blank sanitized alias is invalid input; an unusable protocol email falls back to the home alias. Preserve ordinary printable Unicode characters. Do not truncate or mask emails by default; the README must warn that stdout can contain account identifiers.
 
@@ -495,15 +499,13 @@ On signal cancellation, the first handled signal determines the cancellation exi
 A normal missing executable/home is target-specific, not a usage error. Example: no installed Grok still produces both Codex rows and a Grok `NOT INSTALLED` row, with exit 1.
 
 <a id="arch-10-terminal"></a>
-### Planned interactive terminal view (EPIC-010)
+### Interactive terminal view (EPIC-010)
 
-Status: designed and owner-approved on 2026-09-25; not implemented. This
-subsection is the implementation target for
+Status: owner-approved on 2026-09-25; implemented by
 [TASK-030](../roadmap/README.md#task-030) and covers
 [REQ-053](../specs/README.md#req-053) through
-[REQ-055](../specs/README.md#req-055). Until TASK-030 is complete, the rules
-above govern all stdout. TASK-030 then folds this design into the current-state
-text of ARCH-02, ARCH-05, this section, and V-OUTPUT.
+[REQ-055](../specs/README.md#req-055). The table rules above govern
+non-interactive, non-JSON stdout.
 
 **Selection.** `cmd/gaebokchi` decides after option parsing. `--json` keeps
 the JSON projection. Otherwise the view applies only when stdout is an
@@ -578,8 +580,8 @@ command's output failure under the exit policy above. [S-12](#s-12)
 (`ESC[2K`), erase below (`ESC[J`), and cursor visibility (`ESC[?25l`,
 `ESC[?25h`), plus carriage return and newline. Emit no alternate screen,
 terminal queries, mouse modes, or other controls. Labels still pass the
-display-label policy above, and stderr diagnostics, help, `version`, and exit
-codes do not change.
+display-label policy above, and stderr diagnostics, help flags and behavior, `version`, and exit
+codes do not change. Help usage wording describes the new view.
 
 **Known limitations.** The block elements are East Asian Ambiguous, so bars
 misalign in terminals configured to draw ambiguous characters at double width.
@@ -640,11 +642,14 @@ Cover email from the correct Codex process, fallback labels on failure, duplicat
 Use controlled fake completion order. Verify at most three active targets, default simultaneous admission, queued target cancellation, deterministic output order, independent environments, one query attempt per target, and no cancellation of healthy siblings after one failure.
 
 <a id="v-output"></a>
-### V-OUTPUT: Table contract
+### V-OUTPUT: Output contracts
 
 Golden-test numeric and mixed-status outputs. Assert three headings, no separator/banner/color, exactly four logical lines by default, N+2 with N custom Codex homes, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
 For usage JSON, assert the exact field set, target order, number/null semantics,
 label normalization, privacy boundary, and one final newline.
+For the terminal view, test colorless and styled frames, reset provenance,
+display width and clipping, every status and color boundary, the ANSI
+allowlist, and the final visible screen after live updates and cancellation.
 
 <a id="v-exit"></a>
 ### V-EXIT: Exit contract

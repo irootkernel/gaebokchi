@@ -14,6 +14,8 @@ current merely because a later tree retains the record.
   findings, supersessions, and platform limitations.
 - [TASK-029.md](TASK-029.md) records the JSON output checks and task-scoped
   commit subject.
+- [TASK-030.md](TASK-030.md) records the interactive terminal view checks,
+  fake-provider terminal exercise, and task-scoped commit subject.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
 

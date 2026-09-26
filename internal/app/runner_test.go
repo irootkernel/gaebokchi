@@ -220,6 +220,62 @@ var _ = ginkgo.It("TestQueuedTargetsCancelledWithoutLaunch", func() {
 	}
 })
 
+var _ = ginkgo.It("observes each stored result once, including queued cancellation", func() {
+	t := testT{ginkgo.GinkgoT()}
+	started := make(chan struct{}, 1)
+	q := &fakeQuerier{responder: func(ctx context.Context, tgt domain.Target) domain.Result {
+		started <- struct{}{}
+		<-ctx.Done()
+		return domain.Result{TargetID: tgt.ID, Provider: tgt.Provider, Account: tgt.FallbackAccount, Status: domain.StatusCancelled}
+	}}
+	var mu sync.Mutex
+	observed := make(map[int][]domain.Result)
+	r := &Runner{Codex: q, Grok: q, MaxActive: 1, Observe: func(index int, result domain.Result) {
+		mu.Lock()
+		observed[index] = append(observed[index], result)
+		mu.Unlock()
+	}}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan []domain.Result, 1)
+	go func() { done <- r.Run(ctx, mkTargets(3), 5*time.Second) }()
+	<-started
+	cancel()
+	results := <-done
+	mu.Lock()
+	defer mu.Unlock()
+	if q.callCount() != 1 || len(observed) != len(results) {
+		t.Fatalf("queries=%d observations=%d results=%d", q.callCount(), len(observed), len(results))
+	}
+	for i, result := range results {
+		if len(observed[i]) != 1 || observed[i][0] != result || result.Status != domain.StatusCancelled {
+			t.Fatalf("slot %d: callbacks=%v result=%v", i, observed[i], result)
+		}
+	}
+})
+
+var _ = ginkgo.It("observes normally completed results as they are stored", func() {
+	t := testT{ginkgo.GinkgoT()}
+	q := &fakeQuerier{}
+	var mu sync.Mutex
+	observed := make(map[int][]domain.Result)
+	r := &Runner{Codex: q, Grok: q, MaxActive: 1, Observe: func(index int, result domain.Result) {
+		mu.Lock()
+		observed[index] = append(observed[index], result)
+		mu.Unlock()
+	}}
+	results := r.Run(context.Background(), mkTargets(3), time.Second)
+	mu.Lock()
+	defer mu.Unlock()
+	if q.callCount() != len(results) || len(observed) != len(results) {
+		t.Fatalf("queries=%d observations=%d results=%d", q.callCount(), len(observed), len(results))
+	}
+	for i, result := range results {
+		if len(observed[i]) != 1 || observed[i][0] != result || result.Status != domain.StatusOK || result.UsedPercent == nil || *result.UsedPercent != 50 {
+			t.Fatalf("slot %d: callbacks=%v result=%v", i, observed[i], result)
+		}
+	}
+})
+
 var _ = ginkgo.It("TestDeadlineStartsAtAdmission", func() {
 	t := testT{ginkgo.GinkgoT()}
 	// With bound 1, the second target's deadline must start after the
