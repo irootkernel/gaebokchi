@@ -129,17 +129,8 @@ func clipLine(line frameLine, limit int) frameLine {
 }
 
 func usageBar(percent float64, cells int) (string, string) {
-	units := int(math.Round(percent * float64(cells) * 8 / 100))
-	if percent > 0 && units == 0 {
-		units = 1
-	}
-	units = max(0, min(cells*8, units))
-	full, eighth := units/8, units%8
-	fill := strings.Repeat("█", full)
-	if eighth > 0 {
-		fill += string([]rune("▏▎▍▌▋▊▉")[eighth-1])
-	}
-	return fill, strings.Repeat("░", cells-cellWidth(fill))
+	usedCells := max(0, min(cells, int(math.Round(percent*float64(cells)/100))))
+	return strings.Repeat("█", usedCells), strings.Repeat("░", cells-usedCells)
 }
 
 func countdown(reset, now time.Time) string {
@@ -192,7 +183,7 @@ func statusStyle(status domain.Status) textStyle {
 	}
 }
 
-func resultLine(result domain.Result, provider, account string, providerCells, accountCells, columns int, now time.Time, spinner string) frameLine {
+func resultLine(result domain.Result, provider, account string, providerCells, accountCells, columns int, spinner string) frameLine {
 	base := frameLine{{rowGap, 0}, {pad(provider, providerCells), styleBold}, {rowGap, 0}, {pad(account, accountCells), 0}, {rowGap, 0}}
 	if result.Status == "" {
 		return append(base, span{spinner + " querying…", styleFaint})
@@ -201,19 +192,11 @@ func resultLine(result domain.Result, provider, account string, providerCells, a
 		return append(base, span{UsageCell(result), statusStyle(result.Status)})
 	}
 	percentage := fmt.Sprintf("%*s", percentageCells, UsageCell(result))
-	reset := resetText(result, now)
 	barCells := 20
 	// Reserve one terminal cell so intermediate redraws cannot wrap.
 	limit := columns - 1
 	barWidth := func() int { return barCells + cellWidth(rowGap) + percentageCells }
 	baseWidth := lineWidth(base)
-	if baseWidth+barWidth()+cellWidth(rowGap)+cellWidth(reset) > limit && reset != "" {
-		barCells = max(10, min(20, limit-baseWidth-cellWidth(rowGap)-percentageCells-cellWidth(rowGap)-cellWidth(reset)))
-	}
-	if baseWidth+barWidth()+cellWidth(rowGap)+cellWidth(reset) > limit {
-		reset = ""
-		barCells = 20
-	}
 	if baseWidth+barWidth() > limit {
 		barCells = max(10, min(barCells, limit-baseWidth-cellWidth(rowGap)-percentageCells))
 	}
@@ -223,9 +206,6 @@ func resultLine(result domain.Result, provider, account string, providerCells, a
 		base = append(base, span{fill, style}, span{track, styleFaint}, span{rowGap, 0})
 	}
 	base = append(base, span{percentage, styleBold | style})
-	if reset != "" {
-		base = append(base, span{rowGap, 0}, span{reset, styleFaint})
-	}
 	return base
 }
 
@@ -237,7 +217,7 @@ func TerminalFrame(results []domain.Result, columns int, now time.Time, color, i
 		providerCells = max(providerCells, cellWidth(result.Provider.DisplayName()))
 		accountCells = max(accountCells, cellWidth(SanitizeLabel(result.Account)))
 	}
-	lines := make([]frameLine, 0, frameLineCount(len(results)))
+	lines := make([]frameLine, 0, frameLineCount(len(results))+len(results))
 	lines = append(lines, nil, frameLine{{"  🐡 ", 0}, {"gaebokchi", styleBold}, {" · weekly usage", styleFaint}}, nil)
 	var previous domain.ProviderKind
 	for _, result := range results {
@@ -246,8 +226,13 @@ func TerminalFrame(results []domain.Result, columns int, now time.Time, color, i
 			provider = ""
 		}
 		previous = result.Provider
-		line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, now, spinner)
+		line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, spinner)
 		lines = append(lines, line)
+		if result.Status == domain.StatusOK && result.UsedPercent != nil {
+			if reset := resetText(result, now); reset != "" {
+				lines = append(lines, frameLine{{"    ", 0}, {reset, styleFaint}})
+			}
+		}
 	}
 	lines = append(lines, nil)
 	var b strings.Builder

@@ -31,9 +31,15 @@ type LiveRenderer struct {
 }
 
 func NewLiveRenderer(out io.Writer, targets []domain.Target, columns, rows int, color bool) *LiveRenderer {
+	maxLines := frameLineCount(len(targets))
+	for _, target := range targets {
+		if target.Provider == domain.ProviderCodex || target.Provider == domain.ProviderGrok {
+			maxLines++
+		}
+	}
 	r := &LiveRenderer{
 		out: out, columns: columns, color: color,
-		live:    frameLineCount(len(targets)) < rows,
+		live:    maxLines < rows,
 		results: make([]domain.Result, len(targets)),
 		updates: make(chan struct{}, 1), stop: make(chan struct{}), done: make(chan struct{}),
 	}

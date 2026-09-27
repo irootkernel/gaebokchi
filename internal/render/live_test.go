@@ -100,6 +100,7 @@ var _ = ginkgo.It("leaves exactly the completed frame on a modeled screen after 
 	live := NewLiveRenderer(w, targets, 100, 30, true)
 	result := measured(37)
 	result.Account = "first@example.com"
+	result.ResetAt = ptrTime(time.Now().Add(52*time.Hour + time.Minute))
 	live.Observe(0, result)
 	time.Sleep(20 * time.Millisecond)
 	cancelled := domain.Result{Provider: domain.ProviderGrok, Account: "default", Status: domain.StatusCancelled}
@@ -113,7 +114,7 @@ var _ = ginkgo.It("leaves exactly the completed frame on a modeled screen after 
 	if err := model.apply(output); err != nil {
 		t.Fatalf("invalid terminal sequence: %v", err)
 	}
-	wantFrame, _ := TerminalFrame(results, 100, fixedNow, true, false, "")
+	wantFrame, _ := TerminalFrame(results, 100, time.Now(), true, false, "")
 	want := strings.Split(strings.TrimSuffix(plain(wantFrame), "\n"), "\n")
 	for len(model.lines) > len(want) && model.lines[len(model.lines)-1] == "" {
 		model.lines = model.lines[:len(model.lines)-1]

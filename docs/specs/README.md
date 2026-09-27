@@ -41,9 +41,12 @@ synthetic frame below shows the view mid-query; colors are defined in
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h
-           account2@example.com  ██▍░░░░░░░░░░░░░░░░░     12%  ↻ 5d 1h
-  Grok     default               ██████████▊░░░░░░░░░     54%  ↻ 3d 11h
+  ChatGPT  account1@example.com  ███████░░░░░░░░░░░░░     37%
+    ↻ 2d 4h
+           account2@example.com  ██░░░░░░░░░░░░░░░░░░     12%
+    ↻ 5d 1h
+  Grok     default               ███████████░░░░░░░░░     54%
+    ↻ 3d 11h
   Claude   default               ⠹ querying…
 
 ```
@@ -368,8 +371,9 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Scope clarification effective 2026-09-26: help retains its command and flag contract while its usage description names the new terminal view. The help text still performs no provider query.
 
 <a id="req-054"></a>
-- [x] **REQ-054: Terminal usage frame.** Render a title line and then one row per target in target order. Each row shows the provider display name, left blank when it repeats the previous row's provider; the normalized account label, disambiguated as in the table once the final frame is drawn; and either a usage bar with one-eighth-cell resolution followed by the [REQ-013](#req-013) percentage, or the existing status cell text. Color numeric rows green below 50%, yellow from 50% to below 80%, and red at 80% and above. Show non-applicable and cancelled rows faint, `AUTH REQUIRED` and unavailable rows yellow, and every other failure red. Show a reset countdown only on numeric rows whose provider supplied reset metadata, in whole truncated units (`2d 4h`, `4h 12m`, `12m`, `<1m`, or `now`), and never derive a reset time. Fit rows within the terminal width by shrinking the bar to no fewer than 10 cells, then dropping the countdown. Restore the bar toward 20 cells and shrink it to the available width before dropping it; never truncate an account label in the final frame. Count East Asian wide characters as two cells, keep the [REQ-012](#req-012) label sanitization, and emit only the control sequences that the architecture allows.
+- [x] **REQ-054: Terminal usage frame.** Render a title line and then one target row per target in target order. Each target row shows the provider display name, left blank when it repeats the previous row's provider; the normalized account label, disambiguated as in the table once the final frame is drawn; and either a usage bar of whole `█` and `░` cells followed by the [REQ-013](#req-013) percentage, or the existing status cell text. Round the bar to the nearest whole cell; the percentage retains its precision. Color numeric rows green below 50%, yellow from 50% to below 80%, and red at 80% and above. Show non-applicable and cancelled rows faint, `AUTH REQUIRED` and unavailable rows yellow, and every other failure red. Show a reset countdown only on numeric rows whose provider supplied reset metadata, on a four-space-indented line directly below that account, in whole truncated units (`2d 4h`, `4h 12m`, `12m`, `<1m`, or `now`), and never derive a reset time. Fit numeric rows within the terminal width by shrinking the bar from 20 to no fewer than 10 cells, then dropping the bar if it still does not fit; never truncate an account label in the final frame. Count East Asian wide characters as two cells, keep the [REQ-012](#req-012) label sanitization, and emit only the control sequences that the architecture allows.
   - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [TASK-030](../verification/TASK-030.md).
+  - Presentation update effective 2026-09-27: whole-cell bars and separate reset lines supersede the original eighth-cell, inline-reset layout recorded in TASK-030. Current rendering and live-redraw tests verify this layout.
 
 <a id="req-055"></a>
 - [x] **REQ-055: Live query progress.** While queries run, show every target row in place: unfinished rows with a spinner and `querying…`, and finished rows as soon as their results are known. Redraw without scrolling and keep intermediate frames within the terminal width. When the frame is not strictly shorter than the terminal height (leaving one cursor row), write only the final frame, once. After completion or SIGINT/SIGTERM cancellation, leave the final frame in the scrollback and restore cursor visibility. After an output failure, stop drawing and apply the existing output-failure exit policy. Progress rendering must not change target admission, deadlines, or query attempts.

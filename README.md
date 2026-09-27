@@ -11,10 +11,13 @@ leaves this kind of final frame:
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h
-           account2@example.com  ██▍░░░░░░░░░░░░░░░░░     12%  ↻ 5d 1h
-  Grok     default               ██████████▊░░░░░░░░░     54%  ↻ 3d 11h
-  Claude   default               ████████▋░░░░░░░░░░░   43.2%
+  ChatGPT  account1@example.com  ███████░░░░░░░░░░░░░     37%
+    ↻ 2d 4h
+           account2@example.com  ██░░░░░░░░░░░░░░░░░░     12%
+    ↻ 5d 1h
+  Grok     default               ███████████░░░░░░░░░     54%
+    ↻ 3d 11h
+  Claude   default               █████████░░░░░░░░░░░   43.2%
 
 ```
 

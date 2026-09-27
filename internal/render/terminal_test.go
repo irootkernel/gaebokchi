@@ -28,8 +28,8 @@ var _ = ginkgo.It("renders a stable colorless frame and provenance-based countdo
 	r := measured(37)
 	r.ResetAt = ptrTime(fixedNow.Add(52 * time.Hour))
 	frame, lines := TerminalFrame([]domain.Result{r}, 100, fixedNow, false, false, "⠹")
-	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h\n\n"
-	if plain(frame) != want || lines != 5 {
+	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████░░░░░░░░░░░░░     37%\n    ↻ 2d 4h\n\n"
+	if plain(frame) != want || lines != 6 {
 		t.Fatalf("frame = %q, lines = %d; want %q", frame, lines, want)
 	}
 	if strings.Contains(frame, "[31m") || strings.Contains(frame, "[32m") || strings.Contains(frame, "[33m") {
@@ -61,14 +61,15 @@ var _ = ginkgo.It("renders a colorless grouped frame with a sanitized wide label
 
 func ptrTime(value time.Time) *time.Time { return &value }
 
-var _ = ginkgo.It("rounds bars to eighths and keeps a nonzero sliver", func() {
+var _ = ginkgo.It("rounds bars to whole cells and leaves precision in the percentage", func() {
 	t := testT{ginkgo.GinkgoT()}
 	cases := []struct {
 		percent float64
 		fill    string
 		track   int
 	}{
-		{0, "", 20}, {0.1, "▏", 19}, {37, "███████▍", 12},
+		{0, "", 20}, {0.1, "", 20}, {6, "█", 19},
+		{8, "██", 18}, {37, "███████", 13}, {42, "████████", 12},
 		{99.99, strings.Repeat("█", 20), 0}, {100, strings.Repeat("█", 20), 0},
 	}
 	for _, tc := range cases {
@@ -184,7 +185,7 @@ var _ = ginkgo.It("maps numeric and terminal statuses to approved style classes"
 	}
 })
 
-var _ = ginkgo.It("shrinks bars, drops countdown then bar, and clips only live labels", func() {
+var _ = ginkgo.It("shrinks bars independently of reset lines and clips live overflow", func() {
 	t := testT{ginkgo.GinkgoT()}
 	r := measured(37)
 	r.Account = "한글-alias"
@@ -198,21 +199,66 @@ var _ = ginkgo.It("shrinks bars, drops countdown then bar, and clips only live l
 		}
 	}
 	wide, _ := TerminalFrame([]domain.Result{r}, 100, fixedNow, false, false, "")
-	shrunkWithReset, _ := TerminalFrame([]domain.Result{r}, 60, fixedNow, false, false, "")
-	withoutReset, _ := TerminalFrame([]domain.Result{r}, 50, fixedNow, false, false, "")
+	fullWithReset, _ := TerminalFrame([]domain.Result{r}, 60, fixedNow, false, false, "")
+	shrunkWithReset, _ := TerminalFrame([]domain.Result{r}, 50, fixedNow, false, false, "")
 	floorBar, _ := TerminalFrame([]domain.Result{r}, 42, fixedNow, false, false, "")
 	narrow, _ := TerminalFrame([]domain.Result{r}, 40, fixedNow, false, false, "")
 	tiny, _ := TerminalFrame([]domain.Result{r}, 25, fixedNow, false, false, "")
-	fill19, track19 := usageBar(37, 19)
 	fill18, track18 := usageBar(37, 18)
 	fill10, track10 := usageBar(37, 10)
-	if !strings.Contains(wide, "↻ 2d 4h") ||
-		!strings.Contains(plain(shrunkWithReset), fill19+track19) || !strings.Contains(shrunkWithReset, "↻ 2d 4h") ||
-		!strings.Contains(plain(withoutReset), fill18+track18) || strings.Contains(withoutReset, "↻") ||
-		!strings.Contains(plain(floorBar), fill10+track10) || strings.Contains(floorBar, "↻") ||
-		strings.Contains(narrow, "↻") || !strings.Contains(plain(narrow), "37%") ||
+	fill20, track20 := usageBar(37, 20)
+	if !strings.Contains(plain(wide), "\n    ↻ 2d 4h\n") ||
+		!strings.Contains(plain(fullWithReset), fill20+track20) ||
+		!strings.Contains(plain(shrunkWithReset), fill18+track18) ||
+		!strings.Contains(plain(floorBar), fill10+track10) ||
+		!strings.Contains(narrow, "↻ 2d 4h") || !strings.Contains(plain(narrow), "37%") ||
 		strings.Contains(tiny, "░") || !strings.Contains(tiny, r.Account) || !strings.Contains(plain(tiny), "37%") {
-		t.Fatalf("width tiers: 100=%q 60=%q 50=%q 42=%q 40=%q 25=%q", wide, shrunkWithReset, withoutReset, floorBar, narrow, tiny)
+		t.Fatalf("width tiers: 100=%q 60=%q 50=%q 42=%q 40=%q 25=%q", wide, fullWithReset, shrunkWithReset, floorBar, narrow, tiny)
+	}
+})
+
+var _ = ginkgo.It("keeps mixed provider bars the same width when resets are separate", func() {
+	t := testT{ginkgo.GinkgoT()}
+	account := strings.Repeat("a", 23)
+	first := measured(8)
+	first.Account = account
+	first.ResetAt = ptrTime(fixedNow.Add(52 * time.Hour))
+	second := measured(6)
+	second.Account = "short"
+	second.ResetAt = first.ResetAt
+	grok := measured(0)
+	grok.Provider = domain.ProviderGrok
+	grok.Account = "default"
+	grok.Source = domain.SourceGrokACPBilling
+	grok.ResetAt = first.ResetAt
+	claude := measured(42)
+	claude.Provider = domain.ProviderClaude
+	claude.Account = "default"
+	claude.Source = domain.SourceClaudeCLIUsage
+	for _, tc := range []struct{ columns, barCells int }{{72, 20}, {62, 17}} {
+		frame, count := TerminalFrame([]domain.Result{first, second, grok, claude}, tc.columns, fixedNow, false, false, "")
+		clean := plain(frame)
+		if count != 11 || strings.Count(clean, "\n    ↻ 2d 4h\n") != 3 {
+			t.Fatalf("%d columns: reset placement or line count: %q", tc.columns, frame)
+		}
+		row := 0
+		for _, line := range strings.Split(clean, "\n") {
+			if !strings.HasSuffix(line, "%") {
+				continue
+			}
+			if row >= 4 {
+				t.Fatalf("%d columns: extra numeric row: %q", tc.columns, frame)
+			}
+			fields := strings.Fields(line)
+			fill, track := usageBar([]float64{8, 6, 0, 42}[row], tc.barCells)
+			if fields[len(fields)-2] != fill+track {
+				t.Fatalf("%d columns: row %d bar = %q, want %q", tc.columns, row, fields[len(fields)-2], fill+track)
+			}
+			row++
+		}
+		if row != 4 {
+			t.Fatalf("%d columns: got %d numeric rows, want 4", tc.columns, row)
+		}
 	}
 })
 
@@ -269,7 +315,7 @@ var _ = ginkgo.It("serializes concurrent observations and leaves the final frame
 var _ = ginkgo.It("writes one final frame on short terminals and stops after first output failure", func() {
 	t := testT{ginkgo.GinkgoT()}
 	w := &countedWriter{}
-	r := NewLiveRenderer(w, oneTarget(), 40, 5, false)
+	r := NewLiveRenderer(w, oneTarget(), 40, 6, false)
 	r.Observe(0, measured(37))
 	if err := r.Finish([]domain.Result{measured(37)}); err != nil {
 		t.Fatal(err)
