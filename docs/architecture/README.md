@@ -15,7 +15,10 @@ same bounded runner and child-process owner. Its adapter invokes
 `claude --safe-mode auth status --json` and then the built-in `/usage` local
 command in print mode with `--max-turns 0` and no session persistence. It
 requires the JSON result to establish a zero-turn, zero-cost local command
-before selecting the exact all-models weekly line. The Claude adapter uses
+before selecting the exact all-models weekly line. When that line ends with
+the recorded ` · resets …` text and the text names exactly one instant in its
+IANA zone, the adapter keeps that instant as optional `ResetAt`. Otherwise the
+reset is discarded without affecting the percentage. The Claude adapter uses
 no RPC dialect, credential parsing, or app-owned HTTP connection. See the
 [qualification record](../verification/claude-compatibility.md).
 
@@ -549,7 +552,8 @@ below its account row. It uses whole truncated units (`↻ 2d 4h`): days and
 hours, hours and minutes, minutes, `<1m`, or `now` once the reset time has
 passed. It appears only on
 `OK` rows whose `ResetAt` came from the provider (Codex `resetsAt`, Grok period
-end). Claude rows and Grok monthly rows show none.
+end, or the reset text on Claude's all-models weekly line). Grok monthly rows
+show none.
 
 | Element | Style (SGR parameters) |
 |---|---|
@@ -570,7 +574,7 @@ drop the bar if it still does not fit.
 Intermediate live frames clip remaining overflow and end it with `…`. The
 final frame never truncates an account label; it may wrap instead, because
 nothing redraws after it. When the maximum frame height (targets + 4, plus one
-possible reset line per Codex or Grok target) is not smaller than the terminal
+possible reset line per target) is not smaller than the terminal
 rows, skip live redraws and write only the final frame once.
 
 **Live progress.** `app.Runner` gains an optional observation callback that
@@ -598,8 +602,13 @@ codes do not change. Help usage wording describes the new view.
 **Known limitations.** The block elements are East Asian Ambiguous, so bars
 misalign in terminals configured to draw ambiguous characters at double width.
 Narrowing the window during live redraws can leave reflowed lines above the
-final frame. Claude reports its reset time only as unqualified human-readable
-text; showing it would first need a new compatibility record.
+final frame. Claude reports its reset time only as minute-resolution
+human-readable text without a UTC offset, so its countdown can reach `now` up
+to a minute early. A reset at a local time that a daylight-saving change
+repeats shows no countdown, as do reset text the parser does not recognize
+and a zone the host cannot load; the
+[compatibility record](../verification/claude-compatibility.md) lists every
+discard case.
 
 <a id="arch-11"></a>
 ## ARCH-11: Verification catalog

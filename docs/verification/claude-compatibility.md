@@ -31,3 +31,37 @@ documents that `ANTHROPIC_API_KEY` overrides a subscription in print mode.
 
 Offline tests use a fake Claude executable. No real Claude CLI acceptance
 was run on Linux in this qualification.
+
+## Weekly reset text
+
+Observed on 2026-09-27 on macOS/arm64 with Claude Code 2.1.283, through the
+same prompt-free usage read. When the server reports a reset time, each meter
+line, including the all-models weekly line, ends with a reset suffix:
+
+```text
+Current week (all models): N% used · resets Oct 3 at 10am (America/Los_Angeles)
+```
+
+The installed CLI builds this suffix from the usage endpoint's `resets_at`
+with a fixed en-US formatter. It gives the short month and day, then a comma
+and a four-digit year only when that year differs from the current year in
+the named zone. The time is 12-hour with lowercase `am`/`pm`, and the minutes
+are omitted on the hour. The runtime's IANA time zone follows in parentheses.
+Seconds are dropped, so the text has minute resolution.
+
+The live read joined the date and time with ` at `. Bun 1.4.2 and
+JavaScriptCore reproduce that form, including `Jan 2, 2027 at 5pm`. The same
+formatter under Node 26 joins them with a comma instead (`Jan 2, 2027, 5pm`).
+Gaebokchi accepts either join. The observed percentages and times were masked
+and are not stored here.
+
+Gaebokchi reads only the suffix of the all-models weekly line and keeps the
+reset only when the text names exactly one instant. The text carries no UTC
+offset. So the reset stays unset, without affecting the percentage, when the
+suffix is missing or unrecognized, when the host cannot load the zone, when
+the date does not exist, or when a daylight-saving change skips or repeats the
+printed local time. It also stays unset when the text omits the year and the
+zone's year changed while the usage command ran. The CLI also attaches a
+structured `usage_report` to `stream-json` output. Its schema is marked
+experimental, so gaebokchi does not use it, and the qualified command line is
+unchanged.

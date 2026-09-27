@@ -7,7 +7,7 @@ current merely because a later tree retains the record.
 - [compatibility.md](compatibility.md) records the frozen external protocol
   qualification and sanitized fixture provenance.
 - [claude-compatibility.md](claude-compatibility.md) records the later Claude
-  local-command qualification.
+  local-command and weekly reset-text qualification.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
 - `TASK-001.md` through `TASK-028.md` record historical task-scoped checks,

@@ -31,12 +31,8 @@ type LiveRenderer struct {
 }
 
 func NewLiveRenderer(out io.Writer, targets []domain.Target, columns, rows int, color bool) *LiveRenderer {
-	maxLines := frameLineCount(len(targets))
-	for _, target := range targets {
-		if target.Provider == domain.ProviderCodex || target.Provider == domain.ProviderGrok {
-			maxLines++
-		}
-	}
+	// Every target may add one reset line below its row.
+	maxLines := frameLineCount(len(targets)) + len(targets)
 	r := &LiveRenderer{
 		out: out, columns: columns, color: color,
 		live:    maxLines < rows,

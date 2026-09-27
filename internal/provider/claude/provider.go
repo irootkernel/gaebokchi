@@ -23,7 +23,14 @@ import (
 
 const outputLimit = 256 << 10
 
-var weeklyLine = regexp.MustCompile(`^Current week \(all models\): ([0-9]+(?:\.[0-9]+)?)% used(?:[ \t].*)?$`)
+var (
+	weeklyLine = regexp.MustCompile(`^Current week \(all models\): ([0-9]+(?:\.[0-9]+)?)% used((?:[ \t].*)?)$`)
+	// resetSuffix is the CLI's en-US reset text. It names the IANA zone,
+	// omits the minutes of a whole hour, and omits the year when it equals
+	// the current year in that zone. The runtime's ICU data joins the date
+	// and time with " at " (Bun) or "," (Node).
+	resetSuffix = regexp.MustCompile(`^ · resets ([A-Z][a-z]{2} [0-9]{1,2})(?:, ([0-9]{4}))?(?:,| at) ([0-9]{1,2})(?::([0-9]{2}))?([ap]m) \(([^()]+)\)$`)
+)
 
 type Provider struct {
 	Start process.Factory
@@ -160,6 +167,7 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		return
 	}
 
+	usageStart := time.Now()
 	usage := p.command(ctx, bin, env, "--safe-mode", "--tools", "", "-p", "/usage",
 		"--max-turns", "0", "--output-format", "json", "--no-session-persistence")
 	res.CleanupFailed = res.CleanupFailed || usage.cleanupFailed
@@ -171,13 +179,14 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		set(domain.StatusUnsupported, "usage_unsupported", "claude CLI did not return a usage result")
 		return
 	}
-	percent, status := parseUsage(usage.output)
+	percent, reset, status := parseUsage(usage.output, usageStart, time.Now())
 	if status != domain.StatusOK {
 		set(status, string(status), "claude weekly usage output is unsupported")
 		return
 	}
 	res.Status = domain.StatusOK
 	res.UsedPercent = &percent
+	res.ResetAt = reset
 	res.Period = domain.PeriodWeekly
 	res.QuotaID = "claude_all_models"
 	res.Source = domain.SourceClaudeCLIUsage
@@ -197,7 +206,7 @@ func commandErrorStatus(err error) domain.Status {
 	}
 }
 
-func parseUsage(raw []byte) (float64, domain.Status) {
+func parseUsage(raw []byte, start, end time.Time) (float64, *time.Time, domain.Status) {
 	var envelope struct {
 		LocalCommand string   `json:"local_command"`
 		NumTurns     *int     `json:"num_turns"`
@@ -209,26 +218,79 @@ func parseUsage(raw []byte) (float64, domain.Status) {
 		envelope.NumTurns == nil || *envelope.NumTurns != 0 ||
 		envelope.TotalCostUSD == nil || *envelope.TotalCostUSD != 0 ||
 		envelope.IsError == nil || *envelope.IsError || envelope.Result == nil {
-		return 0, domain.StatusUnsupported
+		return 0, nil, domain.StatusUnsupported
 	}
 	var found *float64
+	var reset *time.Time
 	for _, line := range strings.Split(*envelope.Result, "\n") {
 		match := weeklyLine.FindStringSubmatch(strings.TrimSuffix(line, "\r"))
 		if match == nil {
 			continue
 		}
 		if found != nil {
-			return 0, domain.StatusUnsupported
+			return 0, nil, domain.StatusUnsupported
 		}
 		v, err := strconv.ParseFloat(match[1], 64)
 		if err != nil || !domain.ValidatePercent(v) {
-			return 0, domain.StatusProtocolError
+			return 0, nil, domain.StatusProtocolError
 		}
 		v = domain.NormalizePercentSignedZero(v)
 		found = &v
+		reset = parseReset(match[2], start, end)
 	}
 	if found == nil {
-		return 0, domain.StatusUnsupported
+		return 0, nil, domain.StatusUnsupported
 	}
-	return *found, domain.StatusOK
+	return *found, reset, domain.StatusOK
+}
+
+// parseReset reads the optional reset suffix of the selected weekly line;
+// start and end bracket the usage command. Text that does not name exactly
+// one instant discards the reset rather than poisoning the percentage.
+func parseReset(suffix string, start, end time.Time) *time.Time {
+	match := resetSuffix.FindStringSubmatch(suffix)
+	if match == nil {
+		return nil
+	}
+	loc, err := time.LoadLocation(match[6])
+	if err != nil {
+		return nil
+	}
+	year, minute := match[2], match[4]
+	if year == "" {
+		// The omitted year is the one the CLI formatted in, which is
+		// unknown when the zone's year changed during the command.
+		if start.In(loc).Year() != end.In(loc).Year() {
+			return nil
+		}
+		year = strconv.Itoa(end.In(loc).Year())
+	}
+	if minute == "" {
+		minute = "00"
+	}
+	wall, err := time.Parse("Jan 2, 2006, 3:04pm", match[1]+", "+year+", "+match[3]+":"+minute+match[5])
+	if err != nil {
+		return nil
+	}
+	return uniqueInstant(wall, loc)
+}
+
+// uniqueInstant returns the one instant whose clock in loc shows the fields
+// of wall. A daylight-saving gap has no such instant and an overlap has two;
+// the reset text carries no offset to choose between them.
+func uniqueInstant(wall time.Time, loc *time.Location) *time.Time {
+	var found *time.Time
+	// The offsets in effect two days either side are the only candidates.
+	for _, probe := range []time.Time{wall.Add(-48 * time.Hour), wall.Add(48 * time.Hour)} {
+		_, offset := probe.In(loc).Zone()
+		at := wall.Add(-time.Duration(offset) * time.Second).In(loc)
+		if _, actual := at.Zone(); actual != offset || (found != nil && found.Equal(at)) {
+			continue
+		}
+		if found != nil {
+			return nil
+		}
+		found = &at
+	}
+	return found
 }

@@ -18,6 +18,7 @@ leaves this kind of final frame:
   Grok     default               ███████████░░░░░░░░░     54%
     ↻ 3d 11h
   Claude   default               █████████░░░░░░░░░░░   43.2%
+    ↻ 19h 4m
 
 ```
 
@@ -56,6 +57,7 @@ Claude       default                43.2%
 - Claude uses the CLI's `/usage` local command in print mode. Its weekly
   all-models line is parsed only after the CLI confirms zero model turns
   and zero cost. This human-readable line can change across CLI versions.
+  The Claude countdown comes from the reset time printed on the same line.
 
 ## Prerequisites
 
@@ -70,7 +72,8 @@ Claude       default                43.2%
 Protocol compatibility was qualified with live, prompt-free queries
 against `codex-cli 0.155.1` and `grok 1.0.40 (stable)` on macOS/arm64.
 The Claude local-command path was checked against Claude Code 2.1.280 on
-macOS/arm64; see its [compatibility record](docs/verification/claude-compatibility.md).
+macOS/arm64, and its reset text against 2.1.283; see its
+[compatibility record](docs/verification/claude-compatibility.md).
 In a source checkout, see the
 [compatibility record](docs/verification/compatibility.md) for the frozen
 protocol evidence. Separately, the offline application

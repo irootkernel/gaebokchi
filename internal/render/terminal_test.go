@@ -98,10 +98,11 @@ var _ = ginkgo.It("formats countdowns with truncated whole units", func() {
 		}
 	}
 	r := measured(37)
+	r.Provider = domain.ProviderClaude
 	r.Source = domain.SourceClaudeCLIUsage
 	r.ResetAt = ptrTime(fixedNow.Add(time.Hour))
-	if resetText(r, fixedNow) != "" {
-		t.Fatal("unqualified Claude reset shown")
+	if got := resetText(r, fixedNow); got != "↻ 1h 0m" {
+		t.Fatalf("Claude reset = %q, want ↻ 1h 0m", got)
 	}
 	r.Source = domain.SourceGrokACPBilling
 	r.Period = domain.PeriodMonthly
@@ -343,6 +344,19 @@ var _ = ginkgo.It("writes one final frame on short terminals and stops after fir
 	output, writes := w.value()
 	if writes != 1 || strings.Contains(output, "[?25") || !strings.Contains(output, "37%") {
 		t.Fatalf("height fallback: writes=%d output=%q", writes, output)
+	}
+
+	claude := measured(37)
+	claude.Provider = domain.ProviderClaude
+	claude.Source = domain.SourceClaudeCLIUsage
+	claude.ResetAt = ptrTime(time.Now().Add(52 * time.Hour))
+	w = &countedWriter{}
+	r = NewLiveRenderer(w, []domain.Target{{ID: "claude:0", Index: 0, Provider: domain.ProviderClaude, FallbackAccount: "a"}}, 40, 6, false)
+	if err := r.Finish([]domain.Result{claude}); err != nil {
+		t.Fatal(err)
+	}
+	if _, writes = w.value(); writes != 1 {
+		t.Fatalf("Claude reset line not counted in the frame height: writes=%d", writes)
 	}
 
 	failing := &countedWriter{failAt: 1}

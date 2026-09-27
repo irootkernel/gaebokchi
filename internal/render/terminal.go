@@ -157,9 +157,6 @@ func resetText(result domain.Result, now time.Time) string {
 	if result.Status != domain.StatusOK || result.ResetAt == nil || result.Period != domain.PeriodWeekly {
 		return ""
 	}
-	if result.Source != domain.SourceCodexAppServer && result.Source != domain.SourceGrokACPBilling {
-		return ""
-	}
 	return "↻ " + countdown(*result.ResetAt, now)
 }
 
