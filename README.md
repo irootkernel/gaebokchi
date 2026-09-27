@@ -37,6 +37,9 @@ Claude       default                43.0%
 - Shows the percentage already consumed in the provider-reported
   **weekly subscription quota**. It never shows remaining quota, local
   token totals, API spend, or a calendar-week guess.
+- When Grok reports a weekly period but omits `creditUsagePercent`, displays
+  `0.0%` under a Grok compatibility policy. This is a display fallback,
+  not a measured zero; an explicit `null` percentage remains `N/A (no data)`.
 - One snapshot, then exit. Terminal progress does not re-query. No daemon,
   watch mode, polling, retries, history, or cache.
 - Read-only on the business level: no model turns, tool actions,
@@ -125,8 +128,9 @@ For a usage query, `--json` writes one newline-terminated object with a
 `results` array in display order. Each result has `target_id`, `provider`
 (`codex`, `grok`, or `claude`), normalized `account`, `status`, numeric
 `used_percent` (or `null` when unavailable), and boolean `cleanup_failed`.
-The numeric value retains provider precision and has no `%` suffix. For
-example, a successful row may look like:
+Measured numeric values retain provider precision and have no `%` suffix.
+The Grok weekly omission fallback is numeric zero. For example, a successful
+row may look like:
 
 ```json
 {"results":[{"target_id":"codex:0","provider":"codex","account":"account1@example.com","status":"ok","used_percent":37.125,"cleanup_failed":false}]}
@@ -159,6 +163,7 @@ errors.
 | WEEKLY USAGE cell | Meaning |
 |---|---|
 | `37.0%` | Weekly subscription usage consumed (one decimal) |
+| `0.0%` for Grok with an omitted weekly percentage | Grok-compatible display fallback; zero usage is not independently verified |
 | `N/A (monthly)` | The account reports a monthly period — not weekly usage |
 | `N/A (API key)` | API-key auth has no provider subscription quota |
 | `N/A (no weekly)` | No weekly window in the provider's quota data |

@@ -213,7 +213,7 @@ type Result struct {
 }
 ```
 
-Transport structs remain in the provider package. Preserve field presence with pointers or raw JSON decoding. Go zero values must not turn omitted numbers into a measured zero. Decode the percentage as a number, not a numeric string. Ignore additive unknown object fields, but validate all fields needed to establish the metric.
+Transport structs remain in the provider package. Preserve field presence with pointers or raw JSON decoding. Go zero values must not turn omitted numbers into a measured zero; the Grok weekly omission fallback in ARCH-08 is an explicit display convention. Decode the percentage as a number, not a numeric string. Ignore additive unknown object fields, but validate all fields needed to establish the metric.
 
 Project percentage policy: accept finite values in `[0,100]`; format once to one decimal place in the renderer, normalizing signed zero. Do not round before selecting a period or comparing duplicate windows. Out-of-range values are a protocol/semantic mismatch, not a reason to clamp. A future upstream definition allowing percentages over 100 requires an explicit contract change.
 
@@ -398,7 +398,7 @@ Require billing retrieval without `session/new` or a prompt. If it needs an agen
 
 ### Result mapping
 
-The inspected billing types contain `config.creditUsagePercent` and `config.currentPeriod` with a period `type`, optional `start`, and optional `end`. The source describes `USAGE_PERIOD_TYPE_WEEKLY` and weekly/monthly periods. Optional zero-valued fields must retain their actual presence semantics. [S-05](#s-05)
+The inspected billing types contain `config.creditUsagePercent` and `config.currentPeriod` with a period `type`, optional `start`, and optional `end`. The source describes `USAGE_PERIOD_TYPE_WEEKLY` and weekly/monthly periods. Preserve the distinction between an omitted percentage, explicit `null`, and numeric zero. [S-05](#s-05)
 
 Normalize in this order:
 
@@ -410,12 +410,15 @@ Normalize in this order:
 | `currentPeriod.type == "USAGE_PERIOD_TYPE_MONTHLY"` | `N/A (monthly)`; never show its percentage as weekly |
 | Period/type absent or unknown well-formed enum | `N/A (period)` |
 | Required period/type has an invalid structural type | `PROTOCOL ERROR` |
-| Explicit weekly enum, percentage absent/null | `N/A (no data)` |
+| Explicit weekly enum, percentage member omitted | `0.0%` as a Grok display compatibility convention |
+| Explicit weekly enum, percentage explicitly null | `N/A (no data)` |
 | Explicit weekly enum, valid percentage | Numeric weekly result |
 | Explicit weekly enum, invalid percentage | `PROTOCOL ERROR` |
 | Legacy monthly credit fields only | `N/A (period)` |
 
 The monthly enum spelling, wrapper, numeric encoding, and auth/error shapes must be confirmed with source/fixtures in TASK-001 rather than guessed from a web UI. A numeric enum is not accepted merely because its value appears plausible; it needs a version-qualified mapping.
+
+Grok 1.0.41 omitted `creditUsagePercent` in a live weekly response. Its pager can use 0.0 when the optional percentage is absent and no usable legacy monthly limit exists. Gaebokchi's chosen fallback applies only to an explicit weekly period; omission does not independently prove measured zero usage. See [the 1.0.41 compatibility record](../verification/compatibility.md#grok-1041-omitted-weekly-percentage). An unavailable `config` or explicit `null` percentage still remains unavailable.
 
 Parse an optional period end as RFC 3339 when present. A malformed optional end can be discarded with a diagnostic without replacing the verified weekly percentage. Never infer a period from date subtraction. Ignore prepaid balance, on-demand usage/caps, history, and subscription tier for percentage calculation.
 
@@ -476,8 +479,10 @@ For usage `--json`, render one compact, newline-terminated object with a
 `results` array in target order. Each element has exactly `target_id` (the
 invocation-local ID), `provider` (`codex`, `grok`, `claude`), `account` (the
 normalized, disambiguated display label), `status` (the domain status string),
-`used_percent` (an unrounded JSON number for an OK measurement, otherwise
-`null`), and `cleanup_failed` (boolean). A genuine zero remains numeric zero.
+`used_percent` (an unrounded JSON number for an OK measurement or the
+[REQ-034](../specs/README.md#req-034) Grok weekly omission fallback, otherwise
+`null`), and `cleanup_failed` (boolean). A reported zero and the Grok fallback
+both encode as numeric zero; the fallback is not a measurement.
 Build this explicit projection rather than serializing internal results;
 exclude source, reset time, quota ID, timestamps, diagnostics, and raw
 provider data. Encoding errors and stdout write failures are output failures
@@ -620,7 +625,7 @@ Test early exit, timeout during startup/handshake/read, closed stdin, SIGINT/SIG
 <a id="v-quota"></a>
 ### V-QUOTA: Pure normalization
 
-Cover explicit 0/100/fractional values, missing/null/wrong-type values, signed zero, negative/over-100 values, no ratio conversion, unknown additive fields, missing/malformed optional reset metadata, and unavailable versus non-applicable semantics.
+Cover explicit 0/100/fractional values, missing/null/wrong-type values, signed zero, negative/over-100 values, no ratio conversion, unknown additive fields, missing/malformed optional reset metadata, and unavailable versus non-applicable semantics. Distinguish Grok's omitted weekly percentage fallback from an explicit null percentage.
 
 <a id="v-codex"></a>
 ### V-CODEX: Codex contract
@@ -630,7 +635,7 @@ Cover two simultaneous homes with different identity/quota values; authenticated
 <a id="v-grok"></a>
 ### V-GROK: Grok contract
 
-Cover cached-token negotiation, API-key-only advertisement, interactive-only login, incompatible protocol versions, exact extension encoding, method-not-found, successful weekly/monthly config, absent/unknown period, legacy-only monthly fields, valid zero, invalid values, null config, unexpected callbacks, and provider errors. Assert no session creation, prompt, login fallback, or REST call.
+Cover cached-token negotiation, API-key-only advertisement, interactive-only login, incompatible protocol versions, exact extension encoding, method-not-found, successful weekly/monthly config, absent/unknown period, legacy-only monthly fields, valid zero, omitted weekly percentage, explicit null percentage, invalid values, null config, unexpected callbacks, and provider errors. Assert no session creation, prompt, login fallback, or REST call.
 
 <a id="v-identity"></a>
 ### V-IDENTITY: Display identity

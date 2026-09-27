@@ -63,6 +63,13 @@ Observations:
 - `initialize` result `_meta.currentWorkingDirectory` echoed the neutral temporary cwd, confirming cwd isolation is visible to the child.
 - Child exits cleanly on stdin EOF.
 
+<a id="grok-1041-omitted-weekly-percentage"></a>
+## Grok 1.0.41 omitted weekly percentage (2026-09-27)
+
+A bounded metadata-only ACP probe used the installed `grok 1.0.41 (4220f3b224a6) [stable]` with the same headless cached-token authentication, filtered API-key environment, neutral temporary cwd, and `_x.ai/billing` request as above. The response contained a `config` object and `currentPeriod.type == "USAGE_PERIOD_TYPE_WEEKLY"`, but no `creditUsagePercent` member. Only an allowlisted field-presence/type summary was emitted; no raw response, credentials, or account identifiers were retained.
+
+The local Grok 1.0.41 source checkout at `f0e3be1100ef5252488e3be8bb0e91cf68d8c305` models `credit_usage_percent` as `Option<f64>` and omits it when `None`. Its pager uses `0.0` for `None` when no usable legacy monthly limit exists, and otherwise can calculate a legacy ratio. This checkout matches the installed CLI's version, but its commit is not claimed to be the installed binary's exact build revision. An omitted member does not itself prove zero usage. Gaebokchi's chosen compatibility policy displays `0.0%` only when the weekly enum is explicit; it never uses legacy amounts. An explicit `null` and other missing-data shapes remain unavailable.
+
 ## Environment filtering recorded
 
 Names only, never values: Codex children drop `OPENAI_API_KEY`, `CODEX_API_KEY`, all `CODEX_HOME` entries (then set the target home); Grok children drop `XAI_API_KEY`, `GROK_API_KEY`. No other credential-bearing variables were observed to change outcomes during qualification; `HOME` is preserved for provider keychain access.

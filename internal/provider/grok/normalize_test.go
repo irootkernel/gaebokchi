@@ -10,6 +10,7 @@ import (
 
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
+	"gaebokchi/internal/render"
 	"gaebokchi/internal/testutil"
 )
 
@@ -48,11 +49,13 @@ var _ = ginkgo.Describe("TestNormalizeBillingMatrix", func() {
 		{"valid integer encoding", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 42, nil), domain.StatusOK, fp(42), false},
 		{"boundary 100", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", 100, nil), domain.StatusOK, fp(100), false},
 		{"monthly", billingConfig("USAGE_PERIOD_TYPE_MONTHLY", 88, nil), domain.StatusNotApplicableMonthly, nil, false},
+		{"monthly credit absent", billingConfig("USAGE_PERIOD_TYPE_MONTHLY", nil, nil), domain.StatusNotApplicableMonthly, nil, false},
 		{"period absent legacy only", billingConfig(nil, 55, map[string]any{"monthlyLimit": 100, "used": 55}), domain.StatusUnavailablePeriod, nil, false},
 		{"period absent plain", billingConfig(nil, 10, nil), domain.StatusUnavailablePeriod, nil, false},
 		{"unknown enum", billingConfig("USAGE_PERIOD_TYPE_QUARTERLY", 10, nil), domain.StatusUnavailablePeriod, nil, false},
 		{"type null", billingConfig(nil, 10, nil), domain.StatusUnavailablePeriod, nil, false},
-		{"weekly credit absent", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", nil, nil), domain.StatusUnavailableNoData, nil, false},
+		{"weekly credit absent", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", nil, nil), domain.StatusOK, fp(0), false},
+		{"weekly credit absent ignores legacy amounts", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", nil, map[string]any{"monthlyLimit": map[string]any{"val": 100}, "used": map[string]any{"val": 50}}), domain.StatusOK, fp(0), false},
 		{"weekly credit null", `{"config":{"currentPeriod":{"type":"USAGE_PERIOD_TYPE_WEEKLY"},"creditUsagePercent":null}}`, domain.StatusUnavailableNoData, nil, false},
 		{"weekly credit string", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", "28", nil), domain.StatusProtocolError, nil, false},
 		{"weekly credit negative", billingConfig("USAGE_PERIOD_TYPE_WEEKLY", -1, nil), domain.StatusProtocolError, nil, false},
@@ -193,9 +196,9 @@ var _ = ginkgo.It("TestQueryMonthlyNonApplicable", func() {
 	}
 })
 
-// TestWeeklyMissingUsageKeepsPeriodProvenance pins that an established
-// weekly window keeps its period provenance when usage is missing.
-var _ = ginkgo.It("TestWeeklyMissingUsageKeepsPeriodProvenance", func() {
+// An omitted weekly percentage uses the chosen display convention while
+// keeping the period and reset provenance for every output format.
+var _ = ginkgo.It("TestWeeklyOmittedUsageDefaultsToZero", func() {
 	t := testT{ginkgo.GinkgoT()}
 	noUsage := map[string]any{"currentPeriod": map[string]any{
 		"type": "USAGE_PERIOD_TYPE_WEEKLY",
@@ -208,8 +211,8 @@ var _ = ginkgo.It("TestWeeklyMissingUsageKeepsPeriodProvenance", func() {
 	}
 	child := testutil.StartFake(t, steps)
 	res := providerOver(child).Query(context.Background(), grokTarget("default"))
-	if res.Status != domain.StatusUnavailableNoData {
-		t.Fatalf("status = %v, want no_data", res.Status)
+	if res.Status != domain.StatusOK || res.UsedPercent == nil || *res.UsedPercent != 0 {
+		t.Fatalf("status/percent = %v/%v, want ok/0", res.Status, res.UsedPercent)
 	}
 	if res.Period != domain.PeriodWeekly {
 		t.Fatalf("period = %v, want weekly provenance retained", res.Period)
@@ -217,8 +220,22 @@ var _ = ginkgo.It("TestWeeklyMissingUsageKeepsPeriodProvenance", func() {
 	if res.Source != domain.SourceGrokACPBilling {
 		t.Fatalf("source = %v", res.Source)
 	}
-	if res.UsedPercent != nil {
-		t.Fatal("missing usage must not invent a percentage")
+	if res.ResetAt == nil {
+		t.Fatal("weekly reset lost")
+	}
+	if res.Diagnostic.Message != "" || res.Status.ExitClass() != domain.ExitClean {
+		t.Fatalf("zero fallback should be clean: %+v", res)
+	}
+	if table := render.Table([]domain.Result{res}); !strings.Contains(table, "0.0%") {
+		t.Fatalf("table missing zero percentage: %q", table)
+	}
+	jsonView, err := render.JSON([]domain.Result{res})
+	if err != nil || !strings.Contains(jsonView, `"used_percent":0`) {
+		t.Fatalf("JSON missing numeric zero: %q (%v)", jsonView, err)
+	}
+	frame, _ := render.TerminalFrame([]domain.Result{res}, 100, time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC), false, false, "")
+	if !strings.Contains(frame, "0.0%") || !strings.Contains(frame, "↻") {
+		t.Fatalf("terminal missing zero or reset: %q", frame)
 	}
 })
 

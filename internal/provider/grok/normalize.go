@@ -33,7 +33,7 @@ type billingWire struct {
 
 type configWire struct {
 	CurrentPeriod      *json.RawMessage `json:"currentPeriod"`
-	CreditUsagePercent *json.RawMessage `json:"creditUsagePercent"`
+	CreditUsagePercent json.RawMessage  `json:"creditUsagePercent"`
 }
 
 type periodWire struct {
@@ -111,19 +111,26 @@ func normalizeBilling(raw json.RawMessage) billingOutcome {
 
 func weeklyResult(cfg configWire, period periodWire) billingOutcome {
 	// The weekly enum was established before any percentage was read,
-	// so period provenance survives even when usage is missing or
-	// malformed.
+	// so period provenance survives a null or malformed percentage.
 	established := billingOutcome{Period: domain.PeriodWeekly, ResetAt: optionalRFC3339(period.End)}
-	if cfg.CreditUsagePercent == nil || string(*cfg.CreditUsagePercent) == "null" {
+	if len(cfg.CreditUsagePercent) == 0 {
+		// Apply the chosen zero display convention only after an explicit
+		// weekly period; this is not a measured zero from the provider.
+		zero := 0.0
+		established.Status = domain.StatusOK
+		established.Percent = &zero
+		return established
+	}
+	if string(cfg.CreditUsagePercent) == "null" {
 		established.Status = domain.StatusUnavailableNoData
 		return established
 	}
-	if !isJSONNumber(*cfg.CreditUsagePercent) {
+	if !isJSONNumber(cfg.CreditUsagePercent) {
 		established.Status = domain.StatusProtocolError
 		return established
 	}
 	var percent float64
-	if err := json.Unmarshal(*cfg.CreditUsagePercent, &percent); err != nil {
+	if err := json.Unmarshal(cfg.CreditUsagePercent, &percent); err != nil {
 		established.Status = domain.StatusProtocolError
 		return established
 	}
@@ -161,7 +168,7 @@ func formatBillingError(status domain.Status, targetID string) string {
 	case domain.StatusUnavailablePeriod:
 		return fmt.Sprintf("%s: billing response does not establish a weekly period", targetID)
 	case domain.StatusUnavailableNoData:
-		return fmt.Sprintf("%s: weekly period present but usage missing", targetID)
+		return fmt.Sprintf("%s: billing usage data missing", targetID)
 	case domain.StatusProtocolError:
 		return fmt.Sprintf("%s: billing response did not match the qualified shape", targetID)
 	case domain.StatusUnsupported:
