@@ -21,6 +21,8 @@ type frameLine []span
 const (
 	rowGap          = "  "
 	percentageCells = 6
+	barMaxCells     = 20
+	barMinCells     = 10
 	frameFixedLines = 4
 )
 
@@ -192,13 +194,13 @@ func resultLine(result domain.Result, provider, account string, providerCells, a
 		return append(base, span{UsageCell(result), statusStyle(result.Status)})
 	}
 	percentage := fmt.Sprintf("%*s", percentageCells, UsageCell(result))
-	barCells := 20
+	barCells := barMaxCells
 	// Reserve one terminal cell so intermediate redraws cannot wrap.
 	limit := columns - 1
 	barWidth := func() int { return barCells + cellWidth(rowGap) + percentageCells }
 	baseWidth := lineWidth(base)
 	if baseWidth+barWidth() > limit {
-		barCells = max(10, min(barCells, limit-baseWidth-cellWidth(rowGap)-percentageCells))
+		barCells = max(barMinCells, min(barCells, limit-baseWidth-cellWidth(rowGap)-percentageCells))
 	}
 	style := numericStyle(*result.UsedPercent)
 	if baseWidth+barWidth() <= limit {
@@ -217,21 +219,39 @@ func TerminalFrame(results []domain.Result, columns int, now time.Time, color, i
 		providerCells = max(providerCells, cellWidth(result.Provider.DisplayName()))
 		accountCells = max(accountCells, cellWidth(SanitizeLabel(result.Account)))
 	}
+	resets := make([]string, len(results))
+	inlineResets := true
+	baseCells := providerCells + accountCells + 3*cellWidth(rowGap)
+	for i, result := range results {
+		if result.Status != domain.StatusOK || result.UsedPercent == nil {
+			continue
+		}
+		resets[i] = resetText(result, now)
+		if resets[i] == "" {
+			continue
+		}
+		percentage := fmt.Sprintf("%*s", percentageCells, UsageCell(result))
+		fullLineCells := baseCells + barMaxCells + 2*cellWidth(rowGap) + cellWidth(percentage) + cellWidth(resets[i])
+		if fullLineCells > columns-1 {
+			inlineResets = false
+		}
+	}
 	lines := make([]frameLine, 0, frameLineCount(len(results))+len(results))
 	lines = append(lines, nil, frameLine{{"  🐡 ", 0}, {"gaebokchi", styleBold}, {" · weekly usage", styleFaint}}, nil)
 	var previous domain.ProviderKind
-	for _, result := range results {
+	for i, result := range results {
 		provider := result.Provider.DisplayName()
 		if result.Provider == previous {
 			provider = ""
 		}
 		previous = result.Provider
 		line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, spinner)
+		if inlineResets && resets[i] != "" {
+			line = append(line, span{rowGap, 0}, span{resets[i], styleFaint})
+		}
 		lines = append(lines, line)
-		if result.Status == domain.StatusOK && result.UsedPercent != nil {
-			if reset := resetText(result, now); reset != "" {
-				lines = append(lines, frameLine{{"    ", 0}, {reset, styleFaint}})
-			}
+		if !inlineResets && resets[i] != "" {
+			lines = append(lines, frameLine{{"    ", 0}, {resets[i], styleFaint}})
 		}
 	}
 	lines = append(lines, nil)

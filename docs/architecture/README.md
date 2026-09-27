@@ -535,8 +535,8 @@ width) become the only direct runtime modules outside the standard library.
 Both are already pinned in `go.sum`, so the offline gate needs no network.
 
 **Frame.** The frame is a blank line, the title `🐡 gaebokchi · weekly usage`,
-a blank line, one row per target in target order with any reset line directly
-below its target, and a trailing blank line.
+a blank line, one row per target in target order with any reset shown inline or
+directly below its target, and a trailing blank line.
 A target row is a two-space margin, the provider display name (blank when the
 previous row has the same provider), and the account label padded to the widest
 label, separated by two spaces. Numeric rows continue with the usage bar, the
@@ -544,9 +544,10 @@ label, separated by two spaces. Numeric rows continue with the usage bar, the
 their status cell text. The bar is 20 cells of `█` over a `░` track, rounded
 to the nearest whole cell; the percentage retains its precision, including
 when a small nonzero value rounds to an empty fill. A qualified reset countdown
-appears on a four-space-indented line directly below its account row. It uses
-whole truncated units (`↻ 2d 4h`): days and hours, hours and minutes,
-minutes, `<1m`, or `now` once the reset time has passed. It appears only on
+appears either after the percentage or on a four-space-indented line directly
+below its account row. It uses whole truncated units (`↻ 2d 4h`): days and
+hours, hours and minutes, minutes, `<1m`, or `now` once the reset time has
+passed. It appears only on
 `OK` rows whose `ResetAt` came from the provider (Codex `resetsAt`, Grok period
 end). Claude rows and Grok monthly rows show none.
 
@@ -560,9 +561,12 @@ end). Claude rows and Grok monthly rows show none.
 | `AUTH REQUIRED`, `N/A (no weekly)`, `N/A (period)`, `N/A (no data)` | yellow (33) |
 | Every other status cell | red (31) |
 
-**Width and height.** Every row must fit within `columns - 1` cells. When a
-numeric row does not fit, shrink the bar from 20 toward 10 cells, then drop
-the bar if it still does not fit. The reset line does not affect bar width.
+**Width and height.** Every row must fit within `columns - 1` cells. Show all
+qualified resets inline only when every reset row fits a full 20-cell bar,
+percentage, and countdown within that limit. Otherwise show all qualified
+resets below their account rows and compute bar width without the countdown.
+When a numeric row does not fit, shrink the bar from 20 toward 10 cells, then
+drop the bar if it still does not fit.
 Intermediate live frames clip remaining overflow and end it with `…`. The
 final frame never truncates an account label; it may wrap instead, because
 nothing redraws after it. When the maximum frame height (targets + 4, plus one

@@ -21,6 +21,9 @@ leaves this kind of final frame:
 
 ```
 
+When the terminal is wide enough for every 20-cell bar and reset countdown,
+the countdowns appear at the ends of their account rows instead.
+
 Pipes and redirects keep the plain table:
 
 ```text

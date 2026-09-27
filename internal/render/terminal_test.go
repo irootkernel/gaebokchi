@@ -28,8 +28,8 @@ var _ = ginkgo.It("renders a stable colorless frame and provenance-based countdo
 	r := measured(37)
 	r.ResetAt = ptrTime(fixedNow.Add(52 * time.Hour))
 	frame, lines := TerminalFrame([]domain.Result{r}, 100, fixedNow, false, false, "⠹")
-	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████░░░░░░░░░░░░░     37%\n    ↻ 2d 4h\n\n"
-	if plain(frame) != want || lines != 6 {
+	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████░░░░░░░░░░░░░     37%  ↻ 2d 4h\n\n"
+	if plain(frame) != want || lines != 5 {
 		t.Fatalf("frame = %q, lines = %d; want %q", frame, lines, want)
 	}
 	if strings.Contains(frame, "[31m") || strings.Contains(frame, "[32m") || strings.Contains(frame, "[33m") {
@@ -199,6 +199,7 @@ var _ = ginkgo.It("shrinks bars independently of reset lines and clips live over
 		}
 	}
 	wide, _ := TerminalFrame([]domain.Result{r}, 100, fixedNow, false, false, "")
+	inlineAtLimit, _ := TerminalFrame([]domain.Result{r}, 61, fixedNow, false, false, "")
 	fullWithReset, _ := TerminalFrame([]domain.Result{r}, 60, fixedNow, false, false, "")
 	shrunkWithReset, _ := TerminalFrame([]domain.Result{r}, 50, fixedNow, false, false, "")
 	floorBar, _ := TerminalFrame([]domain.Result{r}, 42, fixedNow, false, false, "")
@@ -207,7 +208,9 @@ var _ = ginkgo.It("shrinks bars independently of reset lines and clips live over
 	fill18, track18 := usageBar(37, 18)
 	fill10, track10 := usageBar(37, 10)
 	fill20, track20 := usageBar(37, 20)
-	if !strings.Contains(plain(wide), "\n    ↻ 2d 4h\n") ||
+	if !strings.Contains(plain(wide), "   37%  ↻ 2d 4h\n") ||
+		!strings.Contains(plain(inlineAtLimit), "   37%  ↻ 2d 4h\n") ||
+		!strings.Contains(plain(fullWithReset), "\n    ↻ 2d 4h\n") ||
 		!strings.Contains(plain(fullWithReset), fill20+track20) ||
 		!strings.Contains(plain(shrunkWithReset), fill18+track18) ||
 		!strings.Contains(plain(floorBar), fill10+track10) ||
@@ -217,7 +220,7 @@ var _ = ginkgo.It("shrinks bars independently of reset lines and clips live over
 	}
 })
 
-var _ = ginkgo.It("keeps mixed provider bars the same width when resets are separate", func() {
+var _ = ginkgo.It("switches all reset rows together without changing bar widths", func() {
 	t := testT{ginkgo.GinkgoT()}
 	account := strings.Repeat("a", 23)
 	first := measured(8)
@@ -230,29 +233,46 @@ var _ = ginkgo.It("keeps mixed provider bars the same width when resets are sepa
 	grok.Provider = domain.ProviderGrok
 	grok.Account = "default"
 	grok.Source = domain.SourceGrokACPBilling
-	grok.ResetAt = first.ResetAt
+	grok.ResetAt = ptrTime(fixedNow.Add(11*time.Hour + 20*time.Minute))
 	claude := measured(42)
 	claude.Provider = domain.ProviderClaude
 	claude.Account = "default"
 	claude.Source = domain.SourceClaudeCLIUsage
-	for _, tc := range []struct{ columns, barCells int }{{72, 20}, {62, 17}} {
+	for _, tc := range []struct {
+		columns, barCells int
+		inline            bool
+	}{{76, 20, true}, {75, 20, false}, {72, 20, false}, {62, 17, false}} {
 		frame, count := TerminalFrame([]domain.Result{first, second, grok, claude}, tc.columns, fixedNow, false, false, "")
 		clean := plain(frame)
-		if count != 11 || strings.Count(clean, "\n    ↻ 2d 4h\n") != 3 {
+		wantLines, wantSublines := 11, 3
+		if tc.inline {
+			wantLines, wantSublines = 8, 0
+		}
+		if count != wantLines || strings.Count(clean, "\n    ↻ ") != wantSublines {
 			t.Fatalf("%d columns: reset placement or line count: %q", tc.columns, frame)
 		}
 		row := 0
 		for _, line := range strings.Split(clean, "\n") {
-			if !strings.HasSuffix(line, "%") {
+			if !strings.Contains(line, "%") {
 				continue
 			}
 			if row >= 4 {
 				t.Fatalf("%d columns: extra numeric row: %q", tc.columns, frame)
 			}
 			fields := strings.Fields(line)
+			percentField := -1
+			for i, field := range fields {
+				if strings.HasSuffix(field, "%") {
+					percentField = i
+					break
+				}
+			}
+			if percentField < 1 {
+				t.Fatalf("%d columns: missing percentage in row %d: %q", tc.columns, row, line)
+			}
 			fill, track := usageBar([]float64{8, 6, 0, 42}[row], tc.barCells)
-			if fields[len(fields)-2] != fill+track {
-				t.Fatalf("%d columns: row %d bar = %q, want %q", tc.columns, row, fields[len(fields)-2], fill+track)
+			if fields[percentField-1] != fill+track || strings.Contains(line, "↻") != (tc.inline && row < 3) {
+				t.Fatalf("%d columns: row %d layout or bar mismatch: %q", tc.columns, row, line)
 			}
 			row++
 		}

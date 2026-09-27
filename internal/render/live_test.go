@@ -123,3 +123,93 @@ var _ = ginkgo.It("leaves exactly the completed frame on a modeled screen after 
 		t.Fatalf("screen=%q, cursor=%t; want=%q", model.lines, model.visible, want)
 	}
 })
+
+var _ = ginkgo.It("redraws cleanly when a later reset moves every reset to a second line", func() {
+	t := testT{ginkgo.GinkgoT()}
+	account := strings.Repeat("a", 23)
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, FallbackAccount: account},
+		{ID: "grok:0", Index: 1, Provider: domain.ProviderGrok, FallbackAccount: "default"},
+	}
+	w := &countedWriter{}
+	live := NewLiveRenderer(w, targets, 75, 30, false)
+	now := time.Now()
+	first := measured(37)
+	first.Account = account
+	first.ResetAt = ptrTime(now.Add(52*time.Hour + time.Minute))
+	live.Observe(0, first)
+	live.draw(false, false)
+	if _, lines := TerminalFrame(live.snapshot(), 75, time.Now(), false, true, ""); lines != 6 {
+		t.Fatalf("first result should keep the reset inline, got %d lines", lines)
+	}
+	second := measured(42)
+	second.Provider = domain.ProviderGrok
+	second.Account = "default"
+	second.Source = domain.SourceGrokACPBilling
+	second.ResetAt = ptrTime(now.Add(11*time.Hour + 21*time.Minute))
+	live.Observe(1, second)
+	live.draw(false, false)
+	if _, lines := TerminalFrame(live.snapshot(), 75, time.Now(), false, true, ""); lines != 8 {
+		t.Fatalf("longer reset should add two sublines, got %d lines", lines)
+	}
+	results := []domain.Result{first, second}
+	if err := live.Finish(results); err != nil {
+		t.Fatal(err)
+	}
+	output, _ := w.value()
+	model := &screenModel{visible: true}
+	if err := model.apply(output); err != nil {
+		t.Fatalf("invalid terminal sequence: %v", err)
+	}
+	wantFrame, _ := TerminalFrame(results, 75, time.Now(), false, false, "")
+	want := strings.Split(strings.TrimSuffix(plain(wantFrame), "\n"), "\n")
+	for len(model.lines) > len(want) && model.lines[len(model.lines)-1] == "" {
+		model.lines = model.lines[:len(model.lines)-1]
+	}
+	if !reflect.DeepEqual(model.lines, want) || !model.visible {
+		t.Fatalf("screen=%q, cursor=%t; want=%q", model.lines, model.visible, want)
+	}
+})
+
+var _ = ginkgo.It("clears a reset subline when a pending label resolves shorter", func() {
+	t := testT{ginkgo.GinkgoT()}
+	targets := []domain.Target{
+		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, FallbackAccount: "a"},
+		{ID: "claude:0", Index: 1, Provider: domain.ProviderClaude, FallbackAccount: strings.Repeat("a", 23)},
+	}
+	w := &countedWriter{}
+	live := NewLiveRenderer(w, targets, 61, 30, false)
+	first := measured(37)
+	first.ResetAt = ptrTime(time.Now().Add(52*time.Hour + time.Minute))
+	live.Observe(0, first)
+	live.draw(false, false)
+	if _, lines := TerminalFrame(live.snapshot(), 61, time.Now(), false, true, ""); lines != 7 {
+		t.Fatalf("pending long label should put the reset below, got %d lines", lines)
+	}
+	second := measured(42)
+	second.Provider = domain.ProviderClaude
+	second.Account = "default"
+	second.Source = domain.SourceClaudeCLIUsage
+	live.Observe(1, second)
+	live.draw(false, false)
+	if _, lines := TerminalFrame(live.snapshot(), 61, time.Now(), false, true, ""); lines != 6 {
+		t.Fatalf("shorter label should move the reset inline, got %d lines", lines)
+	}
+	results := []domain.Result{first, second}
+	if err := live.Finish(results); err != nil {
+		t.Fatal(err)
+	}
+	output, _ := w.value()
+	model := &screenModel{visible: true}
+	if err := model.apply(output); err != nil {
+		t.Fatalf("invalid terminal sequence: %v", err)
+	}
+	wantFrame, _ := TerminalFrame(results, 61, time.Now(), false, false, "")
+	want := strings.Split(strings.TrimSuffix(plain(wantFrame), "\n"), "\n")
+	for len(model.lines) > len(want) && model.lines[len(model.lines)-1] == "" {
+		model.lines = model.lines[:len(model.lines)-1]
+	}
+	if !reflect.DeepEqual(model.lines, want) || !model.visible {
+		t.Fatalf("screen=%q, cursor=%t; want=%q", model.lines, model.visible, want)
+	}
+})

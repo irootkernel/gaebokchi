@@ -86,7 +86,9 @@ func (r *LiveRenderer) loop() {
 		case <-r.updates:
 			r.draw(false, false)
 		case <-ticker.C:
+			r.drawMu.Lock()
 			r.frame = (r.frame + 1) % len(spinnerFrames)
+			r.drawMu.Unlock()
 			r.draw(false, false)
 		}
 	}
