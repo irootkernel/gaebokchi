@@ -226,7 +226,7 @@ var _ = ginkgo.It("TestWeeklyOmittedUsageDefaultsToZero", func() {
 	if res.Diagnostic.Message != "" || res.Status.ExitClass() != domain.ExitClean {
 		t.Fatalf("zero fallback should be clean: %+v", res)
 	}
-	if table := render.Table([]domain.Result{res}); !strings.Contains(table, "0.0%") {
+	if table := render.Table([]domain.Result{res}); !strings.HasSuffix(table, "  0%\n") {
 		t.Fatalf("table missing zero percentage: %q", table)
 	}
 	jsonView, err := render.JSON([]domain.Result{res})
@@ -234,7 +234,7 @@ var _ = ginkgo.It("TestWeeklyOmittedUsageDefaultsToZero", func() {
 		t.Fatalf("JSON missing numeric zero: %q (%v)", jsonView, err)
 	}
 	frame, _ := render.TerminalFrame([]domain.Result{res}, 100, time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC), false, false, "")
-	if !strings.Contains(frame, "0.0%") || !strings.Contains(frame, "↻") {
+	if !strings.Contains(frame, "    0%") || !strings.Contains(frame, "↻") {
 		t.Fatalf("terminal missing zero or reset: %q", frame)
 	}
 })

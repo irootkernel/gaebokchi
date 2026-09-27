@@ -444,7 +444,7 @@ var _ = ginkgo.It("TestCleanupFailureKeepsRowsAndExitsOne", func() {
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for incomplete cleanup; stderr:\n%s", code, errBuf.String())
 	}
-	for _, want := range []string{"37.0%", "12.0%", "28.0%"} {
+	for _, want := range []string{"37%", "12%", "28%"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("numeric row lost (%s):\n%s", want, out.String())
 		}

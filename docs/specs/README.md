@@ -41,9 +41,9 @@ synthetic frame below shows the view mid-query; colors are defined in
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░   37.0%  ↻ 2d 4h
-           account2@example.com  ██▍░░░░░░░░░░░░░░░░░   12.0%  ↻ 5d 1h
-  Grok     default               ██████████▊░░░░░░░░░   54.0%  ↻ 3d 11h
+  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h
+           account2@example.com  ██▍░░░░░░░░░░░░░░░░░     12%  ↻ 5d 1h
+  Grok     default               ██████████▊░░░░░░░░░     54%  ↻ 3d 11h
   Claude   default               ⠹ querying…
 
 ```
@@ -53,8 +53,8 @@ synthetic frame below shows the view mid-query; colors are defined in
 [REQ-012](#req-012) still requires label sanitization and
 stdout/stderr separation in every mode; only the ban on color and terminal
 control sequences changes for the terminal view. [REQ-015](#req-015) continues
-to require in-memory window provenance. Pipes, redirects, and JSON keep their
-current bytes.
+to require in-memory window provenance. Pipes and redirects keep the plain
+table; JSON retains provider precision.
 
 ## Document contract
 
@@ -72,9 +72,9 @@ The project name is **Gaebokchi (개복치)**; the repository basename and execu
 
 ```text
 AI PROVIDER  ACCOUNT                WEEKLY USAGE
-ChatGPT      account1@example.com   37.0%
-ChatGPT      account2@example.com   12.0%
-Grok         default                54.0%
+ChatGPT      account1@example.com   37%
+ChatGPT      account2@example.com   12%
+Grok         default                54%
 ```
 
 The requested final scope is **header plus three account rows**, not the five-line table discussed before Claude was removed. Accounts retain separate rows even if they belong to the same provider or resolve to the same email.
@@ -156,8 +156,8 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Reopened 2026-09-22 by the confirmation review of `c340245`: the shared normalization policy enumerated only some Unicode whitespace, so whitespace-only labels could render as blank cells. Re-qualification: [TASK-023](../roadmap/README.md#task-023).
   - Re-qualified 2026-09-22 under EPIC-007 follow-up (TASK-023): the single normalization policy covers all Unicode whitespace, so no whitespace-only label can render as an unexpected blank cell; ordinary printable Unicode (including Korean/CJK) is preserved. Checkbox restored.
 <a id="req-013"></a>
-- [x] **REQ-013: Presence-aware percentages.** Emit one decimal place and `%` for a finite, explicitly present numeric value from 0 through 100. Preserve a genuine zero as `0.0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them or multiply ratios by 100. Do not substitute zero for missing fields except for the narrowly qualified Grok weekly omission in REQ-034.
-  - - Architecture: [ARCH-04](../architecture/README.md#arch-04). Owner: [TASK-008](../roadmap/README.md#task-008). Verification: [V-QUOTA](../architecture/README.md#v-quota). Evidence: [docs/verification/TASK-008.md](../verification/TASK-008.md) and TASK-006 suites — one-decimal formatting, explicit zero preserved, out-of-range/non-numeric rejected without clamping or ratio conversion.
+- [x] **REQ-013: Presence-aware percentages.** Emit `%` for a finite, explicitly present numeric value from 0 through 100. Omit the decimal when the original value is an integer; otherwise show one decimal place. Preserve a genuine zero as `0%`. Reject negative, over-100, non-numeric, or non-finite values; do not clamp them or multiply ratios by 100. Do not substitute zero for missing fields except for the narrowly qualified Grok weekly omission in REQ-034.
+  - - Architecture: [ARCH-04](../architecture/README.md#arch-04). Owner: [TASK-008](../roadmap/README.md#task-008). Verification: [V-QUOTA](../architecture/README.md#v-quota). Evidence: [docs/verification/TASK-008.md](../verification/TASK-008.md) and TASK-006 suites — original one-decimal formatting, explicit zero preserved, out-of-range/non-numeric rejected without clamping or ratio conversion; current renderer tests cover adaptive precision.
 
 <a id="req-014"></a>
 - [x] **REQ-014: No invented weekly value.** Show a defined unavailable/non-applicable status when the response cannot establish a weekly value, except for the explicit Grok display convention in REQ-034. Do not average multiple quotas, choose the highest percentage, extrapolate monthly values, or guess a window from reset time.
@@ -265,7 +265,7 @@ Provider compatibility is an implementation gate. Published documentation/source
   - - Architecture: [ARCH-08](../architecture/README.md#arch-08). Owner: [TASK-007](../roadmap/README.md#task-007). Verification: [V-GROK](../architecture/README.md#v-grok). Evidence: [docs/verification/TASK-007.md](../verification/TASK-007.md) — frozen `_x.ai/billing` wire method from the live probe; method-not-found maps to UNSUPPORTED (TASK-008), no alternate transports.
 
 <a id="req-034"></a>
-- [x] **REQ-034: Explicit weekly billing semantics.** Use `config.creditUsagePercent` only when `config.currentPeriod.type` explicitly identifies the qualified weekly enum. For that weekly enum only, display `0.0%` when the percentage member is omitted; this is a chosen compatibility convention, not a verified zero-usage measurement. An explicit `null` percentage remains `N/A (no data)`. An explicit monthly enum produces `N/A (monthly)`; absent/unknown period metadata does not establish a week.
+- [x] **REQ-034: Explicit weekly billing semantics.** Use `config.creditUsagePercent` only when `config.currentPeriod.type` explicitly identifies the qualified weekly enum. For that weekly enum only, display `0%` when the percentage member is omitted; this is a chosen compatibility convention, not a verified zero-usage measurement. An explicit `null` percentage remains `N/A (no data)`. An explicit monthly enum produces `N/A (monthly)`; absent/unknown period metadata does not establish a week.
   - - Architecture: [ARCH-08](../architecture/README.md#arch-08). Owner: [TASK-008](../roadmap/README.md#task-008). Verification: [V-GROK](../architecture/README.md#v-grok). Evidence: [docs/verification/TASK-008.md](../verification/TASK-008.md) — creditUsagePercent read only under the explicit weekly enum; monthly → N/A (monthly); absent/unknown → N/A (period).
   - Scope change 2026-09-27: [Grok 1.0.41 compatibility evidence](../verification/compatibility.md#grok-1041-omitted-weekly-percentage) and the current normalization/Query tests qualify the omitted-member fallback. TASK-008 records the earlier absent → N/A policy.
 
@@ -358,12 +358,12 @@ Provider compatibility is an implementation gate. Published documentation/source
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-13](../architecture/README.md#arch-13). Owner: [TASK-028](../roadmap/README.md#task-028). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-BUILD](../architecture/README.md#v-build). Evidence: [TASK-028](../verification/TASK-028.md) records exact human/JSON behavior, development and release metadata, invalid syntax, output failure, full offline/race gates, four target builds, document-fresh archives, checksums, and native darwin/arm64 smoke.
 
 <a id="req-052"></a>
-- [x] **REQ-052: Machine-readable usage snapshot.** Accept `--json` on the usage command and emit one newline-terminated JSON object with a `results` array in target order. Each result contains exactly `target_id`, `provider`, normalized `account`, `status`, `used_percent` (a number for a measured weekly percentage or the [REQ-034](#req-034) Grok weekly omission fallback, otherwise `null`), and `cleanup_failed`. Preserve reported numeric precision and zero, partial results, stderr diagnostics, and existing exit codes. The Grok fallback is numeric zero in JSON, although it is not a measurement. Non-interactive table output, text help, and `version --json` remain unchanged; usage errors print no stdout snapshot. Exclude raw provider data and internal metadata.
+- [x] **REQ-052: Machine-readable usage snapshot.** Accept `--json` on the usage command and emit one newline-terminated JSON object with a `results` array in target order. Each result contains exactly `target_id`, `provider`, normalized `account`, `status`, `used_percent` (a number for a measured weekly percentage or the [REQ-034](#req-034) Grok weekly omission fallback, otherwise `null`), and `cleanup_failed`. Preserve reported numeric precision and zero, partial results, stderr diagnostics, and existing exit codes. The Grok fallback is numeric zero in JSON, although it is not a measurement. Non-interactive usage follows the [REQ-011](#req-011) table structure and [REQ-013](#req-013) percentage formatting; text help and `version --json` remain unchanged. Usage errors print no stdout snapshot. Exclude raw provider data and internal metadata.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-029](../roadmap/README.md#task-029). Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: [TASK-029](../verification/TASK-029.md) records offline checks and the task-scoped commit subject.
   - Scope clarification effective 2026-09-27: the [Grok weekly omission compatibility record](../verification/compatibility.md#grok-1041-omitted-weekly-percentage) establishes the numeric-zero exception to TASK-029's measured-only JSON contract.
 
 <a id="req-053"></a>
-- [x] **REQ-053: Terminal view selection.** When `--json` is present, emit only the [REQ-052](#req-052) JSON snapshot on stdout, regardless of terminal state. Without `--json`, use the interactive terminal view only when stdout is a terminal whose window size can be read and `TERM` is neither empty nor `dumb`. In every other non-JSON case, including pipes, regular files, and `/dev/null`, stdout stays byte-for-byte identical to the [REQ-011](#req-011) table. A non-empty `NO_COLOR` suppresses color while keeping the layout, glyphs, bold, and faint text. Help flags, structure, and exit behavior, `version`, stderr diagnostics, and exit codes do not change, and the view adds no flag. Help usage wording describes the interactive terminal view and the unchanged non-interactive table.
+- [x] **REQ-053: Terminal view selection.** When `--json` is present, emit only the [REQ-052](#req-052) JSON snapshot on stdout, regardless of terminal state. Without `--json`, use the interactive terminal view only when stdout is a terminal whose window size can be read and `TERM` is neither empty nor `dumb`. In every other non-JSON case, including pipes, regular files, and `/dev/null`, stdout is the current [REQ-011](#req-011) table with [REQ-013](#req-013) percentage formatting. A non-empty `NO_COLOR` suppresses color while keeping the layout, glyphs, bold, and faint text. Help flags, structure, and exit behavior, `version`, stderr diagnostics, and exit codes do not change, and the view adds no flag. Help usage wording describes the interactive terminal view and the non-interactive table.
   - Architecture: [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e). Evidence: [TASK-030](../verification/TASK-030.md).
   - Scope clarification effective 2026-09-26: help retains its command and flag contract while its usage description names the new terminal view. The help text still performs no provider query.
 

@@ -12,7 +12,7 @@ func ValidatePercent(v float64) bool {
 	return v >= 0 && v <= 100
 }
 
-// NormalizePercentSignedZero maps -0 to 0 so formatting never emits "-0.0%".
+// NormalizePercentSignedZero maps -0 to 0 so formatting never emits "-0%".
 func NormalizePercentSignedZero(v float64) float64 {
 	if v == 0 {
 		return 0

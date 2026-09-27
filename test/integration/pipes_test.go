@@ -187,7 +187,7 @@ var _ = ginkgo.It("TestSignalMixedCompletionKeepsNumericRow", func() {
 		t.Fatalf("exit = %d, want 130", code)
 	}
 	stdout := out.String()
-	if !strings.Contains(stdout, "33.0%") {
+	if !strings.Contains(stdout, "33%") {
 		t.Fatalf("established grok row lost on cancellation:\n%s", stdout)
 	}
 	for _, line := range strings.Split(stdout, "\n") {
@@ -304,7 +304,7 @@ var _ = ginkgo.It("TestRelativeBinaryOverrideFromInvocationCwd", func() {
 	if strings.Contains(out.String(), "NOT INSTALLED") {
 		t.Fatalf("relative binary override failed to launch:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "44.0%") {
+	if !strings.Contains(out.String(), "44%") {
 		t.Fatalf("relative binary did not complete its query:\n%s", out.String())
 	}
 })

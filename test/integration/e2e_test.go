@@ -186,7 +186,7 @@ var _ = ginkgo.It("TestDefaultHappyPath", func() {
 	if len(lines) != 5 {
 		t.Fatalf("lines = %d:\n%s", len(lines), stdout)
 	}
-	if !strings.Contains(stdout, "account1@example.com") || !strings.Contains(stdout, "37.0%") || !strings.Contains(stdout, "28.0%") {
+	if !strings.Contains(stdout, "account1@example.com") || !strings.Contains(stdout, "37%") || !strings.Contains(stdout, "28%") {
 		t.Fatalf("table content wrong:\n%s", stdout)
 	}
 	if strings.Contains(stdout, "FAKE") || strings.Contains(stdout, "jsonrpc") {
@@ -266,7 +266,7 @@ var _ = ginkgo.It("TestMissingExecutableKeepsOtherRows", func() {
 	if strings.Count(stdout, "\n") != 5 {
 		t.Fatalf("row count changed:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "11.0%") {
+	if !strings.Contains(stdout, "11%") {
 		t.Fatalf("codex rows lost:\n%s", stdout)
 	}
 })
@@ -298,7 +298,7 @@ var _ = ginkgo.It("TestMissingHomeRow", func() {
 	if !strings.Contains(stdout, "HOME NOT FOUND") {
 		t.Fatalf("missing home row:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "5.0%") {
+	if !strings.Contains(stdout, "5%") {
 		t.Fatalf("other rows lost:\n%s", stdout)
 	}
 })
@@ -378,7 +378,7 @@ var _ = ginkgo.It("TestWrongIDsNeverSatisfyRequest", func() {
 	if code != 1 {
 		t.Fatalf("code = %d", code)
 	}
-	if strings.Contains(stdout, "1.0%") {
+	if strings.Contains(stdout, "  1%") {
 		t.Fatalf("wrong-id response satisfied the grok row:\n%s", stdout)
 	}
 })
@@ -397,7 +397,7 @@ var _ = ginkgo.It("TestLongStderrDoesNotLeak", func() {
 	if strings.Contains(stdout, "E2E-STDERR-NOISE") || strings.Contains(stderr, "E2E-STDERR-NOISE") {
 		t.Fatal("child stderr leaked into gaebokchi output")
 	}
-	if !strings.Contains(stdout, "7.0%") {
+	if !strings.Contains(stdout, "7%") {
 		t.Fatalf("stderr flood broke the query:\n%s", stdout)
 	}
 })
@@ -416,7 +416,7 @@ var _ = ginkgo.It("TestHungProviderTimesOut", func() {
 	if !strings.Contains(stdout, "TIMEOUT") {
 		t.Fatalf("timeout row missing:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "2.0%") {
+	if !strings.Contains(stdout, "2%") {
 		t.Fatalf("healthy sibling lost:\n%s", stdout)
 	}
 })

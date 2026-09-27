@@ -215,13 +215,13 @@ type Result struct {
 
 Transport structs remain in the provider package. Preserve field presence with pointers or raw JSON decoding. Go zero values must not turn omitted numbers into a measured zero; the Grok weekly omission fallback in ARCH-08 is an explicit display convention. Decode the percentage as a number, not a numeric string. Ignore additive unknown object fields, but validate all fields needed to establish the metric.
 
-Project percentage policy: accept finite values in `[0,100]`; format once to one decimal place in the renderer, normalizing signed zero. Do not round before selecting a period or comparing duplicate windows. Out-of-range values are a protocol/semantic mismatch, not a reason to clamp. A future upstream definition allowing percentages over 100 requires an explicit contract change.
+Project percentage policy: accept finite values in `[0,100]`; in the renderer, omit the decimal for an original integer value and otherwise show one decimal place, normalizing signed zero. Do not round before selecting a period or comparing duplicate windows. JSON preserves provider precision. Out-of-range values are a protocol/semantic mismatch, not a reason to clamp. A future upstream definition allowing percentages over 100 requires an explicit contract change.
 
 ### Terminal statuses
 
 | Internal status/reason | WEEKLY USAGE cell | Exit class |
 |---|---|---|
-| `ok` | e.g. `37.0%` | Clean |
+| `ok` | e.g. `37%` or `43.2%` | Clean |
 | `not_applicable/monthly` | `N/A (monthly)` | Clean |
 | `not_applicable/api_key` | `N/A (API key)` | Clean |
 | `unavailable/no_weekly` | `N/A (no weekly)` | Incomplete |
@@ -410,7 +410,7 @@ Normalize in this order:
 | `currentPeriod.type == "USAGE_PERIOD_TYPE_MONTHLY"` | `N/A (monthly)`; never show its percentage as weekly |
 | Period/type absent or unknown well-formed enum | `N/A (period)` |
 | Required period/type has an invalid structural type | `PROTOCOL ERROR` |
-| Explicit weekly enum, percentage member omitted | `0.0%` as a Grok display compatibility convention |
+| Explicit weekly enum, percentage member omitted | `0%` as a Grok display compatibility convention |
 | Explicit weekly enum, percentage explicitly null | `N/A (no data)` |
 | Explicit weekly enum, valid percentage | Numeric weekly result |
 | Explicit weekly enum, invalid percentage | `PROTOCOL ERROR` |
@@ -464,7 +464,7 @@ Illustrative partial result:
 
 ```text
 AI PROVIDER  ACCOUNT                WEEKLY USAGE
-ChatGPT      account1@example.com   37.0%
+ChatGPT      account1@example.com   37%
 ChatGPT      .codex-hsy              AUTH REQUIRED
 Grok         default                N/A (monthly)
 ```

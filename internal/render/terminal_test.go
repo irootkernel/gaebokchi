@@ -28,12 +28,20 @@ var _ = ginkgo.It("renders a stable colorless frame and provenance-based countdo
 	r := measured(37)
 	r.ResetAt = ptrTime(fixedNow.Add(52 * time.Hour))
 	frame, lines := TerminalFrame([]domain.Result{r}, 100, fixedNow, false, false, "⠹")
-	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████▍░░░░░░░░░░░░   37.0%  ↻ 2d 4h\n\n"
+	want := "\n  🐡 gaebokchi · weekly usage\n\n  ChatGPT  a  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h\n\n"
 	if plain(frame) != want || lines != 5 {
 		t.Fatalf("frame = %q, lines = %d; want %q", frame, lines, want)
 	}
 	if strings.Contains(frame, "[31m") || strings.Contains(frame, "[32m") || strings.Contains(frame, "[33m") {
 		t.Fatal("colorless frame emitted color")
+	}
+})
+
+var _ = ginkgo.It("keeps a fractional percentage in the terminal frame", func() {
+	t := testT{ginkgo.GinkgoT()}
+	frame, _ := TerminalFrame([]domain.Result{measured(43.2)}, 100, fixedNow, false, false, "")
+	if !strings.Contains(plain(frame), "43.2%") {
+		t.Fatalf("fractional percentage missing from frame: %q", frame)
 	}
 })
 
@@ -44,8 +52,8 @@ var _ = ginkgo.It("renders a colorless grouped frame with a sanitized wide label
 	b.Account = "second"
 	frame, lines := TerminalFrame([]domain.Result{a, b}, 100, fixedNow, false, false, "")
 	want := "\n  🐡 gaebokchi · weekly usage\n\n" +
-		"  ChatGPT  한글 name  ██░░░░░░░░░░░░░░░░░░   10.0%\n" +
-		"           second     ████░░░░░░░░░░░░░░░░   20.0%\n\n"
+		"  ChatGPT  한글 name  ██░░░░░░░░░░░░░░░░░░     10%\n" +
+		"           second     ████░░░░░░░░░░░░░░░░     20%\n\n"
 	if plain(frame) != want || lines != 6 {
 		t.Fatalf("frame = %q, lines = %d; want %q", plain(frame), lines, want)
 	}
@@ -160,7 +168,7 @@ var _ = ginkgo.It("maps numeric and terminal statuses to approved style classes"
 	allowed := regexp.MustCompile(`^\x1b\[(?:0|1|2|31|32|33|1;31|1;32|1;33)m`)
 	for _, color := range []bool{true, false} {
 		frame, _ := TerminalFrame([]domain.Result{measured(80)}, 100, fixedNow, color, false, "")
-		if !color && (!strings.Contains(frame, "\x1b[1m 80.0%") || strings.Contains(frame, "\x1b[1;m")) {
+		if !color && (!strings.Contains(frame, "\x1b[1m   80%") || strings.Contains(frame, "\x1b[1;m")) {
 			t.Fatalf("NO_COLOR must preserve bold with a valid SGR: %q", frame)
 		}
 		for i := 0; i < len(frame); i++ {
@@ -202,8 +210,8 @@ var _ = ginkgo.It("shrinks bars, drops countdown then bar, and clips only live l
 		!strings.Contains(plain(shrunkWithReset), fill19+track19) || !strings.Contains(shrunkWithReset, "↻ 2d 4h") ||
 		!strings.Contains(plain(withoutReset), fill18+track18) || strings.Contains(withoutReset, "↻") ||
 		!strings.Contains(plain(floorBar), fill10+track10) || strings.Contains(floorBar, "↻") ||
-		strings.Contains(narrow, "↻") || !strings.Contains(plain(narrow), "37.0%") ||
-		strings.Contains(tiny, "░") || !strings.Contains(tiny, r.Account) || !strings.Contains(plain(tiny), "37.0%") {
+		strings.Contains(narrow, "↻") || !strings.Contains(plain(narrow), "37%") ||
+		strings.Contains(tiny, "░") || !strings.Contains(tiny, r.Account) || !strings.Contains(plain(tiny), "37%") {
 		t.Fatalf("width tiers: 100=%q 60=%q 50=%q 42=%q 40=%q 25=%q", wide, shrunkWithReset, withoutReset, floorBar, narrow, tiny)
 	}
 })
@@ -267,7 +275,7 @@ var _ = ginkgo.It("writes one final frame on short terminals and stops after fir
 		t.Fatal(err)
 	}
 	output, writes := w.value()
-	if writes != 1 || strings.Contains(output, "[?25") || !strings.Contains(output, "37.0%") {
+	if writes != 1 || strings.Contains(output, "[?25") || !strings.Contains(output, "37%") {
 		t.Fatalf("height fallback: writes=%d output=%q", writes, output)
 	}
 

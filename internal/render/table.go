@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"text/tabwriter"
 
@@ -36,7 +37,11 @@ func UsageCell(r domain.Result) string {
 			// Defensive: ok without a percentage is a provider error.
 			return domain.StatusProviderError.Cell()
 		}
-		return fmt.Sprintf("%.1f%%", *r.UsedPercent)
+		percent := domain.NormalizePercentSignedZero(*r.UsedPercent)
+		if percent == math.Trunc(percent) {
+			return fmt.Sprintf("%.0f%%", percent)
+		}
+		return fmt.Sprintf("%.1f%%", percent)
 	}
 	return r.Status.Cell()
 }

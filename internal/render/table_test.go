@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	ginkgo "github.com/onsi/ginkgo/v2"
+	"math"
 	"strings"
 	"time"
 
@@ -20,7 +21,7 @@ var _ = ginkgo.It("TestTableGoldenMixedStatuses", func() {
 	}
 	got := Table(results)
 	want := "AI PROVIDER  ACCOUNT               WEEKLY USAGE\n" +
-		"ChatGPT      account1@example.com  37.0%\n" +
+		"ChatGPT      account1@example.com  37%\n" +
 		"ChatGPT      .codex-hsy            AUTH REQUIRED\n" +
 		"Grok         default               N/A (monthly)\n"
 	if got != want {
@@ -54,16 +55,18 @@ var _ = ginkgo.It("TestTableAllNumeric", func() {
 		{Provider: domain.ProviderGrok, Account: "default", Status: domain.StatusOK, UsedPercent: pct(54)},
 	}
 	got := Table(results)
-	if !strings.Contains(got, "0.0%") || !strings.Contains(got, "12.2%") || !strings.Contains(got, "54.0%") {
+	lines := strings.Split(strings.TrimSuffix(got, "\n"), "\n")
+	if len(lines) != 4 || !strings.HasSuffix(lines[1], "  0%") ||
+		!strings.HasSuffix(lines[2], "  12.2%") || !strings.HasSuffix(lines[3], "  54%") {
 		t.Fatalf("percentage formatting broken:\n%s", got)
-	}
-	if strings.Contains(got, "54.00%") {
-		t.Fatal("not one decimal place")
 	}
 })
 
-var _ = ginkgo.Describe("TestUsageCellOneDecimal", func() {
-	cases := map[float64]string{0: "0.0%", 100: "100.0%", 37.06: "37.1%", 99.94: "99.9%", 5.5: "5.5%"}
+var _ = ginkgo.Describe("TestUsageCellAdaptivePrecision", func() {
+	cases := map[float64]string{
+		0: "0%", 37: "37%", 100: "100%", 37.06: "37.1%", 37.04: "37.0%",
+		99.94: "99.9%", 99.96: "100.0%", 5.5: "5.5%",
+	}
 	for v, want := range cases {
 		ginkgo.It(want, func() {
 			t := testT{ginkgo.GinkgoT()}
@@ -73,6 +76,13 @@ var _ = ginkgo.Describe("TestUsageCellOneDecimal", func() {
 			}
 		})
 	}
+	ginkgo.It("normalizes signed zero", func() {
+		t := testT{ginkgo.GinkgoT()}
+		got := UsageCell(domain.Result{Status: domain.StatusOK, UsedPercent: pct(math.Copysign(0, -1))})
+		if got != "0%" {
+			t.Fatalf("signed zero rendered as %q", got)
+		}
+	})
 })
 
 var _ = ginkgo.Describe("TestSanitizeLabel", func() {

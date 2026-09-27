@@ -11,10 +11,10 @@ leaves this kind of final frame:
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░   37.0%  ↻ 2d 4h
-           account2@example.com  ██▍░░░░░░░░░░░░░░░░░   12.0%  ↻ 5d 1h
-  Grok     default               ██████████▊░░░░░░░░░   54.0%  ↻ 3d 11h
-  Claude   default               ████████▋░░░░░░░░░░░   43.0%
+  ChatGPT  account1@example.com  ███████▍░░░░░░░░░░░░     37%  ↻ 2d 4h
+           account2@example.com  ██▍░░░░░░░░░░░░░░░░░     12%  ↻ 5d 1h
+  Grok     default               ██████████▊░░░░░░░░░     54%  ↻ 3d 11h
+  Claude   default               ████████▋░░░░░░░░░░░   43.2%
 
 ```
 
@@ -22,10 +22,10 @@ Pipes and redirects keep the plain table:
 
 ```text
 AI PROVIDER  ACCOUNT                WEEKLY USAGE
-ChatGPT      account1@example.com   37.0%
-ChatGPT      account2@example.com   12.0%
-Grok         default                54.0%
-Claude       default                43.0%
+ChatGPT      account1@example.com   37%
+ChatGPT      account2@example.com   12%
+Grok         default                54%
+Claude       default                43.2%
 ```
 
 (Illustrative output; stdout can contain your real account identifiers.)
@@ -38,7 +38,7 @@ Claude       default                43.0%
   **weekly subscription quota**. It never shows remaining quota, local
   token totals, API spend, or a calendar-week guess.
 - When Grok reports a weekly period but omits `creditUsagePercent`, displays
-  `0.0%` under a Grok compatibility policy. This is a display fallback,
+  `0%` under a Grok compatibility policy. This is a display fallback,
   not a measured zero; an explicit `null` percentage remains `N/A (no data)`.
 - One snapshot, then exit. Terminal progress does not re-query. No daemon,
   watch mode, polling, retries, history, or cache.
@@ -144,8 +144,9 @@ Without `--json`, an interactive terminal with a readable size and a usable
 `TERM` shows one live row per target, then a final usage bar or status. A reset
 countdown appears only when the provider supplied a weekly reset time.
 `NO_COLOR` suppresses color but keeps the layout. Pipes, redirects,
-`TERM=dumb`, and terminals without a readable size retain the previous table
-bytes. The view adds no flag, JSON reset field, or table column.
+`TERM=dumb`, and terminals without a readable size use the plain table shown
+above, with the current percentage formatting. The view adds no flag, JSON
+reset field, or table column.
 
 JSON `status` values are `ok`, `not_applicable/monthly`,
 `not_applicable/api_key`, `unavailable/no_weekly`, `unavailable/period`,
@@ -162,8 +163,8 @@ errors.
 
 | WEEKLY USAGE cell | Meaning |
 |---|---|
-| `37.0%` | Weekly subscription usage consumed (one decimal) |
-| `0.0%` for Grok with an omitted weekly percentage | Grok-compatible display fallback; zero usage is not independently verified |
+| `37%` or `43.2%` | Weekly subscription usage consumed; integers omit the decimal, fractional values show one decimal |
+| `0%` for Grok with an omitted weekly percentage | Grok-compatible display fallback; zero usage is not independently verified |
 | `N/A (monthly)` | The account reports a monthly period — not weekly usage |
 | `N/A (API key)` | API-key auth has no provider subscription quota |
 | `N/A (no weekly)` | No weekly window in the provider's quota data |
