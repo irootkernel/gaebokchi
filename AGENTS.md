@@ -65,9 +65,9 @@ Repository guidance for AI coding agents working on gaebokchi.
 
 ### Repository Index and Authorities
 
-- `README.md` owns the CLI purpose, supported usage, privacy boundary, build instructions, and distribution limits.
+- `README.md` owns the public product overview, installation from GitHub Releases or source, supported usage, privacy boundary, compatibility, and license notice.
 - `docs/README.md` indexes project documents; `docs/specs/README.md`, `docs/architecture/README.md`, and `docs/roadmap/README.md` own requirements, architecture, and roadmap status. `docs/implementation-tips/README.md` lists the local verification commands.
-- This is a Go 1.27 module. Run `go vet ./...`, `golangci-lint run ./...`, and `go test ./... -count=1` for the documented offline checks; use the narrower package tests and race command listed in `docs/implementation-tips/README.md` when relevant. Build and release instructions are in `README.md` and `scripts/build-release.sh`.
+- This is a Go 1.27 module. Run `go vet ./...`, `golangci-lint run ./...`, and `go test ./... -count=1` for the documented offline checks; use the narrower package tests and race command listed in `docs/implementation-tips/README.md` when relevant. User installation is in `README.md`; release staging and publication steps are in `docs/implementation-tips/README.md` and `scripts/build-release.sh`.
 
 ### Commit Messages
 
@@ -78,4 +78,4 @@ Repository guidance for AI coding agents working on gaebokchi.
 
 - Provider CLIs may refresh their own login state during a usage query. Do not run a live account query as a setup check; use the documented offline tests.
 - Keep credentials with the provider CLIs. Never print real account identifiers or authentication data in setup reports.
-- The README documents local archives and source builds; do not infer a published download channel from release scripts.
+- The distribution channel is GitHub Releases for `github.com/irootkernel/gaebokchi` plus source builds. Staging archives or documenting the channel does not authorize tagging or publishing; publish only when Master explicitly requests it.

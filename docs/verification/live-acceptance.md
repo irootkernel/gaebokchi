@@ -2,6 +2,8 @@
 
 > Artifact-scope correction (2026-09-22, EPIC-007): the campaign below ran against the pre-remediation binary built from the tree at commit `f8b180d` and is valid evidence for that artifact only. The corrected candidate (EPIC-007; rebuilt archives with new SHA-256 checksums in [TASK-021](TASK-021.md)) has not been live-tested, and the provider-display comparison required by REQ-048 remains open pending owner authorization.
 
+> Redaction (2026-09-28): before publication, the partially masked owner account identifiers in the live results below were replaced with the placeholders from the sanitization table in the [compatibility record](compatibility.md). All other observations are unchanged.
+
 
 Task: TASK-013
 Status: COMPLETE
@@ -9,7 +11,7 @@ Goal and implementation scope: Confirm the delivered release binary — not the 
 Requirements and architecture sections covered: REQ-005, REQ-048 (primary); ARCH-07, ARCH-08, ARCH-11, ARCH-12, ARCH-13.
 Changed files: docs/verification/live-acceptance.md (this file), test/integration/main_test.go (bounded remediation: e2e build-dir cleanup), docs/verification/TASK-013.md.
 Verification (environment: macOS 26.6.2 darwin/arm64; codex-cli 0.155.1 at ~/.local/bin/codex; grok 1.0.40 at ~/.grok/bin/grok; delivered binary from dist/gaebokchi-0.1.0/gaebokchi-darwin-arm64.tar.gz, SHA-256 cf219660…, `--version` → gaebokchi 0.1.0):
-  - Live default run (twice, 90 s apart): exact three-row table — ChatGPT aeux…@gmail.com 39.0%, ChatGPT jard…@naver.com 39.0%, Grok default 32.0% — exit 0, wall time ≈1–2 s, no diagnostics. Values identical across the two runs (no consumption in between; the same quota window).
+  - Live default run (twice, 90 s apart): exact three-row table — ChatGPT account1@example.com 39.0%, ChatGPT account2@example.com 39.0%, Grok default 32.0% — exit 0, wall time ≈1–2 s, no diagnostics. Values identical across the two runs (no consumption in between; the same quota window).
   - Positive weekly evidence for BOTH providers: the Grok account returned an explicit USAGE_PERIOD_TYPE_WEEKLY period with a live percentage (32.0%) through `_x.ai/billing` — no monthly limitation applies to this campaign; both Codex homes returned weekly (10080-minute) windows. No UNSUPPORTED/TIMEOUT/fixture replay is used anywhere in this gate.
   - Comparison against the providers' own data: an independent raw metadata probe seconds after the delivered-binary run returned the same numbers (codex primary usedPercent=39, windowDurationMins=10080, resetsAt=1790411774; grok creditUsagePercent=32, period end 2026-09-26T15:52:30Z). The resetsAt/end values are identical to the TASK-001 captures from the same homes, proving the same quota windows are being reported. LIMITATION, recorded truthfully: neither installed CLI exposes a headless read-only subscription-quota display command (Codex shows usage only in its interactive TUI; `grok usage` prints per-session token/cost, not the subscription quota), so no side-by-side UI screenshot comparison was possible without starting a model turn, which this campaign forbids. Window-boundary and cross-invocation consistency stand in, with no exact-value simultaneity claimed. Usage did move between the TASK-001 capture (37/38/28) and today (39/39/32) across the same windows, consistent with real consumption.
   - Partial-error presentation: `--codex-home ~/.codex --codex-home /definitely/not/here` → healthy 39.0% row + HOME NOT FOUND row + Grok row, exit 1, one safe stderr diagnostic; no directories were created for the missing home.
