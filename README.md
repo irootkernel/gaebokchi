@@ -90,8 +90,9 @@ that line. Make sure `~/.local/bin`, or whichever directory you chose, is on
 your `PATH`.
 
 Each archive unpacks into `gaebokchi-<os>-<arch>/`, which holds the
-`gaebokchi` binary, this README, the account setup guide at
-`configuration/README.md`, and the maintainer specification under `docs/`.
+`gaebokchi` binary, this README, `LICENSE`, `THIRD_PARTY_NOTICES.txt`, the
+account setup guide at `configuration/README.md`, and the maintainer
+specification under `docs/`.
 
 The macOS binaries are not notarized. Downloads with `curl` work as shown. If
 you download with a browser and macOS blocks the binary, remove the quarantine
@@ -387,8 +388,11 @@ under `docs/`.
 ## License
 
 Gaebokchi is released under the MIT License. Copyright (c) 2026 Root Kernel.
-See [LICENSE](LICENSE) in the source repository.
+See [LICENSE](LICENSE) in the source repository or the release archive.
 
 Release binaries also contain the Go standard library and the
-`golang.org/x/sys` and `golang.org/x/text` modules, which are distributed under
-their own BSD-style licenses.
+`go.yaml.in/yaml/v3`, `golang.org/x/sys`, and `golang.org/x/text` modules.
+Those components retain their own licenses; the YAML module includes MIT and
+Apache-licensed code, while the Go components use BSD-style licenses. Their
+license and notice texts are in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)
+in the source repository and each release archive.

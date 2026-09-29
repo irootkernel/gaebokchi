@@ -34,7 +34,7 @@ Provider compatibility is an implementation gate. Published documentation or sou
 
 ## Acceptance checklist
 
-The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008, REQ-010 through REQ-011, and REQ-039. Their earlier verification records describe the former flag-based contract, so these requirements remain unchecked for current acceptance. The changed behavior passed the offline `make test` gate with configuration parsing, target selection, fake-provider environments, and executable-level output tests. Distinct real Grok and Claude logins still need separate compatibility qualification; see [deferred feedback](../deferred-feedback/README.md).
+The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008, REQ-010 through REQ-011, and REQ-039. Their earlier verification records describe the former flag-based contract, so these requirements remain unchecked for current acceptance under [TASK-032](../roadmap/README.md#task-032). The changed behavior passed the offline `make test` gate with configuration parsing, target selection, fake-provider environments, and executable-level output tests. Distinct real Grok and Claude logins still need separate compatibility qualification; see [deferred feedback](../deferred-feedback/README.md).
 
 ### Product scope
 
@@ -212,27 +212,27 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
 <a id="current-claude-extension"></a>
 ### Claude provider
 
-Claude support was added after the v0.1 campaign; [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md) records the decision and [ARCH-16](../architecture/README.md#arch-16) the adapter. Live and offline evidence exists, but no roadmap task owns the extension's acceptance, so these requirements stay unchecked under the [completion rules](#completion-rules).
+Claude support was added after the original v0.1 campaign; [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md) records the decision and [ARCH-16](../architecture/README.md#arch-16) the adapter. [TASK-032](../roadmap/README.md#task-032) now owns its current acceptance; these requirements stay unchecked until the [completion rules](#completion-rules) are met.
 
 <a id="req-056"></a>
 - [ ] **REQ-056: Claude targets and local-command query.** Query each configured Claude target after the Grok targets, using its selected Claude home and alias. Let `--claude-bin` select the executable; a missing executable keeps the row as `NOT INSTALLED`. Use exactly two prompt-free commands within the target's single query budget: `claude --safe-mode auth status --json`, then `claude --safe-mode --tools "" -p /usage --max-turns 0 --output-format json --no-session-persistence`. Close each child's stdin immediately and cap its stdout at 256 KiB; larger output is `PROTOCOL ERROR`. Do not use an interactive session, a PTY, a model turn, a tool, the experimental `stream-json` usage report, or an application-owned HTTP client.
-  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: [Claude compatibility record](../verification/claude-compatibility.md) (live, Claude Code 2.1.280, darwin/arm64); the Claude provider suite ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
-  - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
+  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: [TASK-032](../roadmap/README.md#task-032). Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: [Claude compatibility record](../verification/claude-compatibility.md) (live, Claude Code 2.1.280, darwin/arm64); the Claude provider suite ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
+  - Open: current candidate acceptance under TASK-032 is pending ([REQ-050](#req-050)).
 
 <a id="req-057"></a>
 - [ ] **REQ-057: Claude authentication and environment.** Classify the auth status before reading usage. `loggedIn: false` is `AUTH REQUIRED`, whatever the command's exit status. Continue only when the command exits 0 and reports `loggedIn: true` with `authMethod` `claude.ai` and `apiProvider` `firstParty`. An auth method whose name identifies an API key is `N/A (API key)`; only fixtures qualify this branch. Any other combination, or output that does not parse or lacks `loggedIn`, is `UNSUPPORTED`. An auth command that cannot run, or that exits nonzero while logged in, is `ERROR`; a timeout or cancellation is `TIMEOUT` or `CANCELLED`. Remove Anthropic credential and third-party routing overrides from the child environment while keeping `HOME`. Set `CLAUDE_CONFIG_DIR` for non-default homes and leave it unset for the default `~/.claude` home, as listed in ARCH-16. Never read Claude credentials or start a login.
-  - Architecture: [ARCH-16](../architecture/README.md#arch-16), [ARCH-09](../architecture/README.md#arch-09). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the live auth read in the [Claude compatibility record](../verification/claude-compatibility.md); logged-out, API-key, unknown-mode, and environment tests ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
-  - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
+  - Architecture: [ARCH-16](../architecture/README.md#arch-16), [ARCH-09](../architecture/README.md#arch-09). Owner: [TASK-032](../roadmap/README.md#task-032). Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the live auth read in the [Claude compatibility record](../verification/claude-compatibility.md); logged-out, API-key, unknown-mode, and environment tests ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
+  - Open: current candidate acceptance under TASK-032 is pending ([REQ-050](#req-050)).
 
 <a id="req-058"></a>
 - [ ] **REQ-058: Claude usage envelope and weekly line.** Accept the usage command's output only when it exits 0 with a JSON envelope that reports `local_command` `usage`, zero turns, zero cost, `is_error: false`, and a text `result`; anything else is `UNSUPPORTED`. Select the one line of the form `Current week (all models): N% used`, where N is a non-negative decimal. A missing or duplicated line, or one in any other form, including a negative value, is `UNSUPPORTED`; a value above 100 is `PROTOCOL ERROR`. Never substitute the current-session meter or a model-specific weekly meter.
-  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the live envelope and line shape in the [Claude compatibility record](../verification/claude-compatibility.md); the parser tests ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
-  - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
+  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: [TASK-032](../roadmap/README.md#task-032). Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the live envelope and line shape in the [Claude compatibility record](../verification/claude-compatibility.md); the parser tests ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
+  - Open: current candidate acceptance under TASK-032 is pending ([REQ-050](#req-050)).
 
 <a id="req-059"></a>
 - [ ] **REQ-059: Claude reset metadata.** Keep a reset time only from the ` · resets …` suffix of the selected weekly line, and only when the text names exactly one instant: an en-US month and day with an optional year, joined to a 12-hour time by ` at ` or a comma, followed by an IANA zone that the host can load. When the year is omitted, use the zone's current year, and discard the reset if that year changed while the command ran. Also discard it for an unrecognized suffix, an unknown zone, an impossible date, or a local time that a daylight-saving change skips or repeats. A discarded reset never changes the percentage, and no reset time is derived from other data.
-  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the [weekly reset text](../verification/claude-compatibility.md#weekly-reset-text) record (live, Claude Code 2.1.283); no recorded test run covers the reset parser yet.
-  - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
+  - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: [TASK-032](../roadmap/README.md#task-032). Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the [weekly reset text](../verification/claude-compatibility.md#weekly-reset-text) record (live, Claude Code 2.1.283); current regression evidence is pending.
+  - Open: current candidate acceptance under TASK-032 is pending ([REQ-050](#req-050)).
 
 ### Security and boundaries
 
@@ -386,7 +386,7 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-028](../roadmap/README.md#task-028) | [REQ-051](#req-051) |
 | [TASK-029](../roadmap/README.md#task-029) | [REQ-052](#req-052) |
 | [TASK-030](../roadmap/README.md#task-030) | [REQ-053](#req-053), [REQ-054](#req-054), [REQ-055](#req-055) |
-| No roadmap task (Claude extension) | [REQ-056](#req-056), [REQ-057](#req-057), [REQ-058](#req-058), [REQ-059](#req-059); unchecked until a task adopts them |
+| [TASK-032](../roadmap/README.md#task-032) | Re-qualifies current YAML account selection and [REQ-056](#req-056) through [REQ-059](#req-059) for Claude |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).
 
@@ -396,5 +396,5 @@ Component tasks also contribute to cross-cutting requirements owned by integrati
 - The original campaign checked 50 requirements, and the TASK-014 release audit rechecked them against the delivered tree at commit `f8b180d`.
 - On 2026-09-22 an adversarial audit of executable-level behavior superseded that result. TASK-015 unchecked 17 requirements, and [EPIC-007](../roadmap/README.md#epic-007) fixed the defects; TASK-021 re-verified each full acceptance scope against the corrected tree and restored 16 of them. A confirmation review of commit `c340245` then reopened further requirements, which TASK-022 through TASK-024 re-qualified. The roadmap's EPIC-007 section and the verification records [TASK-015](../verification/TASK-015.md) through [TASK-024](../verification/TASK-024.md) keep each finding. The requirement text above states the corrected rules, and each trace line names its re-qualifying tasks.
 - REQ-048 has stayed open since then; its note gives the reason.
-- Later extensions changed the contract without reopening the v0.1 evidence: the version command (EPIC-008, which added REQ-051), JSON output (EPIC-009), the interactive terminal view (EPIC-010), and Claude support, which no roadmap task owns (REQ-056 through REQ-059). Dated Changed notes mark every affected requirement.
-- The roadmap is packaged with this document and keeps its historical v0.1 [final release gate](../roadmap/README.md#plan-release-gate). That gate's "No Claude/PTY … has been introduced" check described v0.1; Claude support is current behavior, while a PTY remains out of scope.
+- Later extensions changed the contract without reopening the original v0.1 evidence: the version command (EPIC-008, which added REQ-051), JSON output (EPIC-009), the interactive terminal view (EPIC-010), and Claude support. EPIC-011 owns their public-release reconciliation. Dated Changed notes mark every affected requirement.
+- The roadmap keeps the original v0.1 [historical gate](../roadmap/README.md#plan-release-gate) and a separate [current release gate](../roadmap/README.md#current-release-gate). Claude support and YAML configuration are current behavior; a PTY remains out of scope.

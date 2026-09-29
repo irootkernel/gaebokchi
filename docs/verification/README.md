@@ -16,6 +16,8 @@ current merely because a later tree retains the record.
   commit subject.
 - [TASK-030.md](TASK-030.md) records the interactive terminal view checks,
   fake-provider terminal exercise, and task-scoped commit subject.
+- [TASK-031.md](TASK-031.md) records public release documentation and archive
+  membership checks, including the pre-commit candidate limitation.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
 

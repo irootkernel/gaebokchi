@@ -1,16 +1,16 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: 0.1 specification  
-Status: EPIC-009 COMPLETE — TASK-029 implemented and verified the usage snapshot JSON contract. EPIC-010 COMPLETE — TASK-030 implemented the interactive terminal view. REQ-048 separately requires owner-authorized live acceptance
+Status: EPIC-001 through EPIC-010 COMPLETE; v0.1.0 public release acceptance remains open for current configuration, Claude, and REQ-048.
 Prepared: 2026-09-22  
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
 
-The Claude extension implemented after the v0.1 campaign is described in
-the [current requirements](../specs/README.md#current-claude-extension) and
-[architecture](../architecture/README.md#current-claude-extension). The task
-history and gates below retain their v0.1 meaning.
+The Claude extension and YAML account configuration are described in the
+[current requirements](../specs/README.md) and [architecture](../architecture/README.md).
+Historical task records below retain the meaning they had when completed;
+the [current release gate](#current-release-gate) governs v0.1.0 publication.
 
 ## How to use this plan
 
@@ -36,7 +36,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -51,6 +51,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 8 | [EPIC-008: Version command and release identity](#epic-008) | [TASK-028](#task-028) | [EPIC-007](#epic-007) complete | COMPLETE (final release acceptance pending REQ-048) |
 | 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (final release acceptance pending REQ-048) |
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (final release acceptance pending REQ-048) |
+| 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | IN PROGRESS |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -58,10 +59,10 @@ implementation milestones and task commits (with EPIC-006's final acceptance
 superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record).
 EPIC-007's corrective work is complete. EPIC-008 is the version-contract
 extension; EPIC-009 completed the JSON-output extension. EPIC-010 completed
-the interactive terminal view. Full live release
-acceptance remains pending REQ-048 as a separate owner-authorized gate.
+the interactive terminal view. EPIC-011 owns current public-release readiness:
+YAML and Claude acceptance, packaging, and the REQ-048 live gate.
 
-The task order is globally sequential: TASK-001 through TASK-030. Runtime
+The task order is globally sequential: TASK-001 through TASK-033. Runtime
 account queries may be concurrent; development tasks may not.
 
 <a id="plan-evidence"></a>
@@ -1335,9 +1336,10 @@ release, installation, publication, or live provider query is implied.
 separate owner-authorized live campaign is performed.
 
 <a id="plan-release-gate"></a>
-## Final release gate
+## Historical pre-extension release gate
 
-These historical v0.1 release-level checks are not extra implementation tasks.
+These checks describe the pre-Claude, pre-YAML v0.1 candidate. They are not
+the current publication gate or extra implementation tasks.
 The checks below were marked passed at commit `f8b180d` (TASK-014); the
 corrective audit superseded several of them, and they are re-owned by
 [EPIC-007](#epic-007) / [TASK-021](#task-021). EPIC-009 passed its own local gate:
@@ -1347,18 +1349,96 @@ corrective audit superseded several of them, and they are re-owned by
 - [x] Non-interactive, non-JSON output remains the three-column table, including on partial provider failure. *(Held: the table shape was not invalidated by the audit; EPIC-010 adds a separate interactive view.)*
 - [ ] Codex works through both specified homes; Grok produces valid real billing metadata through the qualified prompt-free CLI protocol. *(The recorded live evidence belongs to the pre-remediation artifact at commit f8b180d; the final corrected candidate (TASK-025 archives) has not been live-tested because owner authorization was unavailable. Offline qualification of the corrected tree is complete on darwin/arm64 and linux/arm64.)*
 - [x] Offline tests, native macOS/Linux tests, four target builds, document-link checks and owner-account acceptance are recorded truthfully. *(Corrected tree: darwin/arm64 full suite + race green; linux/arm64 (containerized) vet + suite + race subset + docs check green; four CGO-disabled builds with verified checksums; live acceptance recorded as NOT RUN for the corrected candidate — see [TASK-021](../verification/TASK-021.md).)*
-- [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store has been introduced. *(Held.)*
+- [x] No Claude/PTY, private REST fallback, credential parsing, agent prompt/session, app-owned daemon or persistent usage store had been introduced at this historical candidate. *(Claude support was added later; this check is not current acceptance.)*
 - [x] Local release artifacts and README are ready, with tested-version/platform limitations and no unauthorized publication. *(Artifacts rebuilt from the corrected tree with new SHA-256 checksums; README separates live qualification from offline Linux evidence.)*
 
 A missing live environment is a real qualification gap, not a reason to invent evidence. Stop with a precise incomplete-gate report instead of asking an implementation AI to loop until an unavailable service becomes available.
+
+<a id="epic-011"></a>
+## EPIC-011: Public v0.1.0 release readiness
+
+- [ ] Epic open. **Status: IN PROGRESS.**
+
+**Goal:** Reconcile public documentation and package contents, accept the current
+YAML and Claude contracts, and qualify the final v0.1.0 candidate. Earlier
+epic and task completion remains historical; publication requires the current
+release gate below.
+
+**Tasks:** [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033).
+
+<a id="task-031"></a>
+### TASK-031: Align release documentation and archive contents
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Scope:** Make the public README, documentation indexes, roadmap current-state
+summary, ARCH-13, release procedure, and archive member checker agree on the
+current CLI and the files distributed in v0.1.0. Include the project LICENSE
+and bundled-component license notices in every archive. Preserve historical
+verification records.
+
+**Acceptance:** Documentation links and archive fixtures pass; a newly staged
+candidate contains byte-identical public documents and license texts with no extra
+members. Record the exact tested tree and any platform limits in
+`docs/verification/TASK-031.md`.
+
+**Commit boundary:** `build(TASK-031): align public release documentation and archives`.
+
+<a id="task-032"></a>
+### TASK-032: Accept the current YAML and Claude contracts
+
+- [ ] Task open. **Status: NOT STARTED.**
+
+**Scope:** Re-verify REQ-002, REQ-006 through REQ-008, REQ-010 through REQ-011,
+REQ-039, and REQ-056 through REQ-059 against current code, offline tests,
+compatible live evidence, and their full acceptance criteria. Keep unproven
+multi-login behavior explicit. Update the checkboxes, ownership index, and
+`docs/verification/TASK-032.md` only as evidence permits.
+
+**Acceptance:** Each current requirement has a task owner and exact current
+evidence, or remains unchecked with a precise blocker. No historical test is
+presented as proof for a changed contract.
+
+**Commit boundary:** `test(TASK-032): requalify current account and Claude contracts`.
+
+<a id="task-033"></a>
+### TASK-033: Qualify the final release candidate
+
+- [ ] Task open. **Status: NOT STARTED.**
+
+**Scope:** Review the candidate's public behavior, privacy, process safety,
+and documentation; run the full offline gates natively on macOS and Linux;
+build and verify four archives; and complete REQ-048 with the final delivered
+binary and the providers' own read-only usage displays. Record exact commit,
+artifact checksums, command outcomes, and limits in
+`docs/verification/TASK-033.md`.
+
+**Acceptance:** The [current release gate](#current-release-gate) is fully
+satisfied. If live comparison cannot be performed without a model turn, keep
+REQ-048 and this task blocked. Tagging and hosted publication require their
+own owner approval after the candidate is reviewable.
+
+**Commit boundary:** `test(TASK-033): qualify v0.1.0 release candidate`.
+
+<a id="current-release-gate"></a>
+## Current v0.1.0 release gate
+
+- [ ] Every current specification requirement is checked against applicable
+  evidence, including the YAML configuration, Claude, and REQ-048.
+- [ ] One bounded release review has no unresolved blocking finding.
+- [ ] The final release commit passes the offline gate natively on macOS and
+  Linux; other CPU targets are labeled with their actual build/test evidence.
+- [ ] All four archives contain the executable, current documents, LICENSE,
+  THIRD_PARTY_NOTICES.txt, and valid checksums; version and build provenance
+  match the release commit.
+- [ ] The delivered candidate passes the owner-account read-only comparison
+  in REQ-048 within the same quota period.
 
 ## Final handoff format
 
 Return the implemented scope, task commit references, verification summary, local artifact locations/checksums, and remaining compatibility limitations. Explain any live monthly Grok result explicitly. Report failures or unrun environments without presenting them as completed support.
 
-Further product expansion beyond EPIC-010 remains outside this plan. EPIC-010
-adopts a reset countdown only inside the interactive terminal view; the plain
-table and JSON keep no reset-time column or field. Persistent configuration,
-additional Grok accounts, full-screen interfaces, and watch mode still require
-separate scope decisions. Claude support is described as a current extension
-above; its v0.1 exclusion remains historical.
+The current YAML configuration supports provider omission and multiple Grok
+homes. EPIC-010's reset countdown remains exclusive to the interactive view;
+the plain table and JSON keep no reset-time field. Full-screen interfaces and
+watch mode remain outside the v0.1.0 scope.

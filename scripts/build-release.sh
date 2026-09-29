@@ -28,6 +28,8 @@ for target in $TARGETS; do
     -ldflags "-s -w -X main.buildVersion=${RELEASE_VERSION}" \
     -o "${dir}/gaebokchi" ./cmd/gaebokchi
   cp README.md "${dir}/README.md"
+  cp LICENSE "${dir}/LICENSE"
+  cp THIRD_PARTY_NOTICES.txt "${dir}/THIRD_PARTY_NOTICES.txt"
   cp configuration/README.md "${dir}/configuration/README.md"
   cp docs/specs/README.md "${dir}/docs/specs/README.md"
   cp docs/architecture/README.md "${dir}/docs/architecture/README.md"

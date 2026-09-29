@@ -21,12 +21,12 @@ type member struct {
 	body string
 }
 
-// writeTestRepo creates a disposable repository root whose four
-// documents match the bodies used by synthetic archives.
+// writeTestRepo creates a disposable repository root whose packaged
+// text files match the bodies used by synthetic archives.
 func writeTestRepo(t testT) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, doc := range []string{"README.md", "configuration/README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
+	for _, doc := range []string{"README.md", "LICENSE", "THIRD_PARTY_NOTICES.txt", "configuration/README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
 		p := filepath.Join(root, doc)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
@@ -48,6 +48,8 @@ func intendedLayoutFor(target string) []member {
 		{name: d, dir: true, mode: 0o755},
 		{name: d + "/gaebokchi", mode: 0o755, body: "fake binary"},
 		{name: d + "/README.md", mode: 0o644, body: docBody("README.md")},
+		{name: d + "/LICENSE", mode: 0o644, body: docBody("LICENSE")},
+		{name: d + "/THIRD_PARTY_NOTICES.txt", mode: 0o644, body: docBody("THIRD_PARTY_NOTICES.txt")},
 		{name: d + "/docs", dir: true, mode: 0o755},
 		{name: d + "/docs/specs", dir: true, mode: 0o755},
 		{name: d + "/docs/specs/README.md", mode: 0o644, body: docBody("docs/specs/README.md")},
@@ -158,7 +160,7 @@ var _ = ginkgo.It("TestVerifyArchiveRejectsStructuralDefects", func() {
 
 	// Stale packaged document.
 	stale := intendedLayoutFor("darwin-arm64")
-	stale[5].body = "stale content\n"
+	stale[3].body = "stale content\n" // LICENSE
 	path = filepath.Join(t.TempDir(), "gaebokchi-darwin-arm64.tar.gz")
 	buildTestArchive(t, path, stale)
 	wantErrContaining(t, verifyArchive(path, "darwin-arm64", root), "differs from the finalized source")

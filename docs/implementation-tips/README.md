@@ -76,8 +76,9 @@ does not grant that authority.
 
    The build script replaces `dist/gaebokchi-v0.1.0` with four platform
    archives plus `SHA256SUMS`; inspect any existing local staging before
-   running it. The staged-release check verifies the archive members,
-   executable permissions, byte-identical packaged documents, and checksums.
+   running it. The staged-release check verifies the archive members (including
+   LICENSE and THIRD_PARTY_NOTICES.txt), executable permissions,
+   byte-identical packaged text files, and checksums.
 5. **Check build provenance.** Extract one archive and run `go version -m` on
    its binary: `vcs.revision` must be the release commit and `vcs.modified`
    must be `false`.
@@ -95,7 +96,10 @@ does not grant that authority.
 7. **Verify the download.** Follow the README's install steps against the
    published release, including checksum verification.
 
-The archives do not yet include `LICENSE`; see [ARCH-13](../architecture/README.md#arch-13).
+The archives include the project `LICENSE` and `THIRD_PARTY_NOTICES.txt`; see
+[ARCH-13](../architecture/README.md#arch-13). Refresh third-party texts and
+their stated versions whenever a bundled dependency or release Go toolchain
+changes.
 
 ## Changing the release version
 

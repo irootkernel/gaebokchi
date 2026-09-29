@@ -19,18 +19,6 @@ current release condition, not deferred feedback.
 - **Affected authorities:** compatibility records, ARCH-12, REQ-005, and
   REQ-056 through REQ-057.
 
-## 2026-09-28: The Claude extension has no owning roadmap task
-
-- **Context:** Claude support (REQ-056 through REQ-059, ARCH-16, and
-  [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md))
-  was implemented outside the roadmap. The completion rules require an owning
-  task before a requirement is checked, so the four requirements stay unchecked
-  despite live and offline evidence.
-- **Proposed action:** have a work-definition workflow adopt an acceptance task
-  for the Claude extension that runs the V-CLAUDE coverage, records the
-  evidence, and checks REQ-056 through REQ-059.
-- **Affected authorities:** specifications, roadmap, verification records.
-
 ## 2026-09-28: The module path prevents `go install`
 
 - **Context:** the Go module path is the local-only `gaebokchi` (ARCH-01), so

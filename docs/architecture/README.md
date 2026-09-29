@@ -779,7 +779,7 @@ metadata and versioned staging paths use the canonical `v` prefix; the v0.1.0
 staging directory is `dist/gaebokchi-v0.1.0`. Public version JSON does not
 expose commit, revision, module checksum, or build date.
 
-Produce versioned local archives with the `gaebokchi` prefix and SHA-256 checksums, containing the `gaebokchi` executable, README, configuration guide, and the three specification documents. Verify before staging that every packaged document is byte-identical to its source (`scripts/archivecheck.go`). The project license is MIT (`LICENSE`), and the archives must carry the chosen license; the archive member allowlist in `scripts/build-release.sh` and `scripts/archivecheck.go` predates that choice and does not include it yet.
+Produce versioned local archives with the `gaebokchi` prefix and SHA-256 checksums, containing the `gaebokchi` executable, README, LICENSE, THIRD_PARTY_NOTICES.txt, configuration guide, and the three specification documents. Verify before staging that every packaged text file is byte-identical to its source (`scripts/archivecheck.go`). The project license is MIT (`LICENSE`); the archives also carry license and notice texts for bundled dependencies.
 
 Publication is a manual, owner-approved step: the staged archives and `SHA256SUMS` are uploaded to GitHub Releases for `github.com/irootkernel/gaebokchi`, following the procedure in the [implementation tips](../implementation-tips/README.md). The build never publishes, tags, signs, or redistributes provider binaries, and no package-manager tap exists.
 
