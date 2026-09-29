@@ -320,15 +320,18 @@ Gaebokchi drives provider interfaces that are qualified per CLI version:
 
 | Provider | Tested CLI | Interface |
 |---|---|---|
-| Codex | `codex-cli 0.155.1` | `codex app-server` account and rate-limit reads |
-| Grok | `grok 1.0.40`, plus a `1.0.41` metadata probe | The `grok --no-auto-update agent stdio` billing extension |
-| Claude | Claude Code 2.1.280; reset text on 2.1.283 | The prompt-free `auth status` read and the `/usage` local command |
+| Codex | `codex-cli 0.155.1` and `0.158.0` | `codex app-server` account and rate-limit reads |
+| Grok | `grok 1.0.40` and `1.0.44`; plus a `1.0.41` metadata probe | The `grok --no-auto-update agent stdio` billing extension |
+| Claude | Claude Code 2.1.280 and 2.1.284; reset text on 2.1.283 | The prompt-free `auth status` read and the `/usage` local command |
 
-All provider qualification used live, prompt-free queries on macOS/arm64.
+The later positive-path qualification used the current configured-account binary
+with two Codex homes, one Grok home, and one Claude home on macOS/arm64;
+see [TASK-032](docs/verification/TASK-032.md). Distinct real Grok or Claude
+logins across multiple homes have not been qualified.
 
 - **Offline test suites.** The current code's suites ran natively on
-  macOS/arm64. They also ran natively on Linux/arm64 for an earlier revision,
-  before Claude support, JSON output, and the terminal view.
+  macOS/arm64 and Linux/arm64 (containerized) during
+  [TASK-032](docs/verification/TASK-032.md), including the fake-provider E2E suite.
 - **Other targets** are cross-compiled.
 
 Newer CLI versions may change these interfaces. When that happens, gaebokchi

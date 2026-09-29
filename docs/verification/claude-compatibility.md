@@ -1,5 +1,16 @@
 # Claude Code usage compatibility
 
+## Current configured-account positive path (2026-09-29)
+
+Claude Code 2.1.284 returned an `ok` row with a numeric weekly value and no
+cleanup failure when a clean binary from commit
+`af5ac0e424fd6c0546e6f7721f4ff081db2236fd` queried the owner's configured
+default Claude home on darwin/arm64. The query used the prompt-free adapter
+described below. Only status and value presence were retained; this observation
+does not establish that a reset suffix was present. See [TASK-032](TASK-032.md)
+for the current requirement assessment. A second distinct real Claude login
+selected through `CLAUDE_CONFIG_DIR` was not exercised.
+
 Observed on 2026-09-23 on macOS/arm64 with Claude Code 2.1.280. This is a
 separate extension to the historical v0.1 Codex/Grok qualification.
 

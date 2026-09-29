@@ -191,6 +191,18 @@ var _ = ginkgo.It("TestQueryUsesOnlyLocalCommandAndPreservesMetadata", func() {
 	}
 })
 
+var _ = ginkgo.It("rejects Claude output beyond the bounded read", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bin, _ := fakeClaude(t, `{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`,
+		strings.Repeat("x", outputLimit+1))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result := New().Query(ctx, claudeTarget(bin))
+	if result.Status != domain.StatusProtocolError || result.UsedPercent != nil {
+		t.Fatalf("oversized output result: %+v", result)
+	}
+})
+
 var _ = ginkgo.Describe("TestQueryAuthAndMissingExecutable", func() {
 	cases := []struct {
 		name, auth string

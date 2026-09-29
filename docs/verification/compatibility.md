@@ -2,6 +2,19 @@
 
 Captured by the TASK-001 qualification probes. External contract evidence for ARCH-12 / REQ-042. Sanitized before storage; see the sanitization table at the end.
 
+## Current configured-account positive path (2026-09-29)
+
+A clean binary from commit `af5ac0e424fd6c0546e6f7721f4ff081db2236fd`
+ran one prompt-free usage snapshot on darwin/arm64 with `codex-cli 0.158.0`
+and `grok 1.0.44`. The owner's two configured Codex homes and one Grok home
+each returned an `ok` row with a numeric weekly value and no cleanup failure.
+The same snapshot also included a successful Claude row on Claude Code 2.1.284;
+see [TASK-032](TASK-032.md) and the [Claude record](claude-compatibility.md).
+Only status and value presence were retained, not identifiers or values.
+This confirms the positive path for these installed versions; the frozen wire
+observations below remain scoped to their earlier versions. Distinct real
+Grok logins selected through two homes were not exercised.
+
 ## Environment
 
 | Item | Observed value |

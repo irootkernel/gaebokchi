@@ -18,6 +18,8 @@ current merely because a later tree retains the record.
   fake-provider terminal exercise, and task-scoped commit subject.
 - [TASK-031.md](TASK-031.md) records public release documentation and archive
   membership checks, including the pre-commit candidate limitation.
+- [TASK-032.md](TASK-032.md) records current YAML and Claude acceptance, including
+  live positive-path evidence and the distinct-login qualification limit.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
 

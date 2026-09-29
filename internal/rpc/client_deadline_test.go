@@ -103,7 +103,7 @@ var _ = ginkgo.It("TestBlockedRejectionWriteReleasedByAbort", func() {
 		defer ginkgo.GinkgoRecover()
 		defer func() { _ = pp.serverW.Close() }()
 		// Consume the client's request, then stop reading so the
-		// rejection write blocks on the full pipe.
+		// rejection write blocks on the unbuffered pipe.
 		readRequest(t, pp.serverR)
 		writeReply(t, pp.serverW, `{"jsonrpc":"2.0","id":42,"method":"session/prompt","params":{"prompt":"run this"}}`+"\n")
 		// Deliberately never read again.
@@ -118,7 +118,10 @@ var _ = ginkgo.It("TestBlockedRejectionWriteReleasedByAbort", func() {
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("call took %v; blocked rejection wedged the read loop", elapsed)
 	}
-	if pp.abort.count() == 0 {
+	// Call can observe deadCh just before die invokes the abort hook.
+	select {
+	case <-pp.abort.fired:
+	case <-time.After(2 * time.Second):
 		t.Fatal("abort hook not fired; abandoned writer keeps the write lock")
 	}
 	// The abandoned writer must have been released: any later write
@@ -149,7 +152,9 @@ var _ = ginkgo.It("TestCloseUnblocksTransportOnTerminalEOF", func() {
 	if _, err := c.Call(context.Background(), "initialize", nil); !errors.Is(err, ErrEOF) {
 		t.Fatalf("err = %v, want ErrEOF", err)
 	}
-	if pp.abort.count() == 0 {
+	select {
+	case <-pp.abort.fired:
+	case <-time.After(2 * time.Second):
 		t.Fatal("abort hook not fired on terminal failure")
 	}
 	c.Close()

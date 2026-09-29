@@ -1387,7 +1387,7 @@ members. Record the exact tested tree and any platform limits in
 <a id="task-032"></a>
 ### TASK-032: Accept the current YAML and Claude contracts
 
-- [ ] Task open. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Scope:** Re-verify REQ-002, REQ-006 through REQ-008, REQ-010 through REQ-011,
 REQ-039, and REQ-056 through REQ-059 against current code, offline tests,

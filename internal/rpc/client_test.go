@@ -20,9 +20,10 @@ type pipePair struct {
 }
 
 type abortLatch struct {
-	mu sync.Mutex
-	n  int
-	f  func()
+	mu    sync.Mutex
+	n     int
+	f     func()
+	fired chan struct{}
 }
 
 func (a *abortLatch) fire() {
@@ -31,6 +32,9 @@ func (a *abortLatch) fire() {
 	a.n++
 	if a.f != nil {
 		a.f()
+	}
+	if a.n == 1 {
+		close(a.fired)
 	}
 }
 
@@ -44,7 +48,7 @@ func newPipePair(t testT) *pipePair {
 	t.Helper()
 	cr, sw := io.Pipe() // server writes -> client reads
 	sr, cw := io.Pipe() // client writes -> server reads
-	latch := &abortLatch{}
+	latch := &abortLatch{fired: make(chan struct{})}
 	pp := &pipePair{clientW: cw, clientR: cr, serverW: sw, serverR: sr, abort: latch}
 	latch.f = func() {
 		cw.CloseWithError(errors.New("aborted"))
