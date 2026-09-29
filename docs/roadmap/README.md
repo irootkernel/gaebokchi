@@ -1404,35 +1404,44 @@ presented as proof for a changed contract.
 <a id="task-033"></a>
 ### TASK-033: Qualify the final release candidate
 
-- [ ] Task open. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Scope:** Review the candidate's public behavior, privacy, process safety,
 and documentation; run the full offline gates natively on macOS and Linux;
-build and verify four archives; and complete REQ-048 with the final delivered
-binary and the providers' own read-only usage displays. Record exact commit,
-artifact checksums, command outcomes, and limits in
-`docs/verification/TASK-033.md`.
+build and verify four archives; and complete REQ-048 with a prompt-free live
+run of the final candidate against the owner's two Codex homes, Grok, and
+Claude accounts. Record command outcomes and limits in
+`docs/verification/TASK-033.md`. Record the exact release commit
+and its archive checksums after that commit exists; the build embeds its revision,
+so those values cannot be included in the same commit's tracked document.
 
-**Acceptance:** The [current release gate](#current-release-gate) is fully
-satisfied. If live comparison cannot be performed without a model turn, keep
-REQ-048 and this task blocked. Tagging and hosted publication require their
-own owner approval after the candidate is reviewable.
+**Acceptance:** The corrected candidate passes the bounded release review,
+native macOS and Linux full gates, four-archive content check, and a prompt-free
+four-account live run. [TASK-033 evidence](../verification/TASK-033.md) records
+the candidate's dirty build state and the remaining exact-commit release checks.
+The owner removed the former provider-display comparison from the v0.1.0 gate
+on 2026-09-29. Tagging and hosted publication require their own owner approval
+after the clean release commit passes the current gate.
 
 **Commit boundary:** `test(TASK-033): qualify v0.1.0 release candidate`.
+This task's completion commit records the reviewed correction and candidate
+evidence. The current release gate below remains separate: run it on that clean
+commit, then close EPIC-011 in a documentation commit and repeat the gate on
+the exact closeout commit before tagging.
 
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate
 
-- [ ] Every current specification requirement is checked against applicable
+- [x] Every current specification requirement is checked against applicable
   evidence, including the YAML configuration, Claude, and REQ-048.
-- [ ] One bounded release review has no unresolved blocking finding.
+- [x] One bounded release review has no unresolved blocking finding.
 - [ ] The final release commit passes the offline gate natively on macOS and
   Linux; other CPU targets are labeled with their actual build/test evidence.
 - [ ] All four archives contain the executable, current documents, LICENSE,
   THIRD_PARTY_NOTICES.txt, and valid checksums; version and build provenance
   match the release commit.
-- [ ] The delivered candidate passes the owner-account read-only comparison
-  in REQ-048 within the same quota period.
+- [ ] The delivered candidate passes the four-account prompt-free live run in
+  REQ-048 with weekly `ok` rows and no cleanup failure or stderr diagnostic.
 
 ## Final handoff format
 

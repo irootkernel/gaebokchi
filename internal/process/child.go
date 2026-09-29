@@ -328,8 +328,41 @@ func (c *Child) finish(deadline time.Time) error {
 	}
 	select {
 	case <-c.drainDone:
-		return os.RemoveAll(c.dir)
+		return removeDirBy(deadline, c.dir, os.RemoveAll)
 	case <-time.After(time.Until(deadline)):
-		return errors.Join(ErrCleanupIncomplete, os.RemoveAll(c.dir))
+		return errors.Join(ErrCleanupIncomplete, removeDirBy(deadline, c.dir, os.RemoveAll))
+	}
+}
+
+// removeDirBy lets a slow filesystem operation finish in the background while
+// Close reports the expired cleanup budget to its caller.
+func removeDirBy(deadline time.Time, dir string, remove func(string) error) error {
+	type outcome struct {
+		err       error
+		completed time.Time
+	}
+	removed := make(chan outcome, 1)
+	go func() {
+		err := remove(dir)
+		removed <- outcome{err: err, completed: time.Now()}
+	}()
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	result := func(done outcome) error {
+		if done.completed.After(deadline) {
+			return errors.Join(ErrCleanupIncomplete, done.err)
+		}
+		return done.err
+	}
+	select {
+	case done := <-removed:
+		return result(done)
+	case <-timer.C:
+		select {
+		case done := <-removed:
+			return result(done)
+		default:
+			return ErrCleanupIncomplete
+		}
 	}
 }

@@ -20,6 +20,8 @@ current merely because a later tree retains the record.
   membership checks, including the pre-commit candidate limitation.
 - [TASK-032.md](TASK-032.md) records current YAML and Claude acceptance, including
   live positive-path evidence and the distinct-login qualification limit.
+- [TASK-033.md](TASK-033.md) records the current release-candidate review, native
+  gates, artifact staging, and the final clean-binary live gate.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
 

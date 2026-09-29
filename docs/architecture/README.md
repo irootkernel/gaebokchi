@@ -688,7 +688,7 @@ Execute the fake-provider integration suite natively on macOS and Linux. Record 
 <a id="v-live"></a>
 ### V-LIVE: Explicit owner-account campaign
 
-On an authorized account host, run both Codex homes and the Grok login through the implemented executable. Obtain valid quota/billing responses, inspect the provider's own usage display without submitting a model prompt, and compare period/percentage semantics. Record reset boundaries, changing usage, and any precision differences rather than forcing exact values from non-simultaneous observations. A monthly Grok account is qualified as monthly only; source-backed weekly fixtures do not become live weekly evidence. Never use unsupported/timeout as a successful integration result.
+On an authorized account host, run the candidate executable against both distinct Codex homes and the existing Grok and Claude logins without submitting a model prompt. Require four ordered `ok` rows with weekly values, no cleanup failure, and no stderr diagnostic. Record the binary revision and build state, provider CLI versions, platform, and command outcome without retaining identifiers or raw responses. A monthly Grok account can qualify monthly provider behavior, but not this four-weekly-row release gate; source-backed weekly fixtures do not become live weekly evidence. Never use unsupported/timeout as a successful integration result. The provider's own usage display can provide additional comparison evidence, but the owner removed that comparison from the v0.1.0 release gate on 2026-09-29.
 
 <a id="v-docs"></a>
 ### V-DOCS: User-facing documentation
@@ -721,7 +721,7 @@ Compatibility status; the [compatibility record](../verification/compatibility.m
 | Grok 1.0.41 weekly response | Local 1.0.41 source checkout | Metadata-only live probe: weekly period with the percentage member omitted; handled by the ARCH-08 display convention |
 | Claude auth status and `/usage` local command | Claude Code command, CLI, and environment references ([S-14](#s-14) through [S-16](#s-16)) | Observed live with Claude Code 2.1.280 on darwin/arm64 |
 | Claude weekly reset text | Installed CLI formatter behavior | Observed live with Claude Code 2.1.283 on darwin/arm64 |
-| macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); later changes ran natively on darwin/arm64 only |
+| macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); TASK-031 and TASK-032 reran the full gates on both; TASK-033 reran them on its corrected uncommitted candidate |
 
 Run small, bounded, developer-only metadata probes before production transport or provider work, as TASK-001 did for Codex and Grok. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.
 
@@ -771,7 +771,7 @@ The toolchain is Go 1.27 (`go.mod`), pinned as 1.27.1 in CI and listed with the 
 | linux/arm64 | Cross/native build succeeds | Explicitly label native-tested or build-only |
 | linux/amd64 | Cross/native build succeeds | Native Linux evidence on available runner architecture |
 
-Native macOS and native Linux tests are mandatory, but native execution on all four CPU/OS combinations is not. Keep a per-target matrix so users can see the difference. Changes after TASK-021 ran natively on darwin/arm64 only, so run the suite natively on Linux before publishing a release. Live provider acceptance must cover the owner account set on at least one supported host; do not imply live support was tested on the other host or every version.
+Native macOS and native Linux tests are mandatory, but native execution on all four CPU/OS combinations is not. Keep a per-target matrix so users can see the difference. TASK-031 and TASK-032 ran full gates on darwin/arm64 and linux/arm64, as did TASK-033's corrected uncommitted candidate. Re-run both native gates on the final release commit before publishing. Live provider acceptance must cover the owner account set on at least one supported host; do not imply live support was tested on the other host or every version.
 
 Resolve executable version metadata in this order: explicit release linker
 override, Go main-module build information, then `(devel)`. Release linker

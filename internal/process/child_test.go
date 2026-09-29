@@ -2,6 +2,7 @@ package process
 
 import (
 	"bytes"
+	"errors"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"io"
 	"os"
@@ -371,6 +372,37 @@ var _ = ginkgo.It("TestCloseHonorsSingleAbsoluteBudgetEndToEnd", func() {
 	case <-c.Done():
 	default:
 		t.Fatal("child not reaped after close")
+	}
+})
+
+var _ = ginkgo.It("TestSlowDirectoryRemovalReportsExpiredCleanupBudget", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := filepath.Join(t.TempDir(), "delayed-removal")
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	release := make(chan struct{})
+	finished := make(chan error, 1)
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+		<-finished
+	}()
+	start := time.Now()
+	err := removeDirBy(start.Add(100*time.Millisecond), dir, func(path string) error {
+		<-release
+		removeErr := os.RemoveAll(path)
+		finished <- removeErr
+		return removeErr
+	})
+	if !errors.Is(err, ErrCleanupIncomplete) {
+		t.Fatalf("slow removal reported %v, want incomplete cleanup", err)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("slow removal blocked Close for %v", elapsed)
 	}
 })
 

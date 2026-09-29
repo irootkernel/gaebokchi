@@ -1,9 +1,21 @@
 # Deferred Feedback
 
 This directory owns small actionable findings intentionally postponed from
-current work. It is not a roadmap or release-status authority. The open REQ-048
-live acceptance gate stays in the specifications and roadmap because it is a
-current release condition, not deferred feedback.
+current work. It is not a roadmap or release-status authority. REQ-048's
+candidate-binary live run remains a release condition in the specifications and
+roadmap; the provider-display comparison below is separate.
+
+## 2026-09-29: Compare provider-owned usage displays
+
+- **Context:** The owner removed provider-display comparison from the v0.1.0
+  release gate after reviewing a four-row live Gaebokchi snapshot. The
+  configured candidate also returned four weekly `ok` rows. The available
+  Grok browser session did not represent the configured CLI account, and only
+  one Codex row could be compared with the available ChatGPT display.
+- **Proposed action:** when matching read-only displays are available, compare
+  both Codex homes and the Grok login within their quota periods without a
+  model turn. Keep this separate from the v0.1.0 acceptance decision.
+- **Affected authorities:** compatibility evidence and ARCH-12.
 
 ## 2026-09-29: Qualify provider home selectors with distinct live logins
 

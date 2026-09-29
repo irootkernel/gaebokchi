@@ -57,7 +57,13 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 These steps stage and publish a release from a clean checkout. Building and
 validation change only `dist/` and the Go caches. Tagging and publishing are
 separate actions that need the owner's explicit approval each time; this guide
-does not grant that authority.
+does not grant that authority. TASK-033's completion commit records the
+corrected candidate and its live evidence. Run steps 1–6 on that clean commit;
+after they pass, make the separate EPIC-011 closeout commit that checks the
+remaining release-gate items and marks the epic complete. That closeout commit
+is the release commit only after steps 1–6 pass again on its exact bytes. This
+avoids putting a commit's own SHA or archive checksums in its tracked source
+tree.
 
 1. **Start clean.** On the commit to release, `git status --short` prints
    nothing.
@@ -66,7 +72,9 @@ does not grant that authority.
    nothing.
 3. **Run natively on Linux.** Run the same gate natively on Linux against the
    release commit, for example through the CI workflow or in a container.
-   Changes after TASK-021 have native evidence on darwin/arm64 only.
+   Record the exact commit and CPU architecture for each native gate. TASK-031
+   and TASK-032 include native darwin/arm64 and linux/arm64 evidence; the final
+   release commit needs its own runs.
 4. **Stage the archives.**
 
    ```sh
@@ -82,7 +90,22 @@ does not grant that authority.
 5. **Check build provenance.** Extract one archive and run `go version -m` on
    its binary: `vcs.revision` must be the release commit and `vcs.modified`
    must be `false`.
-6. **Tag and publish, with owner approval only.**
+6. **Run live acceptance.** On the owner's supported account host, run the
+   extracted candidate binary against the configured two Codex homes, Grok,
+   and Claude without a model turn. Verify four ordered weekly `ok` rows,
+   no cleanup failure, and no stderr diagnostic as [REQ-048](../specs/README.md#req-048)
+   requires. Record the candidate revision, provider CLI versions, platform,
+   and outcome; do not retain account identifiers or raw provider output.
+   The provider-display comparison is optional follow-up evidence.
+7. **Finalize the gate receipt.** After the closeout commit passes steps 1–6,
+   record its full SHA, all four archive checksums, platform gate results,
+   archive check, and sanitized four-row live outcome in a local receipt under
+   ignored `dist/gaebokchi-v0.1.0/`. Verify that the tracked requirement,
+   task, epic, and release-gate checkboxes agree with that evidence. If any
+   check fails, stop before tagging and correct the repository state; do not
+   treat the closeout commit's pre-commit evidence as a substitute for this
+   receipt.
+8. **Tag and publish, with owner approval only.**
 
    ```sh
    git tag -a v0.1.0 -m "gaebokchi v0.1.0" <release-commit>
@@ -93,7 +116,7 @@ does not grant that authority.
 
    Upload only the `dist/gaebokchi-v<version>/` directory you just staged;
    other directories under `dist/` can hold stale staging from earlier builds.
-7. **Verify the download.** Follow the README's install steps against the
+9. **Verify the download.** Follow the README's install steps against the
    published release, including checksum verification.
 
 The archives include the project `LICENSE` and `THIRD_PARTY_NOTICES.txt`; see
