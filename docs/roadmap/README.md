@@ -47,11 +47,11 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 4 | [EPIC-004: Grok single-account provider](#epic-004) | [TASK-007](#task-007) -> [TASK-008](#task-008) | [EPIC-003](#epic-003) complete | COMPLETE (implementation milestone) |
 | 5 | [EPIC-005: Usable snapshot CLI and offline acceptance](#epic-005) | [TASK-009](#task-009) -> [TASK-010](#task-010) -> [TASK-011](#task-011) | [EPIC-004](#epic-004) complete | COMPLETE (implementation milestone) |
 | 6 | [EPIC-006: Platform delivery and final qualification](#epic-006) | [TASK-012](#task-012) -> [TASK-013](#task-013) -> [TASK-014](#task-014) | [EPIC-005](#epic-005) complete | COMPLETE (implementation milestone) |
-| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027) | [EPIC-006](#epic-006) implemented | COMPLETE (final release acceptance pending REQ-048) |
-| 8 | [EPIC-008: Version command and release identity](#epic-008) | [TASK-028](#task-028) | [EPIC-007](#epic-007) complete | COMPLETE (final release acceptance pending REQ-048) |
-| 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (final release acceptance pending REQ-048) |
-| 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (final release acceptance pending REQ-048) |
-| 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | IN PROGRESS |
+| 7 | [EPIC-007: Corrective remediation and re-acceptance](#epic-007) | [TASK-015](#task-015) -> [TASK-016](#task-016) -> [TASK-017](#task-017) -> [TASK-018](#task-018) -> [TASK-019](#task-019) -> [TASK-020](#task-020) -> [TASK-021](#task-021) -> [TASK-022](#task-022) -> [TASK-023](#task-023) -> [TASK-024](#task-024) -> [TASK-025](#task-025) -> [TASK-026](#task-026) -> [TASK-027](#task-027) | [EPIC-006](#epic-006) implemented | COMPLETE (implementation milestone) |
+| 8 | [EPIC-008: Version command and release identity](#epic-008) | [TASK-028](#task-028) | [EPIC-007](#epic-007) complete | COMPLETE (implementation milestone) |
+| 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (implementation milestone) |
+| 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
+| 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -59,8 +59,9 @@ implementation milestones and task commits (with EPIC-006's final acceptance
 superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record).
 EPIC-007's corrective work is complete. EPIC-008 is the version-contract
 extension; EPIC-009 completed the JSON-output extension. EPIC-010 completed
-the interactive terminal view. EPIC-011 owns current public-release readiness:
-YAML and Claude acceptance, packaging, and the REQ-048 live gate.
+the interactive terminal view. EPIC-011 completed current public-release
+readiness: YAML and Claude acceptance, packaging, and the REQ-048 live gate.
+The exact release commit still needs its post-commit gate receipt before tagging.
 
 The task order is globally sequential: TASK-001 through TASK-033. Runtime
 account queries may be concurrent; development tasks may not.
@@ -1357,7 +1358,7 @@ A missing live environment is a real qualification gap, not a reason to invent e
 <a id="epic-011"></a>
 ## EPIC-011: Public v0.1.0 release readiness
 
-- [ ] Epic open. **Status: IN PROGRESS.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Reconcile public documentation and package contents, accept the current
 YAML and Claude contracts, and qualify the final v0.1.0 candidate. Earlier
@@ -1365,6 +1366,14 @@ epic and task completion remains historical; publication requires the current
 release gate below.
 
 **Tasks:** [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033).
+
+**Closeout evidence:** TASK-033 completion commit
+`6f2868a324209dc8dabf36bbc262c771309ab872` passed full native
+darwin/arm64 and linux/arm64 gates (including E2E 32/32), the four-archive
+check and provenance check, and a four-row weekly live query with no cleanup
+failure or stderr diagnostic. The documentation-only closeout commit must pass
+the same exact-commit checks before it becomes the release commit; record its
+SHA and archive checksums in the local post-commit receipt.
 
 <a id="task-031"></a>
 ### TASK-031: Align release documentation and archive contents
@@ -1432,15 +1441,20 @@ the exact closeout commit before tagging.
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate
 
+The commit-bound checks below reflect the qualified TASK-033 candidate. Their
+checked state is provisional for the documentation-only closeout commit until
+the same checks pass on its exact bytes and the local receipt is recorded.
+Failure on that commit reopens this gate before tagging.
+
 - [x] Every current specification requirement is checked against applicable
   evidence, including the YAML configuration, Claude, and REQ-048.
 - [x] One bounded release review has no unresolved blocking finding.
-- [ ] The final release commit passes the offline gate natively on macOS and
+- [x] The final release commit passes the offline gate natively on macOS and
   Linux; other CPU targets are labeled with their actual build/test evidence.
-- [ ] All four archives contain the executable, current documents, LICENSE,
+- [x] All four archives contain the executable, current documents, LICENSE,
   THIRD_PARTY_NOTICES.txt, and valid checksums; version and build provenance
   match the release commit.
-- [ ] The delivered candidate passes the four-account prompt-free live run in
+- [x] The delivered candidate passes the four-account prompt-free live run in
   REQ-048 with weekly `ok` rows and no cleanup failure or stderr diagnostic.
 
 ## Final handoff format
