@@ -19,6 +19,7 @@ import (
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/provider/envfilter"
+	"gaebokchi/internal/provider/home"
 )
 
 const outputLimit = 256 << 10
@@ -52,8 +53,23 @@ func ResolveBin(bin string) (string, error) {
 	return resolved, nil
 }
 
-func childEnv() []string {
-	return envfilter.Apply(os.Environ(), envfilter.Claude())
+func childEnv(configDir string) []string {
+	rule := envfilter.Claude()
+	userHome, err := os.UserHomeDir()
+	isDefault := false
+	if err == nil {
+		defaultDir := filepath.Join(userHome, ".claude")
+		isDefault = configDir == defaultDir
+		if !isDefault {
+			configured, configuredErr := os.Stat(configDir)
+			implicit, implicitErr := os.Stat(defaultDir)
+			isDefault = configuredErr == nil && implicitErr == nil && os.SameFile(configured, implicit)
+		}
+	}
+	if !isDefault {
+		rule.Set = map[string]string{"CLAUDE_CONFIG_DIR": configDir}
+	}
+	return envfilter.Apply(os.Environ(), rule)
 }
 
 type commandResult struct {
@@ -124,6 +140,14 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		res.Status = status
 		res.Diagnostic = domain.Diagnostic{Code: code, Message: tgt.ID + ": " + message}
 	}
+	switch home.Inspect(tgt.Home) {
+	case home.Missing:
+		set(domain.StatusHomeNotFound, "home_not_found", "claude configuration directory does not exist")
+		return
+	case home.Invalid:
+		set(domain.StatusHomeError, "home_error", "claude configuration directory is not an accessible directory")
+		return
+	}
 	bin, err := ResolveBin(tgt.Bin)
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
@@ -133,7 +157,7 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		}
 		return
 	}
-	env := childEnv()
+	env := childEnv(tgt.Home)
 	auth := p.command(ctx, bin, env, "--safe-mode", "auth", "status", "--json")
 	res.CleanupFailed = auth.cleanupFailed
 	if auth.err != nil {

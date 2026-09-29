@@ -12,27 +12,29 @@ A checked box means that the requirement's complete acceptance scope is verified
 
 ## Product outcome
 
-**Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for several Codex (ChatGPT) accounts, one Grok account, and one Claude account. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
+**Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for configured Codex (ChatGPT), Grok, and Claude accounts. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
 
-The project name is **Gaebokchi (개복치)**; the repository basename and executable are `gaebokchi`, as defined in [ARCH-01](../architecture/README.md#arch-01). With no flags, `gaebokchi` queries four targets in this order: the Codex homes `~/.codex` and `~/.codex-hsy`, the existing Grok login ([REQ-002](#req-002)), and the active Claude CLI login ([REQ-056](#req-056)). Accounts keep separate rows even when they belong to the same provider or resolve to the same email.
+The project name is **Gaebokchi (개복치)**; the repository basename and executable are `gaebokchi`, as defined in [ARCH-01](../architecture/README.md#arch-01). A usage run requires `~/.config/gaebokchi/config.yaml` and queries only its listed accounts in Codex, Grok, Claude order ([REQ-002](#req-002)); each provider list preserves its file order. Each row displays its configured alias, including when two different providers use the same alias.
 
 One ordered result set has three presentations, described under [output modes](#output-modes): an interactive terminal view, the plain table for every other stdout, and a JSON snapshot selected with `--json`. Illustrative plain-table output, not measured account data:
 
 ```text
 AI PROVIDER  ACCOUNT               WEEKLY USAGE
-ChatGPT      account1@example.com  37%
-ChatGPT      account2@example.com  12%
-Grok         default               54%
-Claude       default               43.2%
+ChatGPT      work  37%
+ChatGPT      personal              12%
+Grok         personal               54%
+Claude       work                  43.2%
 ```
 
 ## Scope boundaries
 
-The checklist below defines the product, not speculative support for further providers. UI scraping, a PTY, an API-cost dashboard, browser session extraction, custom OAuth or credential handling, model prompting, background refresh, watch mode, and persistent history or caches are out of scope. No runtime configuration file is needed; explicit flags provide the limited customization.
+The checklist below defines the product, not speculative support for further providers. UI scraping, a PTY, an API-cost dashboard, browser session extraction, custom OAuth or credential handling, model prompting, background refresh, watch mode, and persistent history or caches are out of scope. A runtime configuration file is required for account selection. No application-owned credential or usage cache is created.
 
 Provider compatibility is an implementation gate. Published documentation or source can establish a candidate interface, but only a real prompt-free probe establishes that an installed binary exposes it. An internal Grok billing handler is not proof of a usable stdio endpoint, and Claude's human-readable `/usage` text is not a published structured quota schema. See [ARCH-12](../architecture/README.md#arch-12) and [TASK-001](../roadmap/README.md#task-001).
 
 ## Acceptance checklist
+
+The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008, REQ-010 through REQ-011, and REQ-039. Their earlier verification records describe the former flag-based contract, so these requirements remain unchecked for current acceptance. The changed behavior passed the offline `make test` gate with configuration parsing, target selection, fake-provider environments, and executable-level output tests. Distinct real Grok and Claude logins still need separate compatibility qualification; see [deferred feedback](../deferred-feedback/README.md).
 
 ### Product scope
 
@@ -42,9 +44,9 @@ Provider compatibility is an implementation gate. Published documentation or sou
   - Changed 2026-09-23 (Claude extension): "the installed `codex` and `grok` executables" became "the installed provider CLIs"; [REQ-056](#req-056) covers the Claude CLI.
 
 <a id="req-002"></a>
-- [x] **REQ-002: Default account set.** With no account flags, query Codex at `~/.codex`, Codex at `~/.codex-hsy`, and the existing default Grok login, in this order; [REQ-056](#req-056) adds the Claude target after them. Render the header and every target row, even when individual targets fail.
+- [ ] **REQ-002: Configured account set.** Require `~/.config/gaebokchi/config.yaml` for usage. Query only configured accounts, ordered Codex, Grok, Claude and then by each list. Omitted or empty provider lists disable that provider. Require at least one account. Preserve every configured row when another target fails. Missing or invalid configuration exits 2 before any provider starts and prints its path and the GitHub configuration guide link to stderr. Help and version work without the file.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [TASK-010](../verification/TASK-010.md) — the default run queried `codex:0`, `codex:1`, and `grok:0` and rendered the header plus three rows; per-target failures kept their rows.
-  - Changed 2026-09-23 (Claude extension): the default set gained the Claude target, so the default run has four targets. The current CLI tests assert the ordered four-row default; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
+  - Changed 2026-09-23 (Claude extension, historical): the default set gained the Claude target, so that release queried four targets. The then-current CLI tests asserted the ordered four-row default; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
 
 <a id="req-003"></a>
 - [x] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota, with the Grok omission fallback in REQ-034 explicitly documented as a display convention rather than a measured zero. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
@@ -57,35 +59,37 @@ Provider compatibility is an implementation gate. Published documentation or sou
 <a id="req-005"></a>
 - [x] **REQ-005: Real provider support.** Qualify the Codex and Grok integrations through real, prompt-free CLI queries before claiming them complete. An `UNSUPPORTED` fallback, a synthetic fixture, or a handler found only in source is not evidence of a working integration. [REQ-056](#req-056) applies the same gate to Claude.
   - Architecture: [ARCH-12](../architecture/README.md#arch-12). Owner: [TASK-013](../roadmap/README.md#task-013). Verification: [V-LIVE](../architecture/README.md#v-live). Evidence: [live acceptance](../verification/live-acceptance.md) — live prompt-free queries through both installed CLIs via the delivered binary; no `UNSUPPORTED` or fixture fallback used.
+  - Changed 2026-09-29: this earlier live evidence does not qualify the new `GROK_HOME` or `CLAUDE_CONFIG_DIR` multi-account selection. That follow-up is recorded in [deferred feedback](../deferred-feedback/README.md).
 
 ### CLI and output
 
 <a id="req-006"></a>
-- [x] **REQ-006: Small documented command surface.** Implement only the command surface in ARCH-03: help; the `version [--json]` command; repeatable Codex home overrides; executable overrides; the Grok display alias; the per-target timeout; and `--json` ([REQ-052](#req-052)). Help and version must not launch a provider process. Reject unknown flags and unsupported positional arguments, including the removed `--version` form. Resolve an explicit relative executable override against the invocation directory before any child starts ([REQ-039](#req-039)). Normalize the Grok alias with the display-label policy of [REQ-012](#req-012); an alias that is blank after normalization, including one made only of Unicode whitespace, is a usage error before any provider starts.
+- [ ] **REQ-006: Small documented command surface.** Implement only the command surface in ARCH-03: help; the `version [--json]` command; executable overrides; the per-target timeout; and `--json` ([REQ-052](#req-052)). Reject removed `--codex-home` and `--grok-account` flags. Help and version must not launch a provider process. Reject unknown flags and unsupported positional arguments, including the removed `--version` form. Resolve an explicit relative executable override against the invocation directory before any child starts ([REQ-039](#req-039)). Normalize configured aliases with the display-label policy of [REQ-012](#req-012); a blank alias is a configuration error before any provider starts.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-010](../roadmap/README.md#task-010). Re-qualified: [TASK-017](../roadmap/README.md#task-017), [TASK-019](../roadmap/README.md#task-019), [TASK-023](../roadmap/README.md#task-023). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [TASK-002](../verification/TASK-002.md) parser matrix plus [TASK-010](../verification/TASK-010.md) help, version, no-launch, and exit-code tests; [TASK-017](../verification/TASK-017.md) relative executable overrides; [TASK-019](../verification/TASK-019.md) and [TASK-023](../verification/TASK-023.md) alias normalization.
   - Changed 2026-09-23 (Claude extension) and 2026-09-25 (EPIC-009): the surface also includes `--claude-bin` ([REQ-056](#req-056)) and `--json` ([REQ-052](#req-052)).
 
 <a id="req-007"></a>
-- [x] **REQ-007: Codex home overrides.** When one or more `--codex-home` flags are supplied, replace the two default Codex targets with those homes in flag order. Keep exactly one Grok target after the Codex targets; [REQ-056](#req-056) places the Claude target last. Do not silently discover additional accounts or use the parent `CODEX_HOME` as an implicit override.
+- [ ] **REQ-007: Configured provider homes.** Each configured account has a required `name` and `path`. Set `CODEX_HOME` or `GROK_HOME` on that target's child process. For a non-default Claude home, set `CLAUDE_CONFIG_DIR`; for the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. Never discover accounts implicitly or let ambient values select an account. Account names are display aliases, not login selectors or verified identities.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-002](../roadmap/README.md#task-002). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [TASK-002](../verification/TASK-002.md) — replacement order, ambient `CODEX_HOME` ignored, Grok after the Codex homes.
   - Changed 2026-09-23 (Claude extension): Grok is no longer the last target.
+  - Changed 2026-09-29 (default Claude home): keep the CLI's implicit credential namespace when `path` is the current user's `~/.claude`; custom Claude homes still set `CLAUDE_CONFIG_DIR`.
 
 <a id="req-008"></a>
-- [x] **REQ-008: Safe path handling.** Expand only the current-user `~` or `~/` prefix, resolve relative paths against the invocation directory, and normalize paths before use. Reject empty paths and duplicate normalized homes, including existing symlink aliases. Do not create missing provider home directories.
-  - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-002](../roadmap/README.md#task-002). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [TASK-002](../verification/TASK-002.md) — tilde-only expansion, `~user` rejected, relative resolution, normalization, duplicate and symlink rejection, missing homes never created.
+- [ ] **REQ-008: Safe path handling.** Accept absolute account paths and current-user `~/` paths; expand `~/` before use without collapsing `.` or `..` ahead of filesystem traversal. Reject relative paths, empty paths, and duplicate paths within a provider, including aliases through existing symlink ancestors of missing paths. For missing paths with the same deepest existing parent, reject suffixes equal after Unicode canonical decomposition and case folding on every platform; distinct existing directories retain their filesystem identities. Do not create missing provider directories; report them on their rows. Reject duplicate normalized names, unknown configuration keys, YAML merge keys, and null provider lists.
+  - Architecture: [ARCH-03](../architecture/README.md#arch-03). Owner: [TASK-002](../roadmap/README.md#task-002). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [TASK-002](../verification/TASK-002.md) — tilde-only expansion, `~user` rejected, relative path rejection, duplicate and symlink rejection, missing homes never created.
 
 <a id="req-009"></a>
 - [x] **REQ-009: Configurable finite deadline.** Default to a 20-second query budget per admitted target; support `--timeout` as a Go duration from 1 second through 120 seconds. Include startup and every provider request in that single budget. Bound cleanup separately with one absolute allowance of at most 2 seconds. A result established within the query budget survives cleanup that runs past the deadline.
   - Architecture: [ARCH-05](../architecture/README.md#arch-05). Owner: [TASK-009](../roadmap/README.md#task-009). Re-qualified: [TASK-016](../roadmap/README.md#task-016). Verification: [V-LIFECYCLE](../architecture/README.md#v-lifecycle). Evidence: [TASK-002](../verification/TASK-002.md) (1s–120s validation, 20s default), [TASK-009](../verification/TASK-009.md) (admission-time budget covering startup and every RPC), [TASK-003](../verification/TASK-003.md) (separate 2s cleanup bound), [TASK-016](../verification/TASK-016.md) (established results survive cleanup; one absolute cleanup budget).
 
 <a id="req-010"></a>
-- [x] **REQ-010: Account identification.** Prefer a Codex email returned by the same App Server instance that supplies the quota; otherwise use the configured home basename. Apply the display-label policy of [REQ-012](#req-012) before deciding whether an email is usable, so an email made only of Unicode whitespace falls back to the basename. Use the explicit Grok alias, default `default`, rather than guessing an email. Disambiguate duplicate normalized Codex labels without merging rows, first with the home basename and then with the row's own target index, as defined in ARCH-04.
+- [ ] **REQ-010: Account labels.** Display each configured `name` on every status, including when Codex returns a protocol email. Normalize the alias with [REQ-012](#req-012), and reject duplicate visible names within a provider before querying. The selected path chooses the CLI account; the alias does not prove its real identity.
   - Architecture: [ARCH-04](../architecture/README.md#arch-04). Owner: [TASK-010](../roadmap/README.md#task-010). Re-qualified: [TASK-019](../roadmap/README.md#task-019), [TASK-023](../roadmap/README.md#task-023). Verification: [V-IDENTITY](../architecture/README.md#v-identity). Evidence: [TASK-010](../verification/TASK-010.md) and the TASK-006 and TASK-008 identity suites — protocol email preferred, home-basename fallback, Grok alias, duplicate disambiguation; [TASK-019](../verification/TASK-019.md) and [TASK-023](../verification/TASK-023.md) — normalized labels and the target-index suffix rule.
 
 <a id="req-011"></a>
-- [x] **REQ-011: Fixed logical table.** For non-interactive, non-JSON usage, use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. Emit the header and exactly one newline-terminated logical line per target: with N Codex homes, N+2 lines for the header, the Codex rows, and the Grok row, plus the Claude row that [REQ-056](#req-056) adds (N+3 in total).
+- [ ] **REQ-011: Fixed logical table.** For non-interactive, non-JSON usage, use exactly the three headings `AI PROVIDER`, `ACCOUNT`, and `WEEKLY USAGE`. Emit no title, separator, progress row, reset-time column, totals, or blank lines. Emit the header and exactly one newline-terminated logical line per configured target (N+1 lines for N accounts).
   - Architecture: [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [TASK-010](../verification/TASK-010.md) golden tests — three headings, no extras, four lines by default, the N+2 rule, final newline.
-  - Changed 2026-09-23 (Claude extension): the Claude row makes the default table five lines. The current CLI tests assert five default lines and N+3 lines with three custom homes; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
+  - Changed 2026-09-23 (Claude extension, historical): the Claude row made that default table five lines. The then-current CLI tests asserted five default lines and N+3 lines with three custom homes; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
   - Changed 2026-09-26 ([EPIC-010](../roadmap/README.md#epic-010)): this table governs non-interactive, non-JSON usage stdout ([REQ-053](#req-053)); interactive terminals use the live view.
 
 <a id="req-012"></a>
@@ -142,7 +146,7 @@ Provider compatibility is an implementation gate. Published documentation or sou
 <a id="req-022"></a>
 - [x] **REQ-022: Independent bounded queries.** Allow at most three target queries concurrently, using isolated environment slices and result slots. A target beyond the first three waits for a free slot. A failure in one target must not cancel healthy siblings. Preserve configured row order regardless of completion order.
   - Architecture: [ARCH-05](../architecture/README.md#arch-05). Owner: [TASK-009](../roadmap/README.md#task-009). Verification: [V-RUNNER](../architecture/README.md#v-runner). Evidence: [TASK-009](../verification/TASK-009.md) — at most three active, isolated environments and slots, sibling preservation under failure or hang, configured order.
-  - Changed 2026-09-23 (Claude extension): with four default targets, one default target now waits for a slot.
+  - Changed 2026-09-23 (Claude extension, historical): one of that release's four default targets waited for a slot.
 
 <a id="req-023"></a>
 - [x] **REQ-023: Signal handling.** On SIGINT or SIGTERM, cancel pending work, clean up owned processes, preserve already obtained results, and render unresolved rows as `CANCELLED` when stdout is writable. Cancellation must also unblock a provider write that is blocked on a wedged child, and results established before the signal survive it. Do not start targets still queued after cancellation.
@@ -211,12 +215,12 @@ Provider compatibility is an implementation gate. Published documentation or sou
 Claude support was added after the v0.1 campaign; [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md) records the decision and [ARCH-16](../architecture/README.md#arch-16) the adapter. Live and offline evidence exists, but no roadmap task owns the extension's acceptance, so these requirements stay unchecked under the [completion rules](#completion-rules).
 
 <a id="req-056"></a>
-- [ ] **REQ-056: Claude target and local-command query.** Query one Claude target, the active Claude CLI login, after the Grok target. Label it `default`, and let `--claude-bin` select the executable; a missing executable keeps the row as `NOT INSTALLED`. Use exactly two prompt-free commands within the target's single query budget: `claude --safe-mode auth status --json`, then `claude --safe-mode --tools "" -p /usage --max-turns 0 --output-format json --no-session-persistence`. Close each child's stdin immediately and cap its stdout at 256 KiB; larger output is `PROTOCOL ERROR`. Do not use an interactive session, a PTY, a model turn, a tool, the experimental `stream-json` usage report, or an application-owned HTTP client.
+- [ ] **REQ-056: Claude targets and local-command query.** Query each configured Claude target after the Grok targets, using its selected Claude home and alias. Let `--claude-bin` select the executable; a missing executable keeps the row as `NOT INSTALLED`. Use exactly two prompt-free commands within the target's single query budget: `claude --safe-mode auth status --json`, then `claude --safe-mode --tools "" -p /usage --max-turns 0 --output-format json --no-session-persistence`. Close each child's stdin immediately and cap its stdout at 256 KiB; larger output is `PROTOCOL ERROR`. Do not use an interactive session, a PTY, a model turn, a tool, the experimental `stream-json` usage report, or an application-owned HTTP client.
   - Architecture: [ARCH-16](../architecture/README.md#arch-16). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: [Claude compatibility record](../verification/claude-compatibility.md) (live, Claude Code 2.1.280, darwin/arm64); the Claude provider suite ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
   - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
 
 <a id="req-057"></a>
-- [ ] **REQ-057: Claude authentication and environment.** Classify the auth status before reading usage. `loggedIn: false` is `AUTH REQUIRED`, whatever the command's exit status. Continue only when the command exits 0 and reports `loggedIn: true` with `authMethod` `claude.ai` and `apiProvider` `firstParty`. An auth method whose name identifies an API key is `N/A (API key)`; only fixtures qualify this branch. Any other combination, or output that does not parse or lacks `loggedIn`, is `UNSUPPORTED`. An auth command that cannot run, or that exits nonzero while logged in, is `ERROR`; a timeout or cancellation is `TIMEOUT` or `CANCELLED`. Remove Anthropic credential and third-party routing overrides from the child environment while keeping `HOME` and `CLAUDE_CONFIG_DIR`, as listed in ARCH-16. Never read Claude credentials or start a login.
+- [ ] **REQ-057: Claude authentication and environment.** Classify the auth status before reading usage. `loggedIn: false` is `AUTH REQUIRED`, whatever the command's exit status. Continue only when the command exits 0 and reports `loggedIn: true` with `authMethod` `claude.ai` and `apiProvider` `firstParty`. An auth method whose name identifies an API key is `N/A (API key)`; only fixtures qualify this branch. Any other combination, or output that does not parse or lacks `loggedIn`, is `UNSUPPORTED`. An auth command that cannot run, or that exits nonzero while logged in, is `ERROR`; a timeout or cancellation is `TIMEOUT` or `CANCELLED`. Remove Anthropic credential and third-party routing overrides from the child environment while keeping `HOME`. Set `CLAUDE_CONFIG_DIR` for non-default homes and leave it unset for the default `~/.claude` home, as listed in ARCH-16. Never read Claude credentials or start a login.
   - Architecture: [ARCH-16](../architecture/README.md#arch-16), [ARCH-09](../architecture/README.md#arch-09). Owner: none; no roadmap task owns the Claude extension. Verification: [V-CLAUDE](../architecture/README.md#v-claude). Evidence: the live auth read in the [Claude compatibility record](../verification/claude-compatibility.md); logged-out, API-key, unknown-mode, and environment tests ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
   - Open: awaiting an owning roadmap acceptance task ([REQ-050](#req-050)).
 
@@ -242,7 +246,7 @@ Claude support was added after the v0.1 campaign; [ADR-0001](../architecture-dec
   - Changed 2026-09-23 (Claude extension): the last sentence records how the Claude local command fits this boundary.
 
 <a id="req-039"></a>
-- [x] **REQ-039: Isolated child environments.** Use explicit executable paths and argument arrays without a shell. Resolve an explicit relative executable to an absolute path before the child's working directory changes, without bypassing Go's `ErrDot` protection. Copy and filter each child environment; replace the Codex home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve the required home, keychain, and proxy context. [REQ-057](#req-057) adds Claude's credential and routing overrides to the filtered set.
+- [ ] **REQ-039: Isolated child environments.** Use explicit executable paths and argument arrays without a shell. Resolve an explicit relative executable to an absolute path before the child's working directory changes, without bypassing Go's `ErrDot` protection. Copy and filter each child environment; replace the configured provider home per target and exclude provider API-key overrides and agent-hosted parent-session markers identified during qualification. Preserve the required home, keychain, and proxy context. [REQ-057](#req-057) adds Claude's credential and routing overrides to the filtered set.
   - Architecture: [ARCH-09](../architecture/README.md#arch-09). Owner: [TASK-005](../roadmap/README.md#task-005). Re-qualified: [TASK-017](../roadmap/README.md#task-017). Verification: [V-SAFETY](../architecture/README.md#v-safety). Evidence: [TASK-005](../verification/TASK-005.md) — environment filter with drops and per-target `CODEX_HOME` replacement, `HOME` and proxy preserved, parent untouched; argv-only child start from TASK-003; [TASK-017](../verification/TASK-017.md) — relative executable identity made absolute.
 
 <a id="req-040"></a>
@@ -250,8 +254,9 @@ Claude support was added after the v0.1 campaign; [ADR-0001](../architecture-dec
   - Architecture: [ARCH-05](../architecture/README.md#arch-05). Owner: [TASK-003](../roadmap/README.md#task-003). Re-qualified: [TASK-022](../roadmap/README.md#task-022). Verification: [V-SAFETY](../architecture/README.md#v-safety). Evidence: [TASK-003](../verification/TASK-003.md) — private 0700 temporary working directory outside the project, removed after cleanup; TASK-011 confirms invocation from neutral directories; [TASK-022](../verification/TASK-022.md) — cleanup failures reach the diagnostic and the exit code.
 
 <a id="req-041"></a>
-- [x] **REQ-041: No application service or data store.** Create no listener, remote service, database, permanent runtime config, permanent cache, credentials store, or application telemetry. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
-  - Architecture: [ARCH-02](../architecture/README.md#arch-02). Owner: [TASK-011](../roadmap/README.md#task-011). Verification: [V-SAFETY](../architecture/README.md#v-safety). Evidence: [TASK-011](../verification/TASK-011.md) static scan (no listeners, no persistent files) and TASK-003 temporary-directory cleanup.
+- [x] **REQ-041: No application service or data store.** Create no listener, remote service, database, application-owned permanent runtime config, permanent cache, credentials store, or application telemetry. Read the required user-authored account configuration without modifying it. A provider-owned leader is not a Gaebokchi daemon and must not be controlled as one.
+  - Architecture: [ARCH-02](../architecture/README.md#arch-02). Owner: [TASK-011](../roadmap/README.md#task-011). Verification: [V-SAFETY](../architecture/README.md#v-safety). Evidence: [TASK-011](../verification/TASK-011.md) static scan (no listeners or application-owned persistent files) and TASK-003 temporary-directory cleanup.
+  - Changed 2026-09-29: the user-authored account configuration is the one permitted persistent input; gaebokchi does not create or modify it.
 
 ### Verification and delivery
 
@@ -306,9 +311,9 @@ The synthetic frame below shows the terminal view while the last query is still 
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████░░░░░░░░░░░░░     37%
+  ChatGPT  work                  ███████░░░░░░░░░░░░░     37%
     ↻ 2d 4h
-           account2@example.com  ██░░░░░░░░░░░░░░░░░░     12%
+           personal              ██░░░░░░░░░░░░░░░░░░     12%
     ↻ 5d 1h
   Grok     default               ███████████░░░░░░░░░     54%
     ↻ 3d 11h

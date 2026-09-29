@@ -5,6 +5,20 @@ current work. It is not a roadmap or release-status authority. The open REQ-048
 live acceptance gate stays in the specifications and roadmap because it is a
 current release condition, not deferred feedback.
 
+## 2026-09-29: Qualify provider home selectors with distinct live logins
+
+- **Context:** The configuration extension sets `GROK_HOME` and
+  `CLAUDE_CONFIG_DIR` per target. The offline fake-provider gate verifies the
+  selected child environments and output rows, but it cannot establish that
+  each installed CLI reads a distinct real subscription login from those
+  directories on every supported platform and version.
+- **Proposed action:** with separately authorized real-account probes, verify
+  two pre-authenticated directories for Grok and Claude, record CLI versions
+  and masked account/usage evidence, and update compatibility qualification.
+  Do not read or copy credentials in gaebokchi.
+- **Affected authorities:** compatibility records, ARCH-12, REQ-005, and
+  REQ-056 through REQ-057.
+
 ## 2026-09-28: The Claude extension has no owning roadmap task
 
 - **Context:** Claude support (REQ-056 through REQ-059, ARCH-16, and

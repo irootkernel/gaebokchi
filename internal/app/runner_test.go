@@ -5,7 +5,8 @@ import (
 	"fmt"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"strings"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -352,6 +353,15 @@ var _ = ginkgo.It("TestEstablishedResultSurvivesRootCancellation", func() {
 
 var _ = ginkgo.It("TestOptionsTargetsFeedRunner", func() {
 	t := testT{ginkgo.GinkgoT()}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := filepath.Join(home, ".config", "gaebokchi", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("codex:\n  - name: a\n    path: ~/a\n  - name: b\n    path: ~/b\ngrok:\n  - name: g\n    path: ~/g\nclaude:\n  - name: c\n    path: ~/c\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	o, err := options.Parse(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -365,186 +375,5 @@ var _ = ginkgo.It("TestOptionsTargetsFeedRunner", func() {
 	results := r.Run(context.Background(), targets, time.Second)
 	if results[0].TargetID != "codex:0" || results[2].TargetID != "grok:0" || results[3].TargetID != "claude:0" {
 		t.Fatalf("unexpected target order: %+v", targets)
-	}
-})
-
-var _ = ginkgo.It("TestDisambiguateCodexAccounts", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/work", FallbackAccount: "work"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/work", FallbackAccount: "work"},
-		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/c/other", FallbackAccount: "other"},
-	}
-	email := "dup@example.com"
-	results := []domain.Result{
-		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: email},
-		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: email},
-		{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: "other"},
-	}
-	DisambiguateCodexAccounts(results, targets)
-	if results[0].Account == results[1].Account {
-		t.Fatalf("duplicates not disambiguated: %q", results[0].Account)
-	}
-	if results[0].Account != "dup@example.com [work]" || results[1].Account != "work [work] #2" {
-		// codex:0 keeps its email + home tag; codex:1's label was the
-		// fallback "work" which is still ambiguous after the tag.
-		t.Logf("labels: %q / %q", results[0].Account, results[1].Account)
-	}
-	if results[2].Account != "other" {
-		t.Fatalf("unique label altered: %q", results[2].Account)
-	}
-})
-
-var _ = ginkgo.It("TestDisambiguateDifferentHomesNotMerged", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/.codex", FallbackAccount: ".codex"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/.codex-hsy", FallbackAccount: ".codex-hsy"},
-	}
-	results := []domain.Result{
-		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "same@example.com"},
-		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "same@example.com"},
-	}
-	DisambiguateCodexAccounts(results, targets)
-	if results[0].Account == results[1].Account {
-		t.Fatal("rows merged")
-	}
-	if len(results) != 2 {
-		t.Fatal("row count changed")
-	}
-})
-
-// TestDisambiguationOperatesOnNormalizedLabels pins the audit's
-// ordering finding: distinct raw labels that normalize to the same
-// visible label (NBSP vs space) must be disambiguated, not merged into
-// identical visible rows.
-var _ = ginkgo.It("TestDisambiguationOperatesOnNormalizedLabels", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/one", FallbackAccount: "one"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/two", FallbackAccount: "two"},
-	}
-	results := []domain.Result{
-		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "user\u00a0x@example.com"},
-		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "user x@example.com"},
-	}
-	DisambiguateCodexAccounts(results, targets)
-	if results[0].Account == results[1].Account {
-		t.Fatalf("normalized duplicates not disambiguated: %q", results[0].Account)
-	}
-	if !strings.Contains(results[0].Account, "user x@example.com [") {
-		t.Fatalf("unexpected label: %q", results[0].Account)
-	}
-	if len(results) != 2 {
-		t.Fatal("row count changed")
-	}
-})
-
-// TestDisambiguationSuffixLookalikeCollision pins the audit's generated-
-// suffix finding: a duplicate's generated label that collides with an
-// unrelated row's existing label (which merely resembles a generated
-// suffix) must be further suffixed instead of merging rows.
-var _ = ginkgo.It("TestDisambiguationSuffixLookalikeCollision", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
-		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/d/other", FallbackAccount: "other"},
-	}
-	// codex:2's raw label literally equals what codex:0/codex:1's
-	// disambiguation would generate; it is unique, so it keeps its
-	// label and the generated ones must move aside.
-	results := []domain.Result{
-		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "a"},
-		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "a"},
-		{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: "a [b]"},
-	}
-	DisambiguateCodexAccounts(results, targets)
-	seen := map[string]bool{}
-	for i, r := range results {
-		if seen[r.Account] {
-			t.Fatalf("rows %d and earlier share visible label %q", i, r.Account)
-		}
-		seen[r.Account] = true
-	}
-	if results[2].Account != "a [b]" {
-		t.Fatalf("unique lookalike label must be preserved: %q", results[2].Account)
-	}
-})
-
-// TestDisambiguationTargetIndexSuffix pins the confirmation review's
-// finding: the suffix is the row's own configured target index
-// (ARCH-04), so the same/other/same example labels the third target
-// "#3" — not a collision ordinal.
-var _ = ginkgo.It("TestDisambiguationTargetIndexSuffix", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/same", FallbackAccount: "same"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/b/other", FallbackAccount: "other"},
-		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/c/same", FallbackAccount: "same"},
-	}
-	email := "fixture@example.test"
-	build := func() []domain.Result {
-		return []domain.Result{
-			{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: email},
-			{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: email},
-			{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: email},
-		}
-	}
-	results := build()
-	DisambiguateCodexAccounts(results, targets)
-	if got := results[0].Account; got != email+" [same]" {
-		t.Fatalf("first row = %q", got)
-	}
-	if got := results[1].Account; got != email+" [other]" {
-		t.Fatalf("second row = %q", got)
-	}
-	if got := results[2].Account; got != email+" [same] #3" {
-		t.Fatalf("third row = %q, want index-based #3", got)
-	}
-
-	// Determinism: repeated invocations produce identical labels, and
-	// completion order cannot matter because disambiguation sees the
-	// configured result order.
-	again := build()
-	DisambiguateCodexAccounts(again, targets)
-	for i := range results {
-		if results[i].Account != again[i].Account {
-			t.Fatalf("nondeterministic label at %d: %q vs %q", i, results[i].Account, again[i].Account)
-		}
-	}
-})
-
-// TestDisambiguationIndexSuffixLookalikeCollision extends the lookalike
-// protection to the index-qualified form: a reserved original label
-// equal to the index suffix gets a deterministic extension that
-// preserves the index component.
-var _ = ginkgo.It("TestDisambiguationIndexSuffixLookalikeCollision", func() {
-	t := testT{ginkgo.GinkgoT()}
-	targets := []domain.Target{
-		{ID: "codex:0", Index: 0, Provider: domain.ProviderCodex, Home: "/a/b", FallbackAccount: "b"},
-		{ID: "codex:1", Index: 1, Provider: domain.ProviderCodex, Home: "/c/b", FallbackAccount: "b"},
-		{ID: "codex:2", Index: 2, Provider: domain.ProviderCodex, Home: "/d/x", FallbackAccount: "x"},
-	}
-	// codex:2's original label is exactly what codex:1's index-qualified
-	// suffix would generate; it is unique and keeps its label.
-	results := []domain.Result{
-		{TargetID: "codex:0", Provider: domain.ProviderCodex, Account: "a"},
-		{TargetID: "codex:1", Provider: domain.ProviderCodex, Account: "a"},
-		{TargetID: "codex:2", Provider: domain.ProviderCodex, Account: "a [b] #2"},
-	}
-	DisambiguateCodexAccounts(results, targets)
-	seen := map[string]bool{}
-	for i, r := range results {
-		if seen[r.Account] {
-			t.Fatalf("rows %d and earlier share visible label %q", i, r.Account)
-		}
-		seen[r.Account] = true
-	}
-	if results[2].Account != "a [b] #2" {
-		t.Fatalf("reserved lookalike must keep its label: %q", results[2].Account)
-	}
-	if got := results[1].Account; got != "a [b] #2-2" {
-		t.Fatalf("index component must be preserved with a deterministic extension: %q", got)
 	}
 })

@@ -29,11 +29,13 @@ func Grok() Rule {
 }
 
 // Claude removes overrides that would route a print-mode read away from the
-// active Claude subscription. HOME and CLAUDE_CONFIG_DIR remain inherited.
+// selected Claude subscription. HOME remains inherited; the caller sets
+// CLAUDE_CONFIG_DIR only for non-default homes.
 func Claude() Rule {
 	return Rule{Drop: []string{
 		"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
 		"ANTHROPIC_AWS_API_KEY", "ANTHROPIC_AWS_BASE_URL",
+		"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR",
 		"CLAUDE_CODE_USE_ANTHROPIC_AWS", "CLAUDE_CODE_USE_BEDROCK",
 		"CLAUDE_CODE_USE_FOUNDRY", "CLAUDE_CODE_USE_MANTLE", "CLAUDE_CODE_USE_VERTEX",
 		"CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST", "CLAUDE_CODE_SIMPLE",

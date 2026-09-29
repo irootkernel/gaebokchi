@@ -1,6 +1,4 @@
-// Package options parses the small v0.1 command surface and builds the
-// ordered query targets. It never reads provider environment variables:
-// the ambient CODEX_HOME cannot influence the default account list.
+// Package options parses CLI flags and the required account configuration.
 package options
 
 import (
@@ -14,45 +12,41 @@ import (
 	"gaebokchi/internal/domain"
 )
 
-// Defaults and limits for the v0.1 surface.
 const (
-	DefaultCodexBin    = "codex"
-	DefaultGrokBin     = "grok"
-	DefaultClaudeBin   = "claude"
-	DefaultGrokAccount = "default"
-	DefaultTimeout     = 20 * time.Second
-	minTimeout         = 1 * time.Second
-	maxTimeout         = 120 * time.Second
+	DefaultCodexBin  = "codex"
+	DefaultGrokBin   = "grok"
+	DefaultClaudeBin = "claude"
+	DefaultTimeout   = 20 * time.Second
+	minTimeout       = 1 * time.Second
+	maxTimeout       = 120 * time.Second
+	ConfigGuideURL   = "https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md"
 )
 
-// Options is the parsed command configuration.
 type Options struct {
-	// CodexHomes holds absolute, cleaned Codex home paths in flag order.
-	// When no --codex-home flag is supplied it holds the two defaults.
-	CodexHomes  []string
-	CodexBin    string
-	GrokBin     string
-	ClaudeBin   string
-	GrokAccount string
-	Timeout     time.Duration
-	Help        bool
-	JSON        bool
+	CodexBin  string
+	GrokBin   string
+	ClaudeBin string
+	Timeout   time.Duration
+	Help      bool
+	JSON      bool
+	targets   []domain.Target
 }
 
-// UsageError marks parse failures that must exit with code 2 before any
-// provider process is launched.
 type UsageError struct{ msg string }
 
-func (e *UsageError) Error() string { return e.msg }
-
-func usagef(format string, args ...any) error {
-	return &UsageError{msg: fmt.Sprintf(format, args...)}
+func (e *UsageError) Error() string           { return e.msg }
+func usagef(format string, args ...any) error { return &UsageError{fmt.Sprintf(format, args...)} }
+func IsUsageError(err error) bool {
+	var e *UsageError
+	return errors.As(err, &e)
 }
 
-// IsUsageError reports whether err is a command-line usage failure.
-func IsUsageError(err error) bool {
-	var ue *UsageError
-	return errors.As(err, &ue)
+type ConfigError struct{ msg string }
+
+func (e *ConfigError) Error() string { return e.msg }
+func IsConfigError(err error) bool {
+	var e *ConfigError
+	return errors.As(err, &e)
 }
 
 type flagKind int
@@ -63,18 +57,16 @@ const (
 	kindBool
 )
 
-// flagSpec describes one recognized flag.
 type flagSpec struct {
-	name   string
-	kind   flagKind
-	repeat bool
-	set    func(o *Options, value string) error
+	name string
+	kind flagKind
+	set  func(*Options, string) error
 }
 
-func setScalar(field func(*Options) *string, flagName string) func(*Options, string) error {
+func setBin(field func(*Options) *string, name string) func(*Options, string) error {
 	return func(o *Options, v string) error {
 		if v == "" {
-			return usagef("--%s must not be empty", flagName)
+			return usagef("--%s must not be empty", name)
 		}
 		*field(o) = v
 		return nil
@@ -83,32 +75,13 @@ func setScalar(field func(*Options) *string, flagName string) func(*Options, str
 
 func specs() map[string]*flagSpec {
 	return map[string]*flagSpec{
-		"codex-home": {name: "codex-home", kind: kindString, repeat: true, set: func(o *Options, v string) error {
-			if v == "" {
-				return usagef("--codex-home must not be empty")
-			}
-			o.CodexHomes = append(o.CodexHomes, v)
-			return nil
-		}},
-		"codex-bin":  {name: "codex-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
-		"grok-bin":   {name: "grok-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
-		"claude-bin": {name: "claude-bin", kind: kindString, set: setScalar(func(o *Options) *string { return &o.ClaudeBin }, "claude-bin")},
-		"grok-account": {name: "grok-account", kind: kindString, set: func(o *Options, v string) error {
-			// The alias is validated through the display-label policy
-			// before any provider can launch: an alias with no
-			// displayable characters is a usage error, and the stored
-			// value is the normalized label the table will show.
-			normalized := domain.NormalizeLabel(v)
-			if normalized == "" {
-				return usagef("--grok-account must not be blank: it contains no displayable characters")
-			}
-			o.GrokAccount = normalized
-			return nil
-		}},
+		"codex-bin":  {name: "codex-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
+		"grok-bin":   {name: "grok-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
+		"claude-bin": {name: "claude-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.ClaudeBin }, "claude-bin")},
 		"timeout": {name: "timeout", kind: kindDuration, set: func(o *Options, v string) error {
-			d, err := parseTimeout(v)
-			if err != nil {
-				return err
+			d, err := time.ParseDuration(v)
+			if err != nil || d < minTimeout || d > maxTimeout {
+				return usagef("--timeout must be a duration between 1s and 120s")
 			}
 			o.Timeout = d
 			return nil
@@ -118,54 +91,36 @@ func specs() map[string]*flagSpec {
 	}
 }
 
-func parseTimeout(v string) (time.Duration, error) {
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return 0, usagef("invalid --timeout value %q: %v", v, err)
-	}
-	if d < minTimeout || d > maxTimeout {
-		return 0, usagef("--timeout must be between 1s and 120s, got %v", d)
-	}
-	return d, nil
-}
-
-// Parse parses argv (without the program name) against the v0.1 surface.
 func Parse(args []string) (Options, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return Options{}, usagef("cannot resolve user home directory: %v", err)
+		return Options{}, usagef("cannot resolve user home directory")
 	}
-	wd, err := os.Getwd()
+	o, err := parse(args)
+	if err != nil || o.Help {
+		return o, err
+	}
+	accounts, err := loadConfig(filepath.Join(home, ".config", "gaebokchi", "config.yaml"), home)
 	if err != nil {
-		return Options{}, usagef("cannot resolve working directory: %v", err)
+		return Options{}, err
 	}
-	return parse(args, home, wd)
+	o.targets = buildTargets(accounts, o)
+	return o, nil
 }
 
-// parse is the pure, testable core of Parse.
-func parse(args []string, homeDir, wd string) (Options, error) {
+func parse(args []string) (Options, error) {
 	table := specs()
 	seen := map[string]bool{}
-
-	o := Options{
-		CodexBin:    DefaultCodexBin,
-		GrokBin:     DefaultGrokBin,
-		ClaudeBin:   DefaultClaudeBin,
-		GrokAccount: DefaultGrokAccount,
-		Timeout:     DefaultTimeout,
-	}
-
+	o := Options{CodexBin: DefaultCodexBin, GrokBin: DefaultGrokBin, ClaudeBin: DefaultClaudeBin, Timeout: DefaultTimeout}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if !strings.HasPrefix(arg, "-") || arg == "-" {
 			return Options{}, usagef("unexpected positional argument %q", arg)
 		}
 		name := strings.TrimPrefix(strings.TrimPrefix(arg, "-"), "-")
-		value := ""
-		hasValue := false
-		if eq := strings.IndexByte(name, '='); eq >= 0 {
-			value, hasValue = name[eq+1:], true
-			name = name[:eq]
+		value, hasValue := "", false
+		if left, right, ok := strings.Cut(name, "="); ok {
+			name, value, hasValue = left, right, true
 		}
 		if name == "h" {
 			name = "help"
@@ -174,20 +129,14 @@ func parse(args []string, homeDir, wd string) (Options, error) {
 		if spec == nil {
 			return Options{}, usagef("unknown flag %q", arg)
 		}
-		if !spec.repeat && seen[spec.name] {
+		if seen[spec.name] {
 			return Options{}, usagef("flag --%s may be supplied only once", name)
 		}
 		if spec.kind == kindBool {
 			if hasValue {
 				return Options{}, usagef("flag --%s does not take a value", name)
 			}
-			seen[spec.name] = true
-			if err := spec.set(&o, ""); err != nil {
-				return Options{}, err
-			}
-			continue
-		}
-		if !hasValue {
+		} else if !hasValue {
 			if i+1 >= len(args) {
 				return Options{}, usagef("flag --%s requires a value", name)
 			}
@@ -199,92 +148,7 @@ func parse(args []string, homeDir, wd string) (Options, error) {
 			return Options{}, err
 		}
 	}
-
-	// Normalize Codex homes: tilde expansion, relative resolution, cleanup.
-	homes := o.CodexHomes
-	if len(homes) == 0 {
-		homes = []string{filepath.Join(homeDir, ".codex"), filepath.Join(homeDir, ".codex-hsy")}
-	}
-	normalized := make([]string, 0, len(homes))
-	for _, h := range homes {
-		n, err := normalizeHome(h, homeDir, wd)
-		if err != nil {
-			return Options{}, err
-		}
-		normalized = append(normalized, n)
-	}
-	if err := rejectDuplicates(normalized); err != nil {
-		return Options{}, err
-	}
-	o.CodexHomes = normalized
 	return o, nil
 }
 
-// normalizeHome expands a leading current-user ~, resolves relatives
-// against the invocation directory, and cleans the path. It never creates
-// directories and does not implement ~otheruser or shell expansion.
-func normalizeHome(raw, homeDir, wd string) (string, error) {
-	if raw == "" {
-		return "", usagef("--codex-home must not be empty")
-	}
-	expanded := raw
-	switch {
-	case raw == "~":
-		expanded = homeDir
-	case strings.HasPrefix(raw, "~/"):
-		expanded = filepath.Join(homeDir, strings.TrimPrefix(raw, "~/"))
-	case strings.HasPrefix(raw, "~"):
-		return "", usagef("unsupported home path %q: only the current user's ~ is expandable", raw)
-	}
-	if !filepath.IsAbs(expanded) {
-		expanded = filepath.Join(wd, expanded)
-	}
-	return filepath.Clean(expanded), nil
-}
-
-// rejectDuplicates errors when two normalized homes refer to the same
-// location, including through existing symlink aliases.
-func rejectDuplicates(homes []string) error {
-	canon := make(map[string]string, len(homes))
-	for _, h := range homes {
-		key := h
-		if resolved, err := filepath.EvalSymlinks(h); err == nil {
-			key = resolved
-		}
-		if prev, dup := canon[key]; dup {
-			return usagef("duplicate codex home %q (same location as %q)", h, prev)
-		}
-		canon[key] = h
-	}
-	return nil
-}
-
-// Targets builds the ordered query targets from parsed options.
-func (o Options) Targets() []domain.Target {
-	targets := make([]domain.Target, 0, len(o.CodexHomes)+2)
-	for i, home := range o.CodexHomes {
-		targets = append(targets, domain.Target{
-			ID:              fmt.Sprintf("codex:%d", i),
-			Index:           i,
-			Provider:        domain.ProviderCodex,
-			Home:            home,
-			FallbackAccount: filepath.Base(home),
-			Bin:             o.CodexBin,
-		})
-	}
-	targets = append(targets, domain.Target{
-		ID:              "grok:0",
-		Index:           len(o.CodexHomes),
-		Provider:        domain.ProviderGrok,
-		FallbackAccount: o.GrokAccount,
-		Bin:             o.GrokBin,
-	})
-	targets = append(targets, domain.Target{
-		ID:              "claude:0",
-		Index:           len(o.CodexHomes) + 1,
-		Provider:        domain.ProviderClaude,
-		FallbackAccount: "default",
-		Bin:             o.ClaudeBin,
-	})
-	return targets
-}
+func (o Options) Targets() []domain.Target { return append([]domain.Target(nil), o.targets...) }

@@ -33,13 +33,13 @@ the existing provider CLI logins. One snapshot, then exit.
 Commands:
   version               print version and exit; use --json for JSON
 
+Account targets come from ~/.config/gaebokchi/config.yaml. See:
+  https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md
+
 Flags:
-  --codex-home PATH     Codex home directory; repeatable. Supplying any
-                        replaces the defaults ~/.codex and ~/.codex-hsy.
   --codex-bin PATH      codex executable path or name (default "codex")
   --grok-bin PATH       grok executable path or name (default "grok")
   --claude-bin PATH     claude executable path or name (default "claude")
-  --grok-account LABEL  display alias for the Grok row (default "default")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
   --json                emit one JSON usage snapshot instead of the terminal view or table
   -h, --help            show this help and exit
@@ -72,6 +72,10 @@ func runWithIO(args []string, stdout, stderr io.Writer, newProviders providers) 
 	}
 	opts, err := options.Parse(args)
 	if err != nil {
+		if options.IsConfigError(err) {
+			_, _ = fmt.Fprintf(stderr, "gaebokchi: %v\ngaebokchi: setup guide: %s\n", err, options.ConfigGuideURL)
+			return 2
+		}
 		// No recovery path remains if stderr itself cannot accept the diagnostic.
 		_, _ = fmt.Fprintf(stderr, "gaebokchi: %v\n\n%s", err, usage)
 		return 2
@@ -159,10 +163,17 @@ func executeWithTerminal(opts options.Options, stdout, stderr io.Writer, newProv
 	cx, gk, cl := newProviders()
 	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl}
 	if live != nil {
-		runner.Observe = live.Observe
+		runner.Observe = func(index int, result domain.Result) {
+			result.Account = targets[index].FallbackAccount
+			result.AccountSource = domain.AccountSourceConfiguredAlias
+			live.Observe(index, result)
+		}
 	}
 	results := runner.Run(ctx, targets, opts.Timeout)
-	app.DisambiguateCodexAccounts(results, targets)
+	for i := range results {
+		results[i].Account = targets[i].FallbackAccount
+		results[i].AccountSource = domain.AccountSourceConfiguredAlias
+	}
 	finish := func(outputOK bool, failureMessage string) int {
 		if !outputOK {
 			_, _ = fmt.Fprintln(stderr, failureMessage)

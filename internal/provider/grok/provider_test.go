@@ -74,7 +74,7 @@ var _ = ginkgo.It("TestOutgoingBytesMatchQualifiedContract", func() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	s, plan, err := openSession(ctx, os.Args[0], directStart(child))
+	s, plan, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v plan=%v", err, plan)
 	}
@@ -149,7 +149,7 @@ var _ = ginkgo.Describe("TestAuthNegotiationMatrix", func() {
 			child := testutil.StartFake(t, steps)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_, plan, err := openSession(ctx, os.Args[0], directStart(child))
+			_, plan, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("expected error")
@@ -181,7 +181,7 @@ var _ = ginkgo.It("TestInitializeResultMalformed", func() {
 		child := testutil.StartFake(t, steps)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_, _, err := openSession(ctx, os.Args[0], directStart(child))
+		_, _, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 		if err == nil {
 			t.Fatalf("expected error for %s", reply)
 		}
@@ -198,7 +198,7 @@ var _ = ginkgo.It("TestAuthenticateRejectionTyped", func() {
 	child := testutil.StartFake(t, steps)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	s, plan, err := openSession(ctx, os.Args[0], directStart(child))
+	s, plan, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v", err)
 	}
@@ -226,7 +226,7 @@ var _ = ginkgo.It("TestBillingMethodNotFoundTyped", func() {
 	child := testutil.StartFake(t, steps)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	s, plan, err := openSession(ctx, os.Args[0], directStart(child))
+	s, plan, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v", err)
 	}
@@ -256,7 +256,7 @@ var _ = ginkgo.It("TestUnsafeCallbackAbortsSession", func() {
 	child := testutil.StartFake(t, steps)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	s, plan, err := openSession(ctx, os.Args[0], directStart(child))
+	s, plan, err := openSession(ctx, os.Args[0], os.TempDir(), directStart(child))
 	if err != nil || plan != planCachedToken {
 		t.Fatalf("openSession: %v", err)
 	}
@@ -279,7 +279,7 @@ var _ = ginkgo.It("TestGrokEnvironmentFiltered", func() {
 	t := testT{ginkgo.GinkgoT()}
 	t.Setenv("XAI_API_KEY", "xai-secret-marker")
 	t.Setenv("GROK_API_KEY", "grok-secret-marker")
-	env := childEnv()
+	env := childEnv("/chosen/grok")
 	for _, kv := range env {
 		for _, marker := range []string{"xai-secret-marker", "grok-secret-marker"} {
 			if strings.Contains(kv, marker) {

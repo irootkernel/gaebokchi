@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -122,9 +123,32 @@ func fp(v float64) *float64 { return &v }
 func grokTarget(alias string) domain.Target {
 	return domain.Target{
 		ID: "grok:0", Index: 0, Provider: domain.ProviderGrok,
-		FallbackAccount: alias, Bin: os.Args[0],
+		FallbackAccount: alias, Home: os.TempDir(), Bin: os.Args[0],
 	}
 }
+
+var _ = ginkgo.It("rejects an inaccessible Grok home before starting the CLI", func() {
+	t := testT{ginkgo.GinkgoT()}
+	path := filepath.Join(t.TempDir(), "restricted")
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(path, 0o700) }()
+	if dir, err := os.Open(path); err == nil {
+		_ = dir.Close()
+		t.Skip("directory permission checks are bypassed by this user")
+	}
+	target := grokTarget("restricted")
+	target.Home = path
+	target.Bin = filepath.Join(path, "missing-cli")
+	result := New().Query(context.Background(), target)
+	if result.Status != domain.StatusHomeError || result.Diagnostic.Code != "home_error" {
+		t.Fatalf("inaccessible Grok home = %+v", result)
+	}
+})
 
 func providerOver(child *process.Child) *Provider {
 	return &Provider{Start: func(process.Config) (*process.Child, error) { return child, nil }}

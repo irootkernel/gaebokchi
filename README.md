@@ -8,18 +8,18 @@ already manage.
 
   🐡 gaebokchi · weekly usage
 
-  ChatGPT  account1@example.com  ███████░░░░░░░░░░░░░     37%
+  ChatGPT  work                  ███████░░░░░░░░░░░░░     37%
     ↻ 2d 4h
-           account2@example.com  ██░░░░░░░░░░░░░░░░░░     12%
+           personal              ██░░░░░░░░░░░░░░░░░░     12%
     ↻ 5d 1h
-  Grok     default               ███████████░░░░░░░░░     54%
+  Grok     personal               ███████████░░░░░░░░░     54%
     ↻ 3d 11h
-  Claude   default               █████████░░░░░░░░░░░   43.2%
+  Claude   work                  █████████░░░░░░░░░░░   43.2%
     ↻ 19h 4m
 
 ```
 
-(Illustrative output. Real output shows your own account identifiers.)
+(Illustrative output. Account names are the aliases in your configuration.)
 
 ## Why
 
@@ -33,8 +33,8 @@ Gaebokchi is a small, read-only tool in the Aquarium tool family.
 
 ## What it shows, and what it does not
 
-- By default, four rows: the Codex homes `~/.codex` and `~/.codex-hsy`, your
-  Grok login, and your active Claude CLI login.
+- One row per account in `~/.config/gaebokchi/config.yaml`. Omit a provider
+  to disable it; list multiple homes for Codex, Grok, or Claude.
 - The **percentage already used** of each provider-reported **weekly
   subscription allowance**. It never shows remaining quota, local token totals,
   API spend, or a calendar-week estimate.
@@ -52,12 +52,12 @@ Gaebokchi is a small, read-only tool in the Aquarium tool family.
 - macOS or Linux on arm64 or amd64. Windows is not supported.
 - The provider CLIs you want to see, installed and logged in:
   - `codex` with a ChatGPT subscription login, for each Codex home you query;
-  - `grok`, which keeps its own cached login in `~/.grok`;
-  - `claude` (Claude Code), logged in with a Claude subscription.
+  - `grok`, logged in separately for every configured `GROK_HOME`;
+  - `claude` (Claude Code), logged in for each configured Claude home.
 - Go 1.27 or newer, only if you build from source.
 
-A CLI you do not have still gets its row, shown as `NOT INSTALLED`, and makes
-the exit status 1.
+A configured account whose CLI is missing gets a `NOT INSTALLED` row and makes
+the exit status 1. Omitted providers are never queried.
 
 ## Install
 
@@ -90,8 +90,8 @@ that line. Make sure `~/.local/bin`, or whichever directory you chose, is on
 your `PATH`.
 
 Each archive unpacks into `gaebokchi-<os>-<arch>/`, which holds the
-`gaebokchi` binary, this README, and the maintainer specification under
-`docs/`.
+`gaebokchi` binary, this README, the account setup guide at
+`configuration/README.md`, and the maintainer specification under `docs/`.
 
 The macOS binaries are not notarized. Downloads with `curl` work as shown. If
 you download with a browser and macOS blocks the binary, remove the quarantine
@@ -112,28 +112,60 @@ repository when that information is available, otherwise `(devel)`.
 
 ### Uninstall
 
-Delete the `gaebokchi` binary. Gaebokchi keeps no configuration, cache, or
-other state.
+Delete the `gaebokchi` binary and, if no longer needed,
+`~/.config/gaebokchi/config.yaml`. Gaebokchi keeps no cache or usage history.
 
-## Quick start
+## Configuration
 
-```sh
-gaebokchi                          # the four default targets
-gaebokchi --codex-home ~/.codex    # if you have a single Codex home
+For a step-by-step setup and a Claude-only example, see the
+[configuration guide](configuration/README.md).
+
+Create `~/.config/gaebokchi/config.yaml` before running a usage query:
+
+```yaml
+codex:
+  - name: work
+    path: ~/.codex-work
+  - name: personal
+    path: ~/.codex-personal
+grok:
+  - name: personal
+    path: ~/.grok-personal
+claude:
+  - name: work
+    path: ~/.claude-work
 ```
 
-If `~/.codex-hsy` does not exist, the default run shows it as
-`HOME NOT FOUND` and exits 1; pass your own homes with `--codex-home` instead.
-[Statuses and exit codes](#statuses-and-exit-codes) explains every row value.
+Each `name` is a display alias, not a login selector or a verified email. Each
+`path` selects the CLI-managed account state for that row: `CODEX_HOME` for
+Codex, `GROK_HOME` for Grok, and `CLAUDE_CONFIG_DIR` for non-default Claude
+homes. The default Claude home (`~/.claude`) uses the CLI's implicit login
+state. Log in through the matching provider CLI before querying.
+For example, `CODEX_HOME="$HOME/.codex-work" codex login` and
+`CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login` select those homes;
+use the Grok CLI's own login flow with `GROK_HOME="$HOME/.grok-personal"`.
+Gaebokchi never reads or creates provider credentials.
+
+Use an absolute path or a path beginning with `~/`; shell variables and
+relative paths are not expanded. `~/` is expanded without changing the filesystem
+meaning of `.` or `..` across symlinks. Missing or inaccessible directories keep
+an error row. Names and paths must be unique within each provider, including
+existing symlink aliases, even when a trailing path component is missing. A
+blank or whitespace-only name, unknown YAML key, YAML merge key, null provider list, or empty
+configuration is an error. Providers omitted from the file (or listed as `[]`)
+are disabled; at least one account must remain. Rows appear in Codex,
+Grok, Claude order, then in each provider's list order.
+
+If the file is missing or invalid, gaebokchi exits 2 before starting a
+provider and prints the path plus a link to the configuration guide. `--help` and
+`version` work without the file.
 
 ## Usage
 
 ```sh
-gaebokchi                                            # default four targets
+gaebokchi                                            # configured accounts
 gaebokchi --timeout 40s                              # longer query budget
-gaebokchi --codex-home ~/.codex-work                 # one custom home (replaces both defaults)
-gaebokchi --codex-home ~/.codex-work --codex-home ~/.codex-personal
-gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
+gaebokchi --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi --json                                     # machine-readable snapshot
 NO_COLOR=1 gaebokchi                                 # terminal view without color
@@ -145,28 +177,24 @@ gaebokchi version --json
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--codex-home PATH` | `~/.codex` and `~/.codex-hsy` | Codex home directory; repeatable; supplying any replaces both defaults |
 | `--codex-bin PATH` | `codex` | codex executable path or name |
 | `--grok-bin PATH` | `grok` | grok executable path or name |
 | `--claude-bin PATH` | `claude` | claude executable path or name |
-| `--grok-account LABEL` | `default` | Display alias for the Grok row; not an email and not an account switch |
 | `--timeout DURATION` | `20s` | Per-target query budget, from 1s to 120s |
 | `--json` | off | Emit one JSON usage snapshot instead of the terminal view or table |
 | `-h`, `--help` | — | Print help and exit without launching providers |
 
-Flags accept `--flag value` or `--flag=value`. The ambient `CODEX_HOME`
-environment variable does not change the default homes.
+Flags accept `--flag value` or `--flag=value`. Ambient `CODEX_HOME`,
+`GROK_HOME`, and `CLAUDE_CONFIG_DIR` do not change the configured account list.
 
 The following are usage errors, which exit 2 and print nothing on stdout:
 
 - unknown flags and positional arguments;
-- repeating any flag other than `--codex-home`;
+- repeating a flag;
 - a missing or empty value;
 - an invalid or out-of-range `--timeout`;
-- a `~otheruser` path;
-- a `--grok-account` value with no visible characters;
-- two `--codex-home` values that point to the same directory, including
-  through a symlink.
+- a missing or invalid configuration file. The diagnostic links to the
+  [configuration guide](configuration/README.md).
 
 `gaebokchi version` prints `gaebokchi <version>`, and `gaebokchi version --json`
 prints `{"name":"gaebokchi","version":"<version>"}`. Neither launches a
@@ -197,10 +225,10 @@ plain table with one line per target:
 
 ```text
 AI PROVIDER  ACCOUNT               WEEKLY USAGE
-ChatGPT      account1@example.com  37%
-ChatGPT      account2@example.com  12%
-Grok         default               54%
-Claude       default               43.2%
+ChatGPT      work                  37%
+ChatGPT      personal              12%
+Grok         personal              54%
+Claude       work                  43.2%
 ```
 
 ### JSON
@@ -210,7 +238,7 @@ display order, whatever stdout is. For brevity, this example shows a single
 result; real output includes every target, failures too:
 
 ```json
-{"results":[{"target_id":"codex:0","provider":"codex","account":"account1@example.com","status":"ok","used_percent":37.125,"cleanup_failed":false}]}
+{"results":[{"target_id":"codex:0","provider":"codex","account":"work","status":"ok","used_percent":37.125,"cleanup_failed":false}]}
 ```
 
 Each result has exactly these fields:
@@ -243,7 +271,7 @@ outputs. Help output stays text.
 | `AUTH REQUIRED` | The provider CLI reports no active login |
 | `UNSUPPORTED` | The installed CLI lacks the qualified interface, its output changed, or its login mode is not supported, for example a Claude login routed through Bedrock or Vertex |
 | `NOT INSTALLED` | The executable was not found |
-| `HOME NOT FOUND` / `HOME ERROR` | The Codex home does not exist, or is not an accessible directory |
+| `HOME NOT FOUND` / `HOME ERROR` | A configured provider directory is missing or inaccessible |
 | `TIMEOUT` | The query did not finish within `--timeout` |
 | `PROTOCOL ERROR` | The provider answered in a shape gaebokchi does not accept |
 | `ERROR` | Any other failure, including a failed authentication check |
@@ -253,12 +281,11 @@ outputs. Help output stays text.
 |---|---|
 | `0` | Every row is a percentage, `N/A (monthly)`, or `N/A (API key)`; also for help and version |
 | `1` | Any other row status, a provider process or temporary directory that could not be cleaned up, or stdout that could not be written |
-| `2` | Invalid arguments; no usage output |
+| `2` | Invalid arguments or configuration; no usage output |
 | `130` / `143` | Cancelled by SIGINT / SIGTERM |
 
 Rows are kept even when their query fails, so one broken provider never hides
-the others. The Grok and Claude labels are `default`, or your `--grok-account`
-alias for Grok; they are not verified emails.
+the others. All account labels come from configuration and are not verified emails.
 
 ## Privacy and side effects
 
@@ -271,8 +298,10 @@ alias for Grok; they are not verified emails.
   - For Claude, Anthropic credential variables such as `ANTHROPIC_API_KEY` and
     `ANTHROPIC_AUTH_TOKEN` are removed, together with the switches that route
     Claude through Bedrock, Vertex, or another provider.
-  - Each Codex child gets its own `CODEX_HOME`.
-  - `HOME`, `CLAUDE_CONFIG_DIR`, and proxy settings are kept.
+  - Codex and Grok children get their configured `CODEX_HOME` or `GROK_HOME`.
+    Claude children get `CLAUDE_CONFIG_DIR` for non-default homes; the default
+    `~/.claude` home uses the CLI's implicit credential namespace. `HOME` and
+    proxy settings are kept.
 - **Working directories.** Children run in private temporary directories
   outside your project, and those directories are removed afterwards.
 - **Output.** stdout carries the view, table, or JSON, including your account
@@ -281,9 +310,8 @@ alias for Grok; they are not verified emails.
 ## Performance
 
 Each target has its own `--timeout` budget, and at most three targets run at
-once. With the four default targets, the fourth starts when one of the first
-three finishes. A run against slow providers can therefore take up to about
-twice the timeout, plus a few seconds of cleanup.
+once. Additional targets queue until a slot is free. A run against slow providers
+can therefore take multiple timeout intervals, plus bounded cleanup.
 
 ## Compatibility
 
@@ -312,12 +340,9 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
   shows `UNSUPPORTED` until gaebokchi is qualified against the new version.
 - A Grok weekly response without a percentage is shown as `0%`, which is a
   display convention, not a measured zero.
-- Only one Grok account and one Claude account are shown, each being that
-  CLI's active login.
-- The second default Codex home is `~/.codex-hsy`. If you do not have it, pass
-  your homes with `--codex-home`.
-- There is no option to skip a provider, so a missing CLI always makes the exit
-  status 1.
+- Multi-account Grok and non-default Claude homes depend on the installed CLI
+  honoring `GROK_HOME` and `CLAUDE_CONFIG_DIR` respectively. Different aliases alone
+  do not establish different logged-in identities.
 - Bars can misalign in terminals configured to draw East Asian Ambiguous
   characters at double width. Narrowing the window during a live redraw can
   leave reflowed lines above the final frame.
@@ -330,12 +355,12 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
 
 ## Troubleshooting
 
-- **`AUTH REQUIRED`**: log in with the provider CLI outside gaebokchi
-  (`codex login`, `grok`, or `claude auth login`), then run gaebokchi again.
+- **`AUTH REQUIRED`**: log in with the provider CLI using the matching
+  configured home (`codex login`, `grok`, or `claude auth login`), then rerun.
 - **`NOT INSTALLED`**: install the CLI, or point `--codex-bin`, `--grok-bin`, or
   `--claude-bin` at it.
 - **`HOME NOT FOUND` / `HOME ERROR`**: check the path, or pass the homes you
-  actually use with `--codex-home`. Gaebokchi never creates a home directory.
+  configured in `config.yaml`. Gaebokchi never creates a home directory.
 - **`UNSUPPORTED` / `PROTOCOL ERROR`**: gaebokchi does not accept the installed
   CLI's version, output, or login mode. Check the compatibility table above
   before upgrading or downgrading anything. For Claude, confirm that
@@ -355,8 +380,9 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
 Maintainer and contributor documentation starts at
 [docs/README.md](docs/README.md). [TESTING.md](TESTING.md) describes the
 offline test gate (`make test`) and its fake-provider E2E environment. These
-links work in the source repository; release archives include only this README
-and the specification documents under `docs/`.
+links work in the source repository; release archives include this README, the
+[configuration guide](configuration/README.md), and the specification documents
+under `docs/`.
 
 ## License
 

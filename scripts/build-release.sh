@@ -23,11 +23,12 @@ for target in $TARGETS; do
   GOARCH="${target#*/}"
   name="gaebokchi-${GOOS}-${GOARCH}"
   dir="${DIST}/${name}"
-  mkdir -p "${dir}/docs/specs" "${dir}/docs/architecture" "${dir}/docs/roadmap"
+  mkdir -p "${dir}/configuration" "${dir}/docs/specs" "${dir}/docs/architecture" "${dir}/docs/roadmap"
   GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath \
     -ldflags "-s -w -X main.buildVersion=${RELEASE_VERSION}" \
     -o "${dir}/gaebokchi" ./cmd/gaebokchi
   cp README.md "${dir}/README.md"
+  cp configuration/README.md "${dir}/configuration/README.md"
   cp docs/specs/README.md "${dir}/docs/specs/README.md"
   cp docs/architecture/README.md "${dir}/docs/architecture/README.md"
   cp docs/roadmap/README.md "${dir}/docs/roadmap/README.md"

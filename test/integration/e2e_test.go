@@ -57,12 +57,36 @@ func fakeBin(t testT) string {
 
 // run invokes the built gaebokchi with fake provider scripts.
 type invocation struct {
-	args   []string
-	env    []string
-	codex  []testutil.Step
-	grok   []testutil.Step
-	argLog string
-	envLog string
+	args              []string
+	env               []string
+	config            string
+	codex             []testutil.Step
+	grok              []testutil.Step
+	grokUsageByHome   map[string]int
+	claudeUsageByHome map[string]int
+	argLog            string
+	envLog            string
+}
+
+func setupConfigHome(t testT, config string) string {
+	t.Helper()
+	home := t.TempDir()
+	for _, name := range []string{"e2e-a", "e2e-b", "grok", "claude", ".claude"} {
+		if err := os.Mkdir(filepath.Join(home, name), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if config == "" {
+		config = "codex:\n  - name: e2e-a\n    path: ~/e2e-a\n  - name: e2e-b\n    path: ~/e2e-b\ngrok:\n  - name: default\n    path: ~/grok\nclaude:\n  - name: default\n    path: ~/claude\n"
+	}
+	path := filepath.Join(home, ".config", "gaebokchi", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return home
 }
 
 func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
@@ -85,29 +109,32 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	if !hasFlag(inv.args, "--claude-bin") {
 		args = append(args, "--claude-bin", fake)
 	}
-	if !hasFlag(inv.args, "--codex-home") {
-		// Default to private temp homes so the suite does not depend
-		// on the developer machine's ~/.codex layout.
-		homeDir := t.TempDir()
-		homeA := filepath.Join(homeDir, "e2e-a")
-		homeB := filepath.Join(homeDir, "e2e-b")
-		for _, h := range []string{homeA, homeB} {
-			if err := os.MkdirAll(h, 0o755); err != nil {
-				t.Fatal(err)
-			}
-		}
-		args = append(args, "--codex-home", homeA, "--codex-home", homeB)
-	}
 	args = append(args, inv.args...)
 
 	cmd := exec.Command(bin, args...)
+	home := setupConfigHome(t, inv.config)
 	cmd.Env = append(os.Environ(),
+		"HOME="+home,
 		"GAEBOKCHI_FAKE=1",
 		"GAEBOKCHI_FAKE_CODEX_STEPS="+string(codexJSON),
 		"GAEBOKCHI_FAKE_GROK_STEPS="+string(grokJSON),
 	)
 	if inv.argLog != "" {
 		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_ARGLOG="+inv.argLog, "GAEBOKCHI_FAKE_ENVLOG="+inv.envLog)
+	}
+	if len(inv.grokUsageByHome) > 0 {
+		byHome, err := json.Marshal(inv.grokUsageByHome)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_GROK_USAGE_BY_HOME="+string(byHome))
+	}
+	if len(inv.claudeUsageByHome) > 0 {
+		byHome, err := json.Marshal(inv.claudeUsageByHome)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_CLAUDE_USAGE_BY_HOME="+string(byHome))
 	}
 	cmd.Env = append(cmd.Env, inv.env...)
 
@@ -186,7 +213,7 @@ var _ = ginkgo.It("TestDefaultHappyPath", func() {
 	if len(lines) != 5 {
 		t.Fatalf("lines = %d:\n%s", len(lines), stdout)
 	}
-	if !strings.Contains(stdout, "account1@example.com") || !strings.Contains(stdout, "37%") || !strings.Contains(stdout, "28%") {
+	if !strings.Contains(stdout, "e2e-a") || !strings.Contains(stdout, "37%") || !strings.Contains(stdout, "28%") {
 		t.Fatalf("table content wrong:\n%s", stdout)
 	}
 	if strings.Contains(stdout, "FAKE") || strings.Contains(stdout, "jsonrpc") {
@@ -207,8 +234,7 @@ var _ = ginkgo.It("TestJSONExecutableHappyPath", func() {
 	rows := decodeUsageJSON(t, stdout)
 	if len(rows) != 4 || rows[0].TargetID != "codex:0" || rows[1].TargetID != "codex:1" ||
 		rows[2].TargetID != "grok:0" || rows[3].TargetID != "claude:0" ||
-		rows[0].Account != "account1@example.com [e2e-a]" ||
-		rows[1].Account != "account1@example.com [e2e-b]" {
+		rows[0].Account != "e2e-a" || rows[1].Account != "e2e-b" {
 		t.Fatalf("JSON result order or identity: %+v", rows)
 	}
 	for i, want := range []float64{37, 37, 28, 43} {
@@ -289,8 +315,8 @@ var _ = ginkgo.It("TestMissingClaudeExecutableKeepsDefaultRow", func() {
 var _ = ginkgo.It("TestMissingHomeRow", func() {
 	t := testT{ginkgo.GinkgoT()}
 	stdout, _, code := runCLI(t, invocation{
-		args: []string{"--codex-home", "/definitely/not/here"},
-		grok: grokWeekly(5),
+		config: "codex:\n  - name: missing\n    path: /definitely/not/here\ngrok:\n  - name: default\n    path: ~/grok\n",
+		grok:   grokWeekly(5),
 	})
 	if code != 1 {
 		t.Fatalf("code = %d", code)
@@ -300,6 +326,18 @@ var _ = ginkgo.It("TestMissingHomeRow", func() {
 	}
 	if !strings.Contains(stdout, "5%") {
 		t.Fatalf("other rows lost:\n%s", stdout)
+	}
+})
+
+var _ = ginkgo.It("missing Grok home keeps its row and a healthy Claude result", func() {
+	t := testT{ginkgo.GinkgoT()}
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "grok:\n  - name: missing\n    path: /definitely/not/here\nclaude:\n  - name: healthy\n    path: ~/claude\n",
+	})
+	if code != 1 || !strings.Contains(stdout, "missing") || !strings.Contains(stdout, "HOME NOT FOUND") ||
+		!strings.Contains(stdout, "healthy") || !strings.Contains(stdout, "43%") ||
+		!strings.Contains(stderr, "grok:0: HOME NOT FOUND") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 })
 
@@ -524,6 +562,7 @@ var _ = ginkgo.It("TestSignalCancellationExits130", func() {
 	cmd := exec.Command(bin,
 		"--codex-bin", fake, "--grok-bin", fake, "--claude-bin", fake, "--timeout", "20s")
 	cmd.Env = append(os.Environ(),
+		"HOME="+setupConfigHome(t, ""),
 		"GAEBOKCHI_FAKE=1",
 		"GAEBOKCHI_FAKE_CODEX_STEPS="+string(codexJSON),
 		"GAEBOKCHI_FAKE_GROK_STEPS="+string(grokJSON),
@@ -572,7 +611,7 @@ var _ = ginkgo.It("TestConcurrentAccountIsolation", func() {
 		t.Fatal(err)
 	}
 	stdout, _, code := runCLI(t, invocation{
-		args:   []string{"--codex-home", homeA, "--codex-home", homeB},
+		config: fmt.Sprintf("codex:\n  - name: work\n    path: %s\n  - name: personal\n    path: %s\n", homeA, homeB),
 		codex:  codexOK("shared@example.com", 21),
 		grok:   grokWeekly(22),
 		argLog: argLog,
@@ -581,15 +620,110 @@ var _ = ginkgo.It("TestConcurrentAccountIsolation", func() {
 	if code != 0 {
 		t.Fatalf("code = %d:\n%s", code, stdout)
 	}
-	if strings.Count(stdout, "shared@example.com") != 2 {
+	if !strings.Contains(stdout, "work") || !strings.Contains(stdout, "personal") {
 		t.Fatalf("both homes must produce their own row:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "shared@example.com [work]") || !strings.Contains(stdout, "shared@example.com [personal]") {
-		t.Fatalf("duplicate labels not disambiguated:\n%s", stdout)
+	if strings.Contains(stdout, "shared@example.com") {
+		t.Fatalf("configured aliases were replaced by provider email:\n%s", stdout)
 	}
 	log, _ := os.ReadFile(argLog)
 	if strings.Count(string(log), "app-server") != 2 {
 		t.Fatalf("expected two codex children, log: %q", log)
+	}
+})
+
+var _ = ginkgo.It("queries multiple Grok and Claude homes and excludes omitted providers", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	paths := []string{filepath.Join(dir, "grok-work"), filepath.Join(dir, "grok-personal"),
+		filepath.Join(dir, "claude-work"), filepath.Join(dir, "claude-personal")}
+	for _, path := range paths {
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	config := fmt.Sprintf("grok:\n  - name: work\n    path: %s\n  - name: personal\n    path: %s\nclaude:\n  - name: work\n    path: %s\n  - name: personal\n    path: %s\n", paths[0], paths[1], paths[2], paths[3])
+	argLog, envLog := filepath.Join(dir, "args.log"), filepath.Join(dir, "env.log")
+	stdout, stderr, code := runCLI(t, invocation{config: config, args: []string{"--json"},
+		grokUsageByHome:   map[string]int{paths[0]: 28, paths[1]: 62},
+		claudeUsageByHome: map[string]int{paths[2]: 43, paths[3]: 75},
+		argLog:            argLog, envLog: envLog,
+		env: []string{"GROK_HOME=/wrong-grok", "CLAUDE_CONFIG_DIR=/wrong-claude", "CLAUDE_CODE_OAUTH_TOKEN=fake-ambient-token"}})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 4 || rows[0].TargetID != "grok:0" || rows[1].TargetID != "grok:1" ||
+		rows[2].TargetID != "claude:0" || rows[3].TargetID != "claude:1" ||
+		rows[0].Account != "work" || rows[1].Account != "personal" ||
+		rows[2].Account != "work" || rows[3].Account != "personal" {
+		t.Fatalf("configured rows = %+v", rows)
+	}
+	for i, want := range []float64{28, 62, 43, 75} {
+		if rows[i].Status != "ok" || rows[i].UsedPercent == nil || *rows[i].UsedPercent != want {
+			t.Fatalf("row %d usage = %+v, want %.0f%%", i, rows[i], want)
+		}
+	}
+	log, err := os.ReadFile(argLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(log), "app-server") || strings.Count(string(log), "agent stdio") != 2 ||
+		strings.Count(string(log), "auth status") != 2 {
+		t.Fatalf("disabled or duplicate provider launch: %q", log)
+	}
+	env, err := os.ReadFile(envLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		name := "GROK_HOME="
+		wantCount := 1
+		if strings.Contains(path, "claude") {
+			name = "CLAUDE_CONFIG_DIR="
+			wantCount = 2 // auth status and usage use the same selected home
+		}
+		if got := strings.Count(string(env), "\n"+name+path+"\n"); got != wantCount {
+			t.Fatalf("%s%s occurrences = %d, want %d", name, path, got, wantCount)
+		}
+	}
+	for _, block := range strings.Split(string(env), "=== child") {
+		header, _, _ := strings.Cut(block, "\n")
+		if strings.Contains(header, "agent stdio") && strings.Contains(block, "GROK_HOME=/wrong-grok") {
+			t.Fatal("ambient Grok home reached a Grok child")
+		}
+		if strings.Contains(header, "--safe-mode") &&
+			(strings.Contains(block, "CLAUDE_CONFIG_DIR=/wrong-claude") ||
+				strings.Contains(block, "CLAUDE_CODE_OAUTH_TOKEN=")) {
+			t.Fatal("ambient Claude override reached a Claude child")
+		}
+	}
+})
+
+var _ = ginkgo.It("uses implicit Claude credentials for the default home", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	envLog := filepath.Join(dir, "env.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "claude:\n  - name: default\n    path: ~/.claude\n",
+		args:   []string{"--json"},
+		argLog: filepath.Join(dir, "args.log"), envLog: envLog,
+		env: []string{"CLAUDE_CONFIG_DIR=/ambient/claude"},
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 1 || rows[0].TargetID != "claude:0" || rows[0].Status != "ok" ||
+		rows[0].UsedPercent == nil || *rows[0].UsedPercent != 43 {
+		t.Fatalf("default Claude row = %+v", rows)
+	}
+	logged, err := os.ReadFile(envLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(string(logged), "=== child") != 2 || strings.Contains(string(logged), "\nCLAUDE_CONFIG_DIR=") {
+		t.Fatalf("default Claude child received a config override")
 	}
 })
 

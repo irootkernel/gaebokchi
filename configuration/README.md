@@ -1,0 +1,98 @@
+# Configure Gaebokchi accounts
+
+Gaebokchi reads `~/.config/gaebokchi/config.yaml` on each usage run. Create it
+before running `gaebokchi`:
+
+```sh
+mkdir -p ~/.config/gaebokchi
+```
+
+Add only the accounts you want to query. For example:
+
+```yaml
+codex:
+  - name: work
+    path: ~/.codex-work
+  - name: personal
+    path: ~/.codex-personal
+grok:
+  - name: personal
+    path: ~/.grok-personal
+claude:
+  - name: work
+    path: ~/.claude-work
+  - name: personal
+    path: ~/.claude-personal
+```
+
+Save that YAML as `~/.config/gaebokchi/config.yaml`. The example names and paths
+are placeholders; use the provider homes where you have logged in. The file
+contains display aliases and paths, not passwords or tokens.
+
+## Account paths and logins
+
+Each list entry needs a `name` and a `path`. `name` is the label shown in the
+table and JSON output. It does not select or verify a provider login. `path`
+selects the CLI-managed account state for that row:
+
+| List | Child environment variable | Login state |
+|---|---|---|
+| `codex` | `CODEX_HOME` | Codex CLI home |
+| `grok` | `GROK_HOME` | Grok CLI home |
+| `claude` | `CLAUDE_CONFIG_DIR` for other homes | Claude Code configuration directory |
+
+Log in separately through each provider CLI with the matching variable. For
+example:
+
+```sh
+CODEX_HOME="$HOME/.codex-work" codex login
+CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
+```
+
+For Grok, set `GROK_HOME` to the configured path while using the installed
+Grok CLI's login flow. Gaebokchi does not create provider homes, read
+credentials, or perform logins. For Claude, it removes an inherited
+`CLAUDE_CODE_OAUTH_TOKEN` from the child environment so the configured login
+state is used. The default `~/.claude` home uses the CLI's implicit credential
+namespace; other Claude homes set `CLAUDE_CONFIG_DIR` and need their own login.
+
+## Choose which providers run
+
+Omit a provider or set it to `[]` to disable it. A present key with a null
+value, such as `grok:`, is an error. For example, this file queries
+only two Claude accounts:
+
+```yaml
+claude:
+  - name: work
+    path: ~/.claude-work
+  - name: personal
+    path: ~/.claude-personal
+```
+
+At least one account is required. Rows appear in Codex, Grok, Claude order,
+then in each list's order. A missing CLI for a configured account produces a
+`NOT INSTALLED` row; an omitted provider launches no CLI.
+
+## Check the file
+
+Run `gaebokchi --json` for one machine-readable usage snapshot or `gaebokchi`
+for the terminal view or plain table. The reported value is the percentage of
+the provider's weekly subscription allowance already used, not a raw token
+count.
+
+Paths must be absolute or start with `~/`. Shell variables and other `~user`
+forms are not expanded. `~/` is expanded before use; `.` and `..` retain their
+filesystem meaning, including when a path traverses a symlink. Names and paths
+must be unique within each provider; existing symlink aliases count as the same
+path, including missing components beneath an existing symlink. Missing paths
+under the same existing parent also reserve case-folded, canonically equivalent
+names on every platform. On a case-sensitive filesystem, two such paths can be
+configured separately after both directories exist. Empty names or paths,
+unknown YAML keys, YAML merge keys (`<<`), and multiple YAML documents are
+rejected. Missing or inaccessible provider directories produce error rows
+instead of being created.
+
+If the file is missing or invalid, Gaebokchi exits with code 2 before starting
+any provider. The diagnostic identifies the configuration path. Help and
+version work without the file (`gaebokchi --help`, `gaebokchi version`).

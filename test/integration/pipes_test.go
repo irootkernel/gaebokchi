@@ -23,23 +23,16 @@ func startWithFakes(t testT, extraArgs []string, codexSteps, grokSteps []testuti
 	t.Helper()
 	bin := gaebokchiBin(t)
 	fake := fakeBin(t)
-	homeDir := t.TempDir()
-	homeA := filepath.Join(homeDir, "e2e-a")
-	homeB := filepath.Join(homeDir, "e2e-b")
-	for _, h := range []string{homeA, homeB} {
-		if err := os.MkdirAll(h, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
+	home := setupConfigHome(t, "")
 	codexJSON, _ := json.Marshal(codexSteps)
 	grokJSON, _ := json.Marshal(grokSteps)
 	args := append([]string{
 		"--timeout", "20s",
 		"--codex-bin", fake, "--grok-bin", fake, "--claude-bin", fake,
-		"--codex-home", homeA, "--codex-home", homeB,
 	}, extraArgs...)
 	cmd := exec.Command(bin, args...)
 	cmd.Env = append(os.Environ(),
+		"HOME="+home,
 		"GAEBOKCHI_FAKE=1",
 		"GAEBOKCHI_FAKE_CODEX_STEPS="+string(codexJSON),
 		"GAEBOKCHI_FAKE_GROK_STEPS="+string(grokJSON),
@@ -279,10 +272,12 @@ var _ = ginkgo.It("TestRelativeBinaryOverrideFromInvocationCwd", func() {
 		"--codex-bin", "./my codex",
 		"--grok-bin", fake,
 		"--claude-bin", fake,
-		"--codex-home", homeA, "--codex-home", homeB,
 	)
 	cmd.Dir = dir // the invocation cwd contains the relative script
+	config := "codex:\n  - name: a\n    path: " + homeA + "\n  - name: b\n    path: " + homeB + "\n"
+	home := setupConfigHome(t, config)
 	cmd.Env = append(os.Environ(),
+		"HOME="+home,
 		"GAEBOKCHI_FAKE=1",
 		"GAEBOKCHI_FAKE_CODEX_STEPS="+string(codexJSON),
 		"GAEBOKCHI_FAKE_GROK_STEPS="+string(grokJSON),

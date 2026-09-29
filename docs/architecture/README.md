@@ -40,14 +40,12 @@ Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req
 | Language | Go, standard library first | Small build and deployment surface |
 | Providers | Codex, Grok, and Claude, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
 | Authentication | Existing provider CLI login | No token parsing or account-linking workflow |
-| Codex account set | Two default homes, explicit repeatable override | Different homes use different child processes |
-| Grok account set | One existing login | Display alias defaults to `default` |
-| Claude account set | The active Claude CLI login | Display label is always `default` |
+| Account set | Required `~/.config/gaebokchi/config.yaml` | Only listed accounts are queried; omitted providers are disabled |
 | Metric | Provider-defined weekly allowance consumed | No cross-provider arithmetic or cost comparison |
 | Transport | Local stdio to provider executables | No network listener or app-owned HTTP client |
-| Execution | One snapshot, up to three targets concurrently | No periodic refresh or automatic retry; the fourth default target waits for a free slot |
-| Persistence | None in the running application | Developer fixtures and evidence are repository artifacts, not runtime caches |
-| Output | Interactive terminal view, three-column table, or JSON; the default table has five lines | Failures remain in their account row |
+| Execution | One snapshot, up to three targets concurrently | No periodic refresh or automatic retry; excess targets wait for a free slot |
+| Persistence | User-authored account configuration only | No application-owned usage cache or credential store |
+| Output | Interactive terminal view, three-column table, or JSON; one line per configured target plus the header | Failures remain in their account row |
 
 The v0.1 plan limited the providers to Codex and Grok. [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md) records why and how Claude was added afterwards; the adapter is [ARCH-16](#arch-16).
 
@@ -65,8 +63,8 @@ Related: [REQ-001](../specs/README.md#req-001), [REQ-041](../specs/README.md#req
 ```text
 cmd/gaebokchi   composition root: version dispatch, help, output mode, signals, exit code
  |
- +-> internal/options               argv parsing, defaults, path policy, ordered targets
- +-> internal/app                   bounded fan-out, fixed result slots, label disambiguation
+ +-> internal/options               argv parsing, YAML account configuration, ordered targets
+ +-> internal/app                   bounded fan-out and fixed result slots
  +-> internal/render                terminal frame, live redraw, table, JSON, diagnostics
  +-> internal/provider/codex  --+-> internal/rpc                  framing, IDs, dialect codecs
  +-> internal/provider/grok   --+-> internal/process              owned child lifecycle
@@ -82,15 +80,16 @@ internal/testutil is an offline fake-process harness that only tests import.
 
 The application boundary is the small `app.Querier` interface, `Query(context.Context, domain.Target) domain.Result`. A provider returns exactly one terminal result for one target; it does not render, terminate the program, mutate the global environment, or coordinate other accounts. Expected provider failures belong in a typed result. Setup and argument failures before targets exist remain command-level errors.
 
-Two Codex targets share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)).
+Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)).
 
-Repository layout (each package also has `_test.go` files and one Ginkgo suite entrypoint; see `TESTING.md`):
+Repository layout (test suites are listed in `TESTING.md`):
 
 ```text
 cmd/gaebokchi/{main,version,terminal_unix}.go
 internal/app/runner.go
 internal/domain/{target,result,status,label,percent}.go
 internal/options/options.go
+internal/options/config.go
 internal/process/{child,process_unix}.go
 internal/rpc/{client,frame,codec}.go
 internal/provider/codex/{provider,normalize}.go
@@ -99,6 +98,7 @@ internal/provider/grok/{provider,normalize}.go
 internal/provider/grok/testdata/             # sanitized captured fixtures
 internal/provider/claude/provider.go
 internal/provider/envfilter/envfilter.go
+internal/provider/home/home.go
 internal/render/{terminal,live,table,json}.go
 internal/testutil/fake.go                    # offline fake-process harness, test-only
 test/integration/                            # executable-level E2E suite
@@ -112,54 +112,13 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-008](../specs/README.md#req-008), [REQ-051](../specs/README.md#req-051), [REQ-052](../specs/README.md#req-052), [REQ-056](../specs/README.md#req-056). Owners: [TASK-002](../roadmap/README.md#task-002), [TASK-010](../roadmap/README.md#task-010), [TASK-028](../roadmap/README.md#task-028), [TASK-029](../roadmap/README.md#task-029).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056).
 
-| Flag | Default | Rules |
-|---|---|---|
-| `--codex-home PATH` | `~/.codex` and `~/.codex-hsy` | Repeatable; supplying any replaces both defaults |
-| `--codex-bin PATH_OR_NAME` | `codex` | Executable only, never a shell command string |
-| `--grok-bin PATH_OR_NAME` | `grok` | Same executable resolution policy |
-| `--claude-bin PATH_OR_NAME` | `claude` | Same executable resolution policy |
-| `--grok-account LABEL` | `default` | Display alias only; does not switch Grok login |
-| `--timeout DURATION` | `20s` | 1s through 120s inclusive; one query budget per target |
-| `--json` | Off | Use the JSON snapshot for a usage query; help remains text |
-| `--help`, `-h` | Off | Print help and return 0 without provider execution |
+A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, and `claude` lists, each containing `name` and `path`. At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
 
-The sole subcommand is `version [--json]`. Human output is `<name> <version>`;
-JSON output contains exactly the string fields `name` and `version` followed by
-a newline. A release build uses a `v`-prefixed version such as `v0.1.0`. Without
-a release override, the version comes from Go build information, and a build
-without either reports `(devel)` ([ARCH-13](#arch-13)). The former `--version`
-flag is unsupported.
+Targets are built in Codex, Grok, Claude order, preserving list order within each provider. IDs are `codex:0`, `grok:0`, `claude:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. The configured `name` is the output account alias on every status. Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
-No other positional arguments, provider filter, general output-format selector,
-configuration file, or implicit account discovery exists. Flags accept
-`--name value` and `--name=value`; boolean flags take no value. Each
-non-repeatable flag may occur once; ambiguous repeated scalar options are usage
-errors. Help and version do not validate provider installation or
-account-directory existence. Version dispatch occurs before resolving HOME or
-the invocation directory, and never launches a provider.
-
-Examples:
-
-```sh
-gaebokchi
-gaebokchi --timeout 40s
-gaebokchi --codex-home "$HOME/.codex-work" --codex-home "$HOME/.codex-personal"
-gaebokchi --grok-account personal --grok-bin /opt/homebrew/bin/grok
-gaebokchi --claude-bin /opt/homebrew/bin/claude
-gaebokchi --json
-gaebokchi version
-gaebokchi version --json
-```
-
-Resolve the invoking user's home through `os.UserHomeDir`. Ambient `CODEX_HOME` does not change the default account list. Preserve the caller's actual HOME for provider-managed login/keychain lookup; Codex's separate CODEX_HOME is not a replacement for HOME.
-
-Expand a leading current-user `~` explicitly. Do not implement `~otheruser`, shell variable expansion, globbing, or command substitution. Explicit relative paths are resolved before changing the child working directory. Clean absolute paths, and resolve symlinks for existing paths to detect duplicate homes. Do not deduplicate different homes because their eventual emails are equal.
-
-Invalid syntax/empty labels/duplicate homes are command errors before starting children. A syntactically valid but missing home yields its own `HOME NOT FOUND` row; an inaccessible path or non-directory yields `HOME ERROR`. A missing executable yields `NOT INSTALLED`; a present but unexecutable binary yields `ERROR`. Never initialize a provider home to repair a missing path.
-
-Each `Target` has a deterministic invocation-local ID (`codex:0`, `codex:1`, `grok:0`, `claude:0`), an output index, a provider kind, executable identity, a fallback account label, and a Codex home when applicable. The Codex targets come first in flag order, then `grok:0`, then `claude:0`. Resolve a provider executable once per invocation and reuse the absolute path for its targets. Respect Go's unsafe-current-directory lookup protection; an explicit user-supplied path is a separate deliberate choice. [S-07](#s-07)
+Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -212,7 +171,7 @@ Project percentage policy: accept finite values in `[0,100]`; in the renderer, o
 
 An unknown Codex authentication type maps to `UNSUPPORTED`, not the API-key status. For Grok, absence of `cached_token` with only an API-key method advertised establishes API-key-only non-applicability; interactive methods without cached authentication mean `AUTH REQUIRED`. Unrecognized auth advertisements mean `UNSUPPORTED`. For Claude, `loggedIn: false` means `AUTH REQUIRED`, and only a first-party `claude.ai` login proceeds to the usage read ([ARCH-16](#arch-16)).
 
-For account labels, Codex email is preferred only when obtained from that target's protocol session. Otherwise use its home basename. Grok uses its configured alias on every outcome, and Claude always uses `default`. After collecting results, disambiguate duplicate Codex account labels by appending `[home-basename]`; append `#<target index + 1>` if that is still ambiguous — the suffix is the row's own configured target index, not a collision ordinal, so the same/other/same example labels its third target `#3`. If the index-qualified label is itself already occupied (for example by an unrelated row whose original label merely resembles a generated suffix), extend it with a deterministic second counter that preserves the index component (`#3-2`, `#3-3`, ...). Never hide or merge a row. Labels are identifiers for display, not authentication selectors.
+For output, every result uses the configured `name`. The Codex adapter may read an email as part of its qualified account response, but it does not override the configured output alias. Duplicate normalized aliases within a provider are rejected during configuration loading, so no post-query label disambiguation is needed.
 
 <a id="arch-05"></a>
 ## ARCH-05: Execution and process ownership
@@ -226,10 +185,10 @@ parse/validate -> build ordered targets -> admit up to 3 targets
         -> Codex, Grok: initialize -> account/auth -> quota request
            Claude:      auth status command -> /usage command
         -> normalize -> bounded cleanup -> terminal result
-all terminal results -> account-label disambiguation -> selected output -> exit code
+all terminal results -> selected output with configured aliases -> exit code
 ```
 
-Use a fixed result slice and index-based assignment. A target's deadline starts when admitted, not when first queued. At most three are active. The default run admits the two Codex targets and Grok immediately, and the Claude target starts when one of them finishes. Additional Codex homes use the same bounded worker pool. A failed target does not cancel the invocation context.
+Use a fixed result slice and index-based assignment. A target's deadline starts when admitted, not when first queued. At most three are active. The first three configured targets are admitted immediately; any additional targets use the same bounded worker pool. A failed target does not cancel the invocation context.
 
 The optional `Runner.Observe` callback receives each stored terminal result
 once, including a target cancelled while queued. The CLI observer copies the
@@ -397,7 +356,7 @@ Grok 1.0.41 omitted `creditUsagePercent` in a live weekly response. Its pager ca
 
 Parse an optional period end as RFC 3339 when present. A malformed optional end can be discarded with a diagnostic without replacing the verified weekly percentage. Never infer a period from date subtraction. Ignore prepaid balance, on-demand usage/caps, history, and subscription tier for percentage calculation.
 
-The ACCOUNT column uses `--grok-account`, default `default`. The known billing payload is not treated as an email source. This is a conscious minimal design, not a claim that the actual Grok account's email is unknown to Grok itself.
+The ACCOUNT column uses the configured alias. Each Grok child receives its own `GROK_HOME`; the known billing payload is not treated as an email source.
 
 <a id="arch-16"></a>
 <a id="current-claude-extension"></a>
@@ -405,7 +364,7 @@ The ACCOUNT column uses `--grok-account`, default `default`. The known billing p
 
 Related: [REQ-056](../specs/README.md#req-056) through [REQ-059](../specs/README.md#req-059), [REQ-038](../specs/README.md#req-038), [REQ-039](../specs/README.md#req-039). Owner: none; no roadmap task owns the Claude extension ([REQ-056](../specs/README.md#req-056)). Decision: [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md). Verification: [V-CLAUDE](#v-claude).
 
-The adapter reads the active Claude CLI login's weekly all-models allowance through Claude Code's built-in `/usage` local command. It starts two short-lived children through `internal/process` with an environment from `internal/provider/envfilter`. It has no RPC dialect, credential parsing, or application-owned HTTP connection. The [Claude compatibility record](../verification/claude-compatibility.md) holds the live observations; [S-14](#s-14) through [S-16](#s-16) are the published references.
+For each configured Claude home, the adapter reads that Claude CLI login's weekly all-models allowance through Claude Code's built-in `/usage` local command. It starts two short-lived children through `internal/process` with an environment from `internal/provider/envfilter`. It has no RPC dialect, credential parsing, or application-owned HTTP connection. The [Claude compatibility record](../verification/claude-compatibility.md) holds the live observations; [S-14](#s-14) through [S-16](#s-16) are the published references.
 
 **Invocation.** Resolve `--claude-bin` (default `claude`) for the query; a missing executable is `NOT INSTALLED`, and one that cannot be used is `ERROR`. Build one filtered environment, then run two commands in sequence under the target's single query budget. Each command is its own owned child with its own private temporary working directory:
 
@@ -433,7 +392,7 @@ Close each child's stdin at once and read its stdout with a 256 KiB ceiling; mor
 ^Current week \(all models\): ([0-9]+(?:\.[0-9]+)?)% used((?:[ \t].*)?)$
 ```
 
-No match, or more than one, is `UNSUPPORTED`; a value above 100 is `PROTOCOL ERROR`. The current-session meter and model-specific weekly meters are never used. A successful result has period `weekly`, quota ID `claude_all_models`, source `claude_cli_usage`, and the account label `default` from the `configured_alias` source.
+No match, or more than one, is `UNSUPPORTED`; a value above 100 is `PROTOCOL ERROR`. The current-session meter and model-specific weekly meters are never used. A successful result has period `weekly`, quota ID `claude_all_models`, source `claude_cli_usage`, and the configured account alias.
 
 **Reset metadata.** Only the selected line's suffix can supply `ResetAt`. It must match:
 
@@ -443,11 +402,11 @@ No match, or more than one, is `UNSUPPORTED`; a value above 100 is `PROTOCOL ERR
 
 The zone is loaded from the host's zone database with `time.LoadLocation`; the binary embeds no `time/tzdata`, so a zone the host cannot load discards the reset. An omitted year means the zone's current year, and the reset is discarded when that year changed while the usage command ran. An impossible date is discarded. The local time must map to exactly one instant, so a time that a daylight-saving change skips or repeats is discarded. A discarded reset never changes the percentage.
 
-**Environment.** Remove `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AWS_API_KEY`, `ANTHROPIC_AWS_BASE_URL`, `CLAUDE_CODE_USE_ANTHROPIC_AWS`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_FOUNDRY`, `CLAUDE_CODE_USE_MANTLE`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, and `CLAUDE_CODE_SIMPLE` from the inherited environment. Nothing is set. `HOME`, `CLAUDE_CONFIG_DIR`, and proxy settings stay inherited so the CLI finds its own login.
+**Environment.** Remove `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_AWS_API_KEY`, `ANTHROPIC_AWS_BASE_URL`, `CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CODE_USE_ANTHROPIC_AWS`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_FOUNDRY`, `CLAUDE_CODE_USE_MANTLE`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST`, `CLAUDE_CODE_SIMPLE`, and ambient `CLAUDE_CONFIG_DIR` from the inherited environment. Set the target's `CLAUDE_CONFIG_DIR` only for a non-default Claude home. The default `~/.claude` home leaves it unset so the CLI uses its existing credential namespace. `HOME` and proxy settings stay inherited so the CLI can use its own credential store.
 
-**Statuses.** A Claude row can be `ok`, `not_applicable/api_key`, `auth_required`, `unsupported`, `cli_not_found`, `timeout`, `protocol_error`, `provider_error`, or `cancelled`.
+**Statuses.** A Claude row can be `ok`, `not_applicable/api_key`, `auth_required`, `unsupported`, `home_not_found`, `home_error`, `cli_not_found`, `timeout`, `protocol_error`, `provider_error`, or `cancelled`.
 
-**Limitations.** The weekly line is human-readable CLI output, not a published structured schema; a wording or envelope change yields `UNSUPPORTED` rather than a guess. The CLI's `stream-json` output carries a structured usage report whose schema is marked experimental, so the adapter does not use it. Reset text has minute resolution and no UTC offset, so a countdown can reach `now` up to a minute early. Only the active Claude login is visible; there is no account selector.
+**Limitations.** The weekly line is human-readable CLI output, not a published structured schema; a wording or envelope change yields `UNSUPPORTED` rather than a guess. The CLI's `stream-json` output carries a structured usage report whose schema is marked experimental, so the adapter does not use it. Reset text has minute resolution and no UTC offset, so a countdown can reach `now` up to a minute early. Each configured Claude directory is a separate query target; the installed CLI must honor `CLAUDE_CONFIG_DIR` for non-default homes to keep their logins distinct.
 
 <a id="arch-09"></a>
 ## ARCH-09: Security and read-only boundary
@@ -468,7 +427,7 @@ The trust boundary is the user-selected, already installed provider executable. 
 | Persistence | No application telemetry or permanent runtime files |
 | Shared processes | Do not shut down/kill provider leaders or unrelated coding sessions |
 
-Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16) and keeps `HOME` and `CLAUDE_CONFIG_DIR`. TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
+Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`, followed by per-target `GROK_HOME`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16), preserves `HOME`, and sets `CLAUDE_CONFIG_DIR` only for non-default homes. TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
 
 Shell aliases are not executables. Binary flags accept one program path/name, not arbitrary arguments. Do not bypass Go's `ErrDot` protection or run a binary accidentally found through an implicit current-directory PATH entry. A deliberately specified path containing spaces is passed as one executable value, not split into a command.
 
@@ -483,14 +442,14 @@ Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README
 
 For the plain table, render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the table renderer must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
 
-Sanitize all externally supplied labels before rendering: replace control/format characters and non-space whitespace with safe spaces, trim, and collapse whitespace. Never emit ESC or bidi formatting controls. A blank sanitized alias is invalid input; an unusable protocol email falls back to the home alias. Preserve ordinary printable Unicode characters. Do not truncate or mask emails by default; the README must warn that stdout can contain account identifiers.
+Sanitize all externally supplied labels before rendering: replace control/format characters and non-space whitespace with safe spaces, trim, and collapse whitespace. Never emit ESC or bidi formatting controls. A blank sanitized configured alias is invalid input. Preserve ordinary printable Unicode characters. The README must warn that stdout can contain account identifiers supplied by the user.
 
-Illustrative partial result:
+Illustrative partial result (configured account aliases are `work`, `personal`, and `default`):
 
 ```text
 AI PROVIDER  ACCOUNT               WEEKLY USAGE
-ChatGPT      account1@example.com  37%
-ChatGPT      .codex-hsy            AUTH REQUIRED
+ChatGPT      work                  37%
+ChatGPT      personal              AUTH REQUIRED
 Grok         default               N/A (monthly)
 Claude       default               43.2%
 ```
@@ -528,7 +487,7 @@ Emit diagnostics in target order, at most one bounded line per target plus a com
 
 On signal cancellation, the first handled signal determines the cancellation exit code; it takes precedence over partial provider failure. If stdout is unwritable, a complete table cannot be guaranteed. Without a cancellation signal, return 1 for output failure and write only a safe diagnostic where possible. Test this policy, including broken-pipe behavior, rather than assuming platform default signal handling matches it.
 
-A normal missing executable/home is target-specific, not a usage error. Example: no installed Grok still produces both Codex rows, a Grok `NOT INSTALLED` row, and the Claude row, with exit 1.
+A normal missing executable/home is target-specific, not a usage error. For a configuration with two Codex accounts, one Grok account, and one Claude account, a missing Grok executable produces both Codex rows, a Grok `NOT INSTALLED` row, and the Claude row, with exit 1.
 
 <a id="arch-10-terminal"></a>
 ### Interactive terminal view
@@ -607,13 +566,12 @@ receives a target's index and terminal result as soon as its slot is set,
 including targets cancelled while queued. Several goroutines may call it at
 once, and it never changes admission, deadlines, or attempts. The live
 renderer hides the cursor and draws pending rows from each target's display
-name and fallback account with a braille spinner and `querying…`. A Codex
-row's label changes to the protocol email when its result arrives. The spinner
+name and configured account alias with a braille spinner and `querying…`. The spinner
 advances about every 80 ms, and all drawing happens under one mutex. Each frame
 is a single write: carriage return, cursor up by the previously drawn line
 count, erase line plus content for every line, then erase below, which also
-clears a `^C` echo. After `Run` returns and `DisambiguateCodexAccounts` has
-run, the renderer draws the final frame from the ordered results and shows the
+clears a `^C` echo. After `Run` returns, the renderer draws the final frame
+from the ordered results and shows the
 cursor again. The first write error stops further drawing and becomes the
 command's output failure under the exit policy above. [S-12](#s-12)
 
@@ -650,7 +608,7 @@ Record versions, executable identities, successful prompt-free exchanges, precis
 <a id="v-options"></a>
 ### V-OPTIONS: Target and flag policy
 
-Cover default homes despite ambient CODEX_HOME, replacement semantics, quoted/space-containing paths, relative paths, tilde, invalid `~user`, empty paths/aliases, duplicate homes through symlinks, missing/inaccessible homes, scalar duplicates, invalid duration/ranges, unknown flags, positional arguments, help/version without installed CLIs, and explicit binary paths.
+Cover required and invalid YAML, null provider lists, disabled providers, configured order, absolute and `~/` paths, relative-path rejection, empty names or paths, duplicate names or symlinked paths (including a missing suffix under an existing link), missing/inaccessible homes, scalar duplicates, invalid duration/ranges, removed and unknown flags, positional arguments, help/version without configuration, and explicit binary paths.
 
 <a id="v-rpc"></a>
 ### V-RPC: Framing and protocol dialects
@@ -680,22 +638,22 @@ Cover cached-token negotiation, API-key-only advertisement, interactive-only log
 <a id="v-claude"></a>
 ### V-CLAUDE: Claude contract
 
-Use a fake `claude` executable. Cover logged-out, API-key, and unrecognized auth modes, none of which may launch the usage command; a missing executable; a usage timeout; the exact two command lines; and the result metadata. For the usage envelope and weekly line, cover other meters beside the all-models line, decimals, a missing or duplicated line, values above 100 and negative values, a model turn, a nonzero cost, non-JSON output, missing envelope fields, and another local command. For reset text, cover whole hours, minutes, noon and midnight, an explicit year, the zone's year, a year change during the command, the comma join, daylight-saving gaps and overlaps, an unknown zone, unrecognized text, an impossible date, an absent suffix, and another meter's reset. Assert that the child environment drops Anthropic credential and routing overrides and keeps `CLAUDE_CONFIG_DIR`.
+Use a fake `claude` executable. Cover logged-out, API-key, and unrecognized auth modes, none of which may launch the usage command; a missing executable; a usage timeout; the exact two command lines; and the result metadata. For the usage envelope and weekly line, cover other meters beside the all-models line, decimals, a missing or duplicated line, values above 100 and negative values, a model turn, a nonzero cost, non-JSON output, missing envelope fields, and another local command. For reset text, cover whole hours, minutes, noon and midnight, an explicit year, the zone's year, a year change during the command, the comma join, daylight-saving gaps and overlaps, an unknown zone, unrecognized text, an impossible date, an absent suffix, and another meter's reset. Assert that the child environment drops Anthropic credential and routing overrides, sets `CLAUDE_CONFIG_DIR` for custom homes, and leaves it unset for the default home.
 
 <a id="v-identity"></a>
 ### V-IDENTITY: Display identity
 
-Cover email from the correct Codex process, fallback labels on failure, duplicate emails and basenames, different homes not merged, Grok alias on all outcomes, Unicode, malicious control characters, blank email fallback, and labels that would otherwise inject lines or columns.
+Cover configured aliases on every provider and status, Codex protocol email not replacing the alias, duplicate normalized aliases rejected before launch, different homes not merged, Unicode, and control characters that would otherwise inject lines or columns.
 
 <a id="v-runner"></a>
 ### V-RUNNER: Fan-out and isolation
 
-Use controlled fake completion order. Verify at most three active targets, immediate admission of the first three targets while the fourth default target waits for a free slot, queued target cancellation, deterministic output order, independent environments, one query attempt per target, and no cancellation of healthy siblings after one failure.
+Use controlled fake completion order. Verify at most three active targets, immediate admission of the first three configured targets while later targets wait for a free slot, queued target cancellation, deterministic output order, independent environments, one query attempt per target, and no cancellation of healthy siblings after one failure.
 
 <a id="v-output"></a>
 ### V-OUTPUT: Output contracts
 
-Golden-test numeric and mixed-status outputs. Assert three headings, no separator/banner/color, exactly five logical lines by default (the header plus four targets), N+3 with N custom Codex homes, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
+Golden-test numeric and mixed-status outputs. Assert three headings, no separator/banner/color, exactly N+1 logical lines for N configured targets, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
 For usage JSON, assert the exact field set, target order, number/null semantics,
 label normalization, privacy boundary, and one final newline.
 For the terminal view, test colorless and styled frames, reset provenance,
@@ -710,12 +668,12 @@ Test all-clean, all-non-applicable, partial failure, all failure, invalid usage,
 <a id="v-safety"></a>
 ### V-SAFETY: Read-only and secret boundary
 
-Assert complete outbound method allowlists, false host capabilities, no raw secret leakage, no shell invocation, no credential/config reads or writes by gaebokchi, no account-home creation, isolated environments, neutral cwd, and untouched unrelated processes. Static package/dependency inspection complements black-box tests; tests must not claim to sandbox trusted provider internals.
+Assert complete outbound method allowlists, false host capabilities, no raw secret leakage, no shell invocation, no provider credential/config reads or writes by gaebokchi, read-only access to the user-authored account configuration, no account-home creation, isolated environments, neutral cwd, and untouched unrelated processes. Static package/dependency inspection complements black-box tests; tests must not claim to sandbox trusted provider internals.
 
 <a id="v-e2e"></a>
 ### V-E2E: Executable-level offline acceptance
 
-Build gaebokchi into a temporary directory and point the Codex, Grok, and Claude executable flags at the test binary acting as a scripted fake provider. Run the actual command with temporary homes. Verify the default happy path, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
+Build gaebokchi into a temporary directory and point the Codex, Grok, and Claude executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
 
 <a id="v-build"></a>
 ### V-BUILD: Reproducible local builds
@@ -821,11 +779,11 @@ metadata and versioned staging paths use the canonical `v` prefix; the v0.1.0
 staging directory is `dist/gaebokchi-v0.1.0`. Public version JSON does not
 expose commit, revision, module checksum, or build date.
 
-Produce versioned local archives with the `gaebokchi` prefix and SHA-256 checksums, containing the `gaebokchi` executable, README, and the three specification documents. Verify before staging that every packaged document is byte-identical to its source (`scripts/archivecheck.go`). The project license is MIT (`LICENSE`), and the archives must carry the chosen license; the archive member allowlist in `scripts/build-release.sh` and `scripts/archivecheck.go` predates that choice and does not include it yet.
+Produce versioned local archives with the `gaebokchi` prefix and SHA-256 checksums, containing the `gaebokchi` executable, README, configuration guide, and the three specification documents. Verify before staging that every packaged document is byte-identical to its source (`scripts/archivecheck.go`). The project license is MIT (`LICENSE`), and the archives must carry the chosen license; the archive member allowlist in `scripts/build-release.sh` and `scripts/archivecheck.go` predates that choice and does not include it yet.
 
 Publication is a manual, owner-approved step: the staged archives and `SHA256SUMS` are uploaded to GitHub Releases for `github.com/irootkernel/gaebokchi`, following the procedure in the [implementation tips](../implementation-tips/README.md). The build never publishes, tags, signs, or redistributes provider binaries, and no package-manager tap exists.
 
-README startup instructions assume the user installs and logs into the provider CLIs separately. Explain PATH/binary flags, the two home directories, how to select a different home set, the default Grok alias and Claude label, subscription-only interpretation, unsupported protocol errors, and potential provider-owned startup writes.
+README startup instructions assume the user installs and logs into the provider CLIs separately. Explain the required configuration file, account aliases, per-provider home paths, disabled providers, PATH/binary flags, subscription-only interpretation, unsupported protocol errors, and potential provider-owned startup writes.
 
 <a id="arch-14"></a>
 ## ARCH-14: Change and completion discipline

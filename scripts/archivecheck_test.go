@@ -26,7 +26,7 @@ type member struct {
 func writeTestRepo(t testT) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, doc := range []string{"README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
+	for _, doc := range []string{"README.md", "configuration/README.md", "docs/specs/README.md", "docs/architecture/README.md", "docs/roadmap/README.md"} {
 		p := filepath.Join(root, doc)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)
@@ -55,6 +55,8 @@ func intendedLayoutFor(target string) []member {
 		{name: d + "/docs/architecture/README.md", mode: 0o644, body: docBody("docs/architecture/README.md")},
 		{name: d + "/docs/roadmap", dir: true, mode: 0o755},
 		{name: d + "/docs/roadmap/README.md", mode: 0o644, body: docBody("docs/roadmap/README.md")},
+		{name: d + "/configuration", dir: true, mode: 0o755},
+		{name: d + "/configuration/README.md", mode: 0o644, body: docBody("configuration/README.md")},
 	}
 }
 

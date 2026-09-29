@@ -325,6 +325,44 @@ var _ = ginkgo.It("TestInspectHome", func() {
 	}
 })
 
+var _ = ginkgo.It("accepts searchable homes and rejects homes without search permission", func() {
+	t := testT{ginkgo.GinkgoT()}
+	path := t.TempDir() + "/restricted"
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(path, 0o700) }()
+	if err := os.Chmod(path, 0o300); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path + "/."); err != nil {
+		t.Skip("directory search permission is unavailable")
+	}
+	if dir, err := os.Open(path); err == nil {
+		_ = dir.Close()
+		t.Skip("directory read permission checks are bypassed by this user")
+	}
+	if InspectHome(path) != HomeOK {
+		t.Fatal("searchable directory without read permission should be HomeOK")
+	}
+	for _, mode := range []os.FileMode{0o000, 0o400} {
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+		if mode == 0o000 {
+			if dir, err := os.Open(path); err == nil {
+				_ = dir.Close()
+				t.Skip("directory permission checks are bypassed by this user")
+			}
+		} else if _, err := os.Stat(path + "/."); err == nil {
+			t.Skip("directory search permission checks are bypassed by this user")
+		}
+		if InspectHome(path) != HomeInvalid {
+			t.Fatalf("mode %04o should be HomeInvalid", mode)
+		}
+	}
+})
+
 func intPtr(i int) *int { return &i }
 
 func asRPCCallError(err error, target **rpcCallError) bool {

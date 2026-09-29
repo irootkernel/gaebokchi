@@ -18,6 +18,7 @@ import (
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/provider/envfilter"
+	"gaebokchi/internal/provider/home"
 	"gaebokchi/internal/rpc"
 )
 
@@ -39,7 +40,7 @@ const (
 	clientVersion      = "0.1.0"
 )
 
-// Provider queries the single Grok target.
+// Provider queries Grok targets through separately selected CLI homes.
 type Provider struct {
 	Start process.Factory
 
@@ -117,16 +118,18 @@ func (s *session) closeInto(res *domain.Result) {
 
 // childEnv composes the filtered environment for Grok children from
 // the parent environment.
-func childEnv() []string {
-	return envfilter.Apply(os.Environ(), envfilter.Grok())
+func childEnv(grokHome string) []string {
+	rule := envfilter.Grok()
+	rule.Set = map[string]string{"GROK_HOME": grokHome}
+	return envfilter.Apply(os.Environ(), rule)
 }
 
 // startChild launches the qualified headless invocation.
-func startChild(bin string, start process.Factory) (*process.Child, error) {
+func startChild(bin, grokHome string, start process.Factory) (*process.Child, error) {
 	return start(process.Config{
 		Bin:  bin,
 		Args: []string{"--no-auto-update", "agent", "stdio"},
-		Env:  childEnv(),
+		Env:  childEnv(grokHome),
 	})
 }
 
@@ -189,8 +192,8 @@ type headlessMeta struct {
 // session is non-nil whenever a child was started, including on error
 // and for terminal plans: cleanup is owned by the caller's deferred
 // close so its outcome is never discarded.
-func openSession(ctx context.Context, bin string, start process.Factory) (*session, authPlan, error) {
-	child, err := startChild(bin, start)
+func openSession(ctx context.Context, bin, grokHome string, start process.Factory) (*session, authPlan, error) {
+	child, err := startChild(bin, grokHome, start)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -347,6 +350,16 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		AccountSource: domain.AccountSourceConfiguredAlias,
 		ObservedAt:    time.Now(),
 	}
+	switch home.Inspect(tgt.Home) {
+	case home.Missing:
+		res.Status = domain.StatusHomeNotFound
+		res.Diagnostic = domain.Diagnostic{Code: "home_not_found", Message: tgt.ID + ": grok home does not exist"}
+		return res
+	case home.Invalid:
+		res.Status = domain.StatusHomeError
+		res.Diagnostic = domain.Diagnostic{Code: "home_error", Message: tgt.ID + ": grok home is not an accessible directory"}
+		return res
+	}
 
 	bin, err := p.resolveBin(tgt.Bin)
 	if err != nil {
@@ -360,7 +373,7 @@ func (p *Provider) Query(ctx context.Context, tgt domain.Target) (res domain.Res
 		return res
 	}
 
-	s, plan, err := openSession(ctx, bin, p.Start)
+	s, plan, err := openSession(ctx, bin, tgt.Home, p.Start)
 	if s != nil {
 		// The deferred close captures cleanup failure whether cleanup
 		// runs here or was already initiated by the RPC abort path

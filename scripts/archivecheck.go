@@ -34,11 +34,13 @@ func intendedFiles(target string) (files []string, dirs []string) {
 	return []string{
 		d + "/gaebokchi",
 		d + "/README.md",
+		d + "/configuration/README.md",
 		d + "/docs/specs/README.md",
 		d + "/docs/architecture/README.md",
 		d + "/docs/roadmap/README.md",
 	}, []string{
 		d,
+		d + "/configuration",
 		d + "/docs",
 		d + "/docs/specs",
 		d + "/docs/architecture",
@@ -58,7 +60,7 @@ func repoPathFor(member string) string {
 // entry type — plus no sidecar (.*) or otherwise unexpected members,
 // the executable bit on the binary, and byte-identical packaged
 // documents against repoRoot. repoRoot is only consulted for the four
-// documents.
+// packaged documents.
 func verifyArchive(archivePath, target, repoRoot string) error {
 	intended, intendedDirs := intendedFiles(target)
 	wantFiles := make(map[string]bool, len(intended))

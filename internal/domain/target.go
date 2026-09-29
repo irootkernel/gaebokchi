@@ -36,10 +36,9 @@ type Target struct {
 	Index int
 	// Provider selects the adapter that owns the query.
 	Provider ProviderKind
-	// Home is the absolute normalized Codex home; empty for Grok.
+	// Home is the absolute provider state directory, with ~/ expanded.
 	Home string
-	// FallbackAccount is the display label used when the provider cannot
-	// supply one: the Codex home basename or the configured Grok alias.
+	// FallbackAccount is the configured display alias for this target.
 	FallbackAccount string
 	// Bin is the configured executable name or explicit path. Absolute
 	// resolution happens once per invocation at preflight.

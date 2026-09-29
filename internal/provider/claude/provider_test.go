@@ -122,8 +122,51 @@ func fakeClaude(t testT, auth, usage string) (bin, log string) {
 }
 
 func claudeTarget(bin string) domain.Target {
-	return domain.Target{ID: "claude:0", Provider: domain.ProviderClaude, FallbackAccount: "default", Bin: bin}
+	return domain.Target{ID: "claude:0", Provider: domain.ProviderClaude, FallbackAccount: "default", Home: filepath.Dir(bin), Bin: bin}
 }
+
+var _ = ginkgo.It("rejects an inaccessible Claude home before starting the CLI", func() {
+	t := testT{ginkgo.GinkgoT()}
+	path := filepath.Join(t.TempDir(), "restricted")
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chmod(path, 0o700) }()
+	if dir, err := os.Open(path); err == nil {
+		_ = dir.Close()
+		t.Skip("directory permission checks are bypassed by this user")
+	}
+	target := claudeTarget(filepath.Join(path, "missing-cli"))
+	result := New().Query(context.Background(), target)
+	if result.Status != domain.StatusHomeError || result.Diagnostic.Code != "home_error" {
+		t.Fatalf("inaccessible Claude home = %+v", result)
+	}
+})
+
+var _ = ginkgo.It("queries Claude from a searchable home without directory read permission", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bin, log := fakeClaude(t, `{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`,
+		string(usageJSON("Current week (all models): 5% used", 0, 0)))
+	home := filepath.Dir(bin)
+	if err := os.Chmod(home, 0o300); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(home, 0o700) })
+	if dir, err := os.Open(home); err == nil {
+		_ = dir.Close()
+		ginkgo.Skip("directory read permission checks are bypassed by this user")
+	}
+	result := New().Query(context.Background(), claudeTarget(bin))
+	if result.Status != domain.StatusOK || result.UsedPercent == nil || *result.UsedPercent != 5 {
+		t.Fatalf("searchable Claude home was not queried: %+v", result)
+	}
+	if args, err := os.ReadFile(log); err != nil || strings.Count(string(args), "\n") != 2 {
+		t.Fatalf("Claude commands were not launched: %q, %v", args, err)
+	}
+})
 
 var _ = ginkgo.It("TestQueryUsesOnlyLocalCommandAndPreservesMetadata", func() {
 	t := testT{ginkgo.GinkgoT()}
@@ -204,17 +247,77 @@ var _ = ginkgo.It("TestChildEnvironmentDropsBillingOverrides", func() {
 	t := testT{ginkgo.GinkgoT()}
 	t.Setenv("ANTHROPIC_API_KEY", "secret")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "secret")
+	t.Setenv("CLAUDE_CODE_OAUTH_TOKEN", "secret")
 	t.Setenv("CLAUDE_CODE_USE_BEDROCK", "1")
-	t.Setenv("CLAUDE_CONFIG_DIR", "/chosen/claude")
-	env := childEnv()
+	t.Setenv("CLAUDE_CONFIG_DIR", "/ambient/claude")
+	env := childEnv("/chosen/claude")
 	for _, kv := range env {
 		if strings.HasPrefix(kv, "ANTHROPIC_API_KEY=") || strings.HasPrefix(kv, "ANTHROPIC_AUTH_TOKEN=") ||
-			strings.HasPrefix(kv, "CLAUDE_CODE_USE_BEDROCK=") {
+			strings.HasPrefix(kv, "CLAUDE_CODE_USE_BEDROCK=") ||
+			strings.HasPrefix(kv, "CLAUDE_CODE_OAUTH_TOKEN=") {
 			t.Fatalf("billing override leaked to Claude: %q", kv)
 		}
 	}
 	if !contains(env, "CLAUDE_CONFIG_DIR=/chosen/claude") {
 		t.Fatal("selected Claude config dir was lost")
+	}
+})
+
+var _ = ginkgo.It("default Claude home uses the implicit credential namespace", func() {
+	t := testT{ginkgo.GinkgoT()}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CLAUDE_CONFIG_DIR", "/ambient/claude")
+	env := childEnv(filepath.Join(home, ".claude"))
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "CLAUDE_CONFIG_DIR=") {
+			t.Fatalf("default Claude home must not set CLAUDE_CONFIG_DIR: %q", kv)
+		}
+	}
+})
+
+var _ = ginkgo.It("equivalent paths to the default Claude home keep the implicit namespace", func() {
+	t := testT{ginkgo.GinkgoT()}
+	home := t.TempDir()
+	defaultDir := filepath.Join(home, ".claude")
+	if err := os.Mkdir(defaultDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(home, "alias")
+	if err := os.Symlink(defaultDir, alias); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home+"/")
+	t.Setenv("CLAUDE_CONFIG_DIR", "/ambient/claude")
+	for _, path := range []string{defaultDir + "/", defaultDir + "/.", home + "//.claude", alias} {
+		for _, kv := range childEnv(path) {
+			if strings.HasPrefix(kv, "CLAUDE_CONFIG_DIR=") {
+				t.Fatalf("default Claude home %q set CLAUDE_CONFIG_DIR: %q", path, kv)
+			}
+		}
+	}
+})
+
+var _ = ginkgo.It("does not mistake a symlink parent for the default Claude home", func() {
+	t := testT{ginkgo.GinkgoT()}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	outside := filepath.Join(home, "outside")
+	if err := os.MkdirAll(filepath.Join(outside, "child"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{filepath.Join(home, ".claude"), filepath.Join(outside, ".claude")} {
+		if err := os.Mkdir(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	alias := filepath.Join(home, "alias")
+	if err := os.Symlink(filepath.Join(outside, "child"), alias); err != nil {
+		t.Fatal(err)
+	}
+	chosen := alias + "/../.claude"
+	if !contains(childEnv(chosen), "CLAUDE_CONFIG_DIR="+chosen) {
+		t.Fatal("custom Claude home lost its configuration selector")
 	}
 })
 

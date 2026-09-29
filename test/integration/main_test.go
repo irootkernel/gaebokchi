@@ -4,6 +4,8 @@
 package integration
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -28,6 +30,24 @@ func cleanupOwnedDirs() {
 	ownedDirs = nil
 }
 
+func fakePercent(variable, home string, fallback int) int {
+	raw := os.Getenv(variable)
+	if raw == "" {
+		return fallback
+	}
+	var byHome map[string]int
+	if err := json.Unmarshal([]byte(raw), &byHome); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	percent, ok := byHome[home]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "no fake usage for home %q\n", home)
+		os.Exit(1)
+	}
+	return percent
+}
+
 // TestMain is the fake-provider entry point: the gaebokchi binary under
 // test launches this same test binary as its codex/grok child, and the
 // argv decides which provider script runs.
@@ -43,37 +63,6 @@ func TestMain(m *testing.M) {
 				isClaudeAuth = true
 			}
 		}
-		if isClaude {
-			if isClaudeAuth {
-				_, _ = os.Stdout.WriteString(`{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`)
-			} else {
-				_, _ = os.Stdout.WriteString(`{"local_command":"usage","num_turns":0,"total_cost_usd":0,"is_error":false,"result":"Current week (all models): 43% used"}`)
-			}
-			os.Exit(0)
-		}
-		steps := os.Getenv("GAEBOKCHI_FAKE_STEPS")
-		if steps == "" {
-			// The provider kind is selected by argv: codex children are
-			// invoked as "app-server", grok children as "agent stdio".
-			isCodex, isGrok := false, false
-			for _, a := range os.Args[1:] {
-				if a == "app-server" {
-					isCodex = true
-				}
-				if a == "agent" || a == "stdio" {
-					isGrok = true
-				}
-			}
-			if isCodex && !isGrok {
-				steps = os.Getenv("GAEBOKCHI_FAKE_CODEX_STEPS")
-			} else {
-				steps = os.Getenv("GAEBOKCHI_FAKE_GROK_STEPS")
-			}
-		}
-		if err := os.Setenv("GAEBOKCHI_FAKE_STEPS", steps); err != nil {
-			os.Exit(1)
-		}
-		// Record the invocation for arg and env assertions.
 		if path := os.Getenv("GAEBOKCHI_FAKE_ARGLOG"); path != "" {
 			argv := "argv:"
 			for _, a := range os.Args[1:] {
@@ -100,6 +89,47 @@ func TestMain(m *testing.M) {
 				_, _ = f.WriteString(env.String())
 				_ = f.Close()
 			}
+		}
+		if isClaude {
+			if isClaudeAuth {
+				_, _ = os.Stdout.WriteString(`{"loggedIn":true,"authMethod":"claude.ai","apiProvider":"firstParty"}`)
+			} else {
+				pct := fakePercent("GAEBOKCHI_FAKE_CLAUDE_USAGE_BY_HOME", os.Getenv("CLAUDE_CONFIG_DIR"), 43)
+				_, _ = fmt.Fprintf(os.Stdout, `{"local_command":"usage","num_turns":0,"total_cost_usd":0,"is_error":false,"result":%q}`,
+					fmt.Sprintf("Current week (all models): %d%% used", pct))
+			}
+			os.Exit(0)
+		}
+		steps := os.Getenv("GAEBOKCHI_FAKE_STEPS")
+		if steps == "" {
+			// The provider kind is selected by argv: codex children are
+			// invoked as "app-server", grok children as "agent stdio".
+			isCodex, isGrok := false, false
+			for _, a := range os.Args[1:] {
+				if a == "app-server" {
+					isCodex = true
+				}
+				if a == "agent" || a == "stdio" {
+					isGrok = true
+				}
+			}
+			if isCodex && !isGrok {
+				steps = os.Getenv("GAEBOKCHI_FAKE_CODEX_STEPS")
+			} else {
+				steps = os.Getenv("GAEBOKCHI_FAKE_GROK_STEPS")
+				if os.Getenv("GAEBOKCHI_FAKE_GROK_USAGE_BY_HOME") != "" {
+					pct := fakePercent("GAEBOKCHI_FAKE_GROK_USAGE_BY_HOME", os.Getenv("GROK_HOME"), 0)
+					encoded, err := json.Marshal(grokWeekly(pct))
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						os.Exit(1)
+					}
+					steps = string(encoded)
+				}
+			}
+		}
+		if err := os.Setenv("GAEBOKCHI_FAKE_STEPS", steps); err != nil {
+			os.Exit(1)
 		}
 		if err := testutil.RunFakeScript(os.Stdin, os.Stdout, os.Stderr); err != nil {
 			os.Exit(1)

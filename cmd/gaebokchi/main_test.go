@@ -81,6 +81,55 @@ var _ = ginkgo.It("TestUsageErrorsExitTwo", func() {
 	}
 })
 
+var _ = ginkgo.It("missing configuration links to the dedicated guide before provider launch", func() {
+	t := testT{ginkgo.GinkgoT()}
+	const wantGuide = "https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md"
+	if options.ConfigGuideURL != wantGuide || !strings.Contains(usage, wantGuide) {
+		t.Fatalf("configuration guide URL is not used by errors and help")
+	}
+	t.Setenv("HOME", t.TempDir())
+	bomb := &fakeProv{}
+	providers := func() (codexQuerier, grokQuerier, claudeQuerier) { return bomb, bomb, bomb }
+	var out, errBuf bytes.Buffer
+	code := runWithIO(nil, &out, &errBuf, providers)
+	if code != 2 || out.Len() != 0 || !strings.Contains(errBuf.String(), "config.yaml") ||
+		!strings.Contains(errBuf.String(), wantGuide) || len(bomb.calls) != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q calls=%v", code, out.String(), errBuf.String(), bomb.calls)
+	}
+	out.Reset()
+	errBuf.Reset()
+	if code := runWithIO([]string{"--help"}, &out, &errBuf, providers); code != 0 || out.Len() == 0 {
+		t.Fatalf("help without config: code=%d stderr=%q", code, errBuf.String())
+	}
+	out.Reset()
+	if code := runWithIO([]string{"version"}, &out, &errBuf, providers); code != 0 || out.Len() == 0 {
+		t.Fatalf("version without config: code=%d stderr=%q", code, errBuf.String())
+	}
+})
+
+var _ = ginkgo.It("invalid configuration reports its path before provider launch", func() {
+	t := testT{ginkgo.GinkgoT()}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path := filepath.Join(home, ".config", "gaebokchi", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("claude:\n  - name: same\n    path: /one\n  - name: same\n    path: /two\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bomb := &fakeProv{}
+	var out, errBuf bytes.Buffer
+	code := runWithIO(nil, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) {
+		return bomb, bomb, bomb
+	})
+	if code != 2 || out.Len() != 0 || !strings.Contains(errBuf.String(), path) ||
+		!strings.Contains(errBuf.String(), "claude account names must be unique") ||
+		!strings.Contains(errBuf.String(), options.ConfigGuideURL) || len(bomb.calls) != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q calls=%v", code, out.String(), errBuf.String(), bomb.calls)
+	}
+})
+
 var _ = ginkgo.It("TestVersionDispatchPrecedesOptionsAndProviders", func() {
 	t := testT{ginkgo.GinkgoT()}
 	bomb := &fakeProv{results: map[string]domain.Result{"codex:0": {Status: domain.StatusProtocolError}}}
@@ -136,8 +185,8 @@ var _ = ginkgo.It("TestDefaultTableExactlyFiveLines", func() {
 
 var _ = ginkgo.It("TestCustomHomesNPlusTwoLines", func() {
 	t := testT{ginkgo.GinkgoT()}
-	home := t.TempDir()
-	opts := parse(t, "--codex-home", home+"/a", "--codex-home", home+"/b", "--codex-home", home+"/c", "--timeout", "5s")
+	setTestConfig(t, "codex:\n  - name: a\n    path: ~/codex-a\n  - name: b\n    path: ~/codex-b\n  - name: c\n    path: ~/codex-c\ngrok:\n  - name: default\n    path: ~/grok\nclaude:\n  - name: default\n    path: ~/claude\n")
+	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
 	code := executeWith(opts, &out, &errBuf)
 	if code != 0 {
@@ -208,8 +257,8 @@ var _ = ginkgo.It("TestJSONPartialFailureKeepsOrderedResults", func() {
 		snapshot.Results[1].TargetID != "codex:1" || snapshot.Results[2].TargetID != "grok:0" ||
 		snapshot.Results[3].TargetID != "claude:0" || snapshot.Results[0].UsedPercent == nil ||
 		*snapshot.Results[0].UsedPercent != 37.125 || !snapshot.Results[0].CleanupFailed ||
-		snapshot.Results[0].Account != "same@example.com [.codex]" ||
-		snapshot.Results[1].Account != "same@example.com [.codex-hsy]" ||
+		snapshot.Results[0].Account != "first" ||
+		snapshot.Results[1].Account != "second" ||
 		snapshot.Results[1].Status != "auth_required" || snapshot.Results[1].UsedPercent != nil {
 		t.Fatalf("JSON results = %+v", snapshot.Results)
 	}
@@ -435,9 +484,8 @@ var _ = ginkgo.It("TestCleanupFailureKeepsRowsAndExitsOne", func() {
 	}}
 	gk := &grok.Provider{Start: func(process.Config) (*process.Child, error) { return childG, nil }}
 
-	opts := parse(t, "--timeout", "10s",
-		"--codex-home", homeA, "--codex-home", homeB,
-		"--codex-bin", os.Args[0], "--grok-bin", os.Args[0])
+	setTestConfig(t, fmt.Sprintf("codex:\n  - name: a\n    path: %s\n  - name: b\n    path: %s\ngrok:\n  - name: default\n    path: ~/grok\n", homeA, homeB))
+	opts := parse(t, "--timeout", "10s", "--codex-bin", os.Args[0], "--grok-bin", os.Args[0])
 	var out, errBuf bytes.Buffer
 	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier) { return cx, gk, &fakeProv{} })
 

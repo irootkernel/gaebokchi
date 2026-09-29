@@ -18,6 +18,7 @@ import (
 	"gaebokchi/internal/domain"
 	"gaebokchi/internal/process"
 	"gaebokchi/internal/provider/envfilter"
+	"gaebokchi/internal/provider/home"
 	"gaebokchi/internal/rpc"
 )
 
@@ -398,25 +399,15 @@ func ResolveBin(bin string) (string, error) {
 }
 
 // HomeStatus classifies a Codex home directory without creating it.
-type HomeStatus int
+type HomeStatus = home.Status
 
 const (
-	HomeOK HomeStatus = iota
-	HomeMissing
-	HomeInvalid
+	HomeOK      = home.OK
+	HomeMissing = home.Missing
+	HomeInvalid = home.Invalid
 )
 
-// InspectHome reports whether the home exists and is a directory.
-func InspectHome(home string) HomeStatus {
-	fi, err := os.Stat(home)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return HomeMissing
-		}
-		return HomeInvalid // inaccessible: permission or similar
-	}
-	if !fi.IsDir() {
-		return HomeInvalid
-	}
-	return HomeOK
+// InspectHome reports whether the home exists and is an accessible directory.
+func InspectHome(path string) HomeStatus {
+	return home.Inspect(path)
 }

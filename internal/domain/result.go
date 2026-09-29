@@ -9,8 +9,7 @@ const (
 	// AccountSourceProtocolEmail is an email read from the target's own
 	// protocol session (Codex account/read).
 	AccountSourceProtocolEmail AccountSource = "protocol_email"
-	// AccountSourceConfiguredAlias is the Codex home basename or the
-	// configured Grok alias.
+	// AccountSourceConfiguredAlias is the configured display alias.
 	AccountSourceConfiguredAlias AccountSource = "configured_alias"
 )
 
