@@ -1,0 +1,27 @@
+version: 2
+commands:
+  test:
+    command: ["make", "test"]
+    tags: ["test", "aggregate"]
+    parser: generic
+    timeout_sec: 3600
+  test-prepare:
+    command: ["make", "test-prepare"]
+    tags: ["test", "prepare"]
+    parser: generic
+    timeout_sec: 3600
+  test-unit:
+    command: ["make", "test-unit"]
+    tags: ["test", "unit"]
+    parser: ginkgo
+    timeout_sec: 3600
+  test-int:
+    command: ["make", "test-int"]
+    tags: ["test", "integration"]
+    parser: ginkgo
+    timeout_sec: 3600
+  test-e2e:
+    command: ["make", "test-e2e"]
+    tags: ["test", "e2e"]
+    parser: ginkgo
+    timeout_sec: 3600
