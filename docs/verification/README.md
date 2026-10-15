@@ -8,6 +8,12 @@ current merely because a later tree retains the record.
   qualification and sanitized fixture provenance.
 - [claude-compatibility.md](claude-compatibility.md) records the later Claude
   local-command and weekly reset-text qualification.
+- [agy-compatibility.md](agy-compatibility.md) records static capability findings
+  and the metadata/account-isolation prerequisites for TASK-034. It contains no
+  positive live qualification.
+- [cursor-compatibility.md](cursor-compatibility.md) records static capability
+  findings and the noninteractive usage-interface prerequisite for TASK-039.
+  It contains no positive live qualification.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
 - `TASK-001.md` through `TASK-028.md` record historical task-scoped checks,

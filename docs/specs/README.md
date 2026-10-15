@@ -10,6 +10,11 @@ Release archives carry this document, the architecture, the roadmap, and the roo
 
 A checked box means that the requirement's complete acceptance scope is verified; the [completion rules](#completion-rules) define what that takes. The [acceptance history](#acceptance-history) summarizes how the checklist reached its current state.
 
+The implemented baseline below remains weekly-only for Codex, Grok and Claude.
+[Planned provider extensions](#planned-provider-extensions) define adopted,
+unchecked requirements for EPIC-012 and EPIC-013. Their registration does not
+change current behavior or reuse earlier acceptance as evidence for the new scope.
+
 ## Product outcome
 
 **Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for configured Codex (ChatGPT), Grok, and Claude accounts. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
@@ -28,7 +33,7 @@ Claude       work                  43.2%
 
 ## Scope boundaries
 
-The checklist below defines the product, not speculative support for further providers. UI scraping, a PTY, an API-cost dashboard, browser session extraction, custom OAuth or credential handling, model prompting, background refresh, watch mode, and persistent history or caches are out of scope. A runtime configuration file is required for account selection. No application-owned credential or usage cache is created.
+The implemented checklist and the explicitly marked planned extensions define the product scope. UI scraping, a PTY, an API-cost dashboard, browser session extraction, custom OAuth or credential handling, model prompting, background refresh, watch mode, and persistent history or caches are out of scope. A runtime configuration file is required for account selection. No application-owned credential or usage cache is created.
 
 Provider compatibility is an implementation gate. Published documentation or source can establish a candidate interface, but only a real prompt-free probe establishes that an installed binary exposes it. An internal Grok billing handler is not proof of a usable stdio endpoint, and Claude's human-readable `/usage` text is not a published structured quota schema. See [ARCH-12](../architecture/README.md#arch-12) and [TASK-001](../roadmap/README.md#task-001).
 
@@ -349,6 +354,65 @@ On a wider terminal, all qualified reset countdowns appear inline when every res
 - [x] **REQ-055: Live query progress.** While queries run, show every target row in place: unfinished rows with a spinner and `querying…`, and finished rows as soon as their results are known. Redraw without scrolling and keep intermediate frames within the terminal width. When the frame is not strictly shorter than the terminal height (leaving one cursor row), write only the final frame, once. After completion or SIGINT/SIGTERM cancellation, leave the final frame in the scrollback and restore cursor visibility. After an output failure, stop drawing and apply the existing output-failure exit policy. Progress rendering must not change target admission, deadlines, or query attempts.
   - Architecture: [ARCH-05](../architecture/README.md#arch-05), [ARCH-10](../architecture/README.md#arch-10-terminal). Owner: [TASK-030](../roadmap/README.md#task-030). Verification: [V-RUNNER](../architecture/README.md#v-runner), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit). Evidence: [TASK-030](../verification/TASK-030.md).
 
+<a id="planned-provider-extensions"></a>
+## Planned provider extensions
+
+These requirements were adopted on 2026-10-15 and are not implemented or
+qualified. [EPIC-012](../roadmap/README.md#epic-012) owns agy and the shared
+period/output changes; [EPIC-013](../roadmap/README.md#epic-013) owns Cursor.
+[ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)
+records the accepted design direction. Retain REQ-037 through REQ-043 throughout,
+including no provider auto-upgrade and offline test isolation.
+
+<a id="req-060"></a>
+- [ ] **REQ-060: Qualified agy metadata interface.** Establish a real installed-CLI path that returns structured subscription quota metadata without model turns, agent tools, sessions, interactive auth, account switching or billing mutations. Require explicit period metadata or a captured, version-bound contract mapping for every accepted period interpretation; time until reset is not such a mapping. Prove independent authenticated namespaces for two pre-authenticated agy accounts before production integration. Each account must expose at least one measured quota with a known supported period; unknown-only results cannot pass. Published documentation, binary strings and a failure-only fallback do not satisfy the gate. If a required capability is missing, block the owning task and epic without weakening this requirement.
+  - Architecture: [ARCH-18](../architecture/README.md#arch-18). Owner: [TASK-034](../roadmap/README.md#task-034). Verification: [V-AGY](../architecture/README.md#v-agy). Qualification gaps: [agy compatibility](../verification/agy-compatibility.md).
+
+<a id="req-061"></a>
+- [ ] **REQ-061: Multiple native quota results per account.** Preserve each distinct quota or model pool in the qualified subscription set, with its stable identity, display label, explicit period, used percentage, reset instant and outcome under ARCH-17's provider mappings and status table. Support weekly, five-hour, monthly and unknown periods; classify by qualified metadata rather than slot names or time remaining. Never average pools, select their maximum as an account total, or convert local token totals or on-demand spend into subscription usage. A remaining fraction may become used percent only when its qualified contract establishes a finite range [0,1] and the relationship `100 * (1 - remaining)`. Derive it from the original decimal token using exact decimal arithmetic; serialize the shortest exact decimal without insignificant trailing zeros, and treat a zero fractional part as an integer for display. Do not expose binary conversion noise or apply arbitrary rounding or clamping. Other ratios are not percentages. Missing values remain distinct from measured zero; retain the established Grok omission convention only for its qualified weekly case. Preserve unaffected quotas and accounts when one quota fails.
+  - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-035](../roadmap/README.md#task-035). Verification: [V-QUOTA](../architecture/README.md#v-quota), [V-RUNNER](../architecture/README.md#v-runner).
+
+<a id="req-062"></a>
+- [ ] **REQ-062: Period sections and account progress.** Show weekly, five-hour and monthly sections in that order in the terminal and text outputs; omit empty sections. Repeat an account for each applicable quota and identify its model or pool. Only the interactive terminal view shows account-level query progress, then the complete grouped snapshot; plain text and JSON emit final snapshots only. Display account-wide failures and explicit API-key non-applicability once in a final status area; display a period-known quota failure in its own section and unknown-period outcomes in the status area. Apply ARCH-17's status, exit and bounded diagnostic rules. Preserve every configured account, label sanitization, reset handling, output-failure and signal behavior. Use final-only output where progress cannot fit safely in the terminal.
+  - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e).
+
+<a id="req-063"></a>
+- [ ] **REQ-063: Versioned JSON v2 snapshot.** Change the existing `--json` output to a single newline-terminated object with `schema_version: 2` and ordered account `results`, each containing its quota outcomes in `quotas`. Move the old account-level `used_percent` into quota entries and expose each quota's period and optional reset instant. Use ARCH-17's exact fields, stable native or documented app-owned quota IDs, null semantics and ordering. An app-owned meter key must not pretend to be a provider-supplied identifier. Retain account aliases, account outcomes and cleanup failure, including accounts with no usable quota. Do not add a legacy-output flag. Document both text and JSON compatibility breaks and migrate executable tests and public examples with the implementation.
+  - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e).
+
+<a id="req-064"></a>
+- [ ] **REQ-064: Positive agy multi-account support.** Add an optional ordered `agy` list of `name`/`path` accounts and `--agy-bin` with default `agy`. Each path must select the credential namespace qualified by REQ-060, with existing alias/path validation and no implicit account discovery. Query at least two distinct CLI-managed logins concurrently without changing their default login selection or sharing account state. Isolate auth, protocol and timeout failures, retain sibling results and satisfy the existing lifecycle/privacy rules. Final-executable positive live acceptance and complete offline checks are required.
+  - Architecture: [ARCH-18](../architecture/README.md#arch-18). Implementation: [TASK-037](../roadmap/README.md#task-037). Acceptance owner: [TASK-038](../roadmap/README.md#task-038). Verification: [V-AGY](../architecture/README.md#v-agy), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety).
+
+<a id="req-065"></a>
+- [ ] **REQ-065: Qualified Cursor metadata interface.** Establish a real installed-CLI path for subscription quotas using the existing default CLI login without model turns, agent tools, session creation, interactive auth or billing mutations. Freeze its actual invocation, response schema, auth errors, explicit periods, model/pool identities, reset semantics and process boundaries before adapter implementation. Identity JSON, an interactive pager or an internal RPC function alone cannot pass this gate.
+  - Architecture: [ARCH-19](../architecture/README.md#arch-19). Owner: [TASK-039](../roadmap/README.md#task-039). Verification: [V-CURSOR](../architecture/README.md#v-cursor). Qualification gaps: [Cursor compatibility](../verification/cursor-compatibility.md).
+
+<a id="req-066"></a>
+- [ ] **REQ-066: Positive Cursor default-login support.** Add an optional single named Cursor target and `--cursor-bin` with default `cursor-agent`. Query its existing default CLI login, preserving qualified native periods and subscription pools in the shared results, period sections and JSON v2. Omission disables the provider. Keep on-demand spend outside quota percentages, preserve missing values and sibling outcomes, and verify the complete offline gate and a positive prompt-free final-executable live query. Multi-account management is outside this requirement, and a configuration directory is not an authenticated account selector.
+  - Architecture: [ARCH-19](../architecture/README.md#arch-19). Implementation: [TASK-040](../roadmap/README.md#task-040). Acceptance owner: [TASK-041](../roadmap/README.md#task-041). Verification: [V-CURSOR](../architecture/README.md#v-cursor), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety).
+
+When TASK-035 through TASK-037 or TASK-040 change implemented behavior, update
+the affected baseline requirements and their evidence in the same delivery.
+Update every baseline REQ/ARCH that conflicts with delivered behavior, not only
+the examples below. Keep IDs and add dated Changed notes; the new requirements
+extend those owners rather than create a competing output contract.
+
+| Delivery | Required reconciliation |
+|---|---|
+| TASK-035 | Internal normalization aspects of REQ-003, REQ-013 through REQ-015, REQ-028, REQ-029, REQ-034 and REQ-058; ARCH-04, ARCH-07, ARCH-08, ARCH-16 and V-QUOTA/provider tests. Include period/pool mappings, app-owned identity and conditional fraction conversion. Keep their public display/status wording and the old weekly projection, diagnostics and exit codes unchanged until TASK-036. |
+| TASK-036 | Public display/status aspects of REQ-003, REQ-013, REQ-014, REQ-034 and REQ-058, plus REQ-011, REQ-015, REQ-024, REQ-049, REQ-052 through REQ-055; ARCH-10, V-OUTPUT, V-EXIT and V-E2E. Replace table/JSON/reset exclusions and weekly-only status rules; document text, JSON and existing-provider exit-status changes, and update planned/implemented preambles in this document, architecture, roadmap, docs index and ADR-0002, plus the roadmap's current Final handoff format guidance. |
+| TASK-037 / TASK-040 | REQ-002, REQ-006, REQ-007 and provider-specific requirements; ARCH-02, ARCH-03, ARCH-09, ARCH-11 and the relevant new provider section. Update public guidance and test-stage mapping with the delivered configuration and dispatch. |
+
+REQ-060 and REQ-065 close at their qualification tasks. REQ-061 closes at
+TASK-035 and REQ-062/063 at TASK-036 after their complete offline scope passes;
+they require no live observation of every period variant. TASK-038 rechecks
+that evidence against the integrated candidate and owns REQ-064; TASK-041 owns
+REQ-066. Until then, public provider-support claims must say final live
+acceptance is pending. Preserve completed task/evidence bodies and the historical
+v0.1.0 release gate; they are snapshots, not extension contracts. This plan does
+not uncheck historical acceptance or claim it covers expanded behavior.
+
 <a id="completion-rules"></a>
 ## Completion rules
 
@@ -357,6 +421,12 @@ A percentage is not required when the provider explicitly reports a monthly allo
 REQ-005, REQ-048, and REQ-056 require live successful queries. A live valid monthly Grok billing response and `N/A (monthly)` may qualify REQ-005's provider behavior, while weekly parsing is additionally verified with source-backed fixtures. REQ-048's v0.1.0 owner-account gate separately requires a live weekly Grok row. The evidence must explicitly state when a live weekly Grok percentage was not exercised; it must not claim otherwise. A method-not-found response cannot satisfy either live gate.
 
 Checklists are not a replacement for evidence. Check a requirement only when its complete acceptance scope is verified, the evidence is recorded in the [task evidence format](../roadmap/README.md#plan-evidence), and a roadmap task owns it ([REQ-050](#req-050)). Preserve failures and unrun checks. A dated **Changed** note records a contract change that took effect after the original evidence, together with the evidence that covers it.
+
+For the planned extensions, explicit monthly subscription usage belongs in its
+own section once implemented. The baseline's `N/A (monthly)` rule does not
+satisfy REQ-061 or REQ-066. REQ-060 and REQ-065 require actual CLI qualification;
+REQ-064 and REQ-066 additionally require positive integrated-executable live
+acceptance. Static inspection or a recorded blocker cannot close these gates.
 
 ## Requirement ownership index
 
@@ -394,6 +464,12 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-030](../roadmap/README.md#task-030) | [REQ-053](#req-053), [REQ-054](#req-054), [REQ-055](#req-055) |
 | [TASK-032](../roadmap/README.md#task-032) | Re-qualifies [REQ-002](#req-002), [REQ-006](#req-006) through [REQ-008](#req-008), [REQ-010](#req-010) through [REQ-011](#req-011), [REQ-039](#req-039), and [REQ-056](#req-056) through [REQ-059](#req-059) for the current configuration and Claude contracts |
 | [TASK-033](../roadmap/README.md#task-033) | Re-qualifies [REQ-048](#req-048) for the final v0.1.0 candidate |
+| [TASK-034](../roadmap/README.md#task-034) | Planned: [REQ-060](#req-060) |
+| [TASK-035](../roadmap/README.md#task-035) | Planned: [REQ-061](#req-061) |
+| [TASK-036](../roadmap/README.md#task-036) | Planned: [REQ-062](#req-062), [REQ-063](#req-063) |
+| [TASK-038](../roadmap/README.md#task-038) | Planned: [REQ-064](#req-064); TASK-037 supplies implementation coverage |
+| [TASK-039](../roadmap/README.md#task-039) | Planned: [REQ-065](#req-065) |
+| [TASK-041](../roadmap/README.md#task-041) | Planned: [REQ-066](#req-066); TASK-040 supplies implementation coverage |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).
 

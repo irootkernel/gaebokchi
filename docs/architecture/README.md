@@ -6,6 +6,10 @@ Project: **Gaebokchi (개복치)** · Ecosystem: Aquarium tool · Repository and
 
 The [requirements](../specs/README.md) define required behavior and acceptance. The [roadmap](../roadmap/README.md) owns work identity, execution order, status, and delivery history. This document describes the current implementation and its boundaries: components, data semantics, protocol and process rules, and verification design. Release archives carry these three documents, while links to verification records and other maintainer documents resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them. Decisions whose rationale should outlive a rewrite of this document are kept as [architecture decision records](../architecture-decision-records/README.md).
 
+ARCH-01 through ARCH-16 describe the implemented baseline. ARCH-17 through
+ARCH-19 are explicitly planned extensions for EPIC-012 and EPIC-013; their
+interfaces and positive provider support are not implemented or qualified.
+
 | Section | Responsibility |
 |---|---|
 | [ARCH-01](#arch-01) | Decisions and scope |
@@ -24,6 +28,9 @@ The [requirements](../specs/README.md) define required behavior and acceptance. 
 | [ARCH-13](#arch-13) | Build and distribution |
 | [ARCH-14](#arch-14) | Change and completion discipline |
 | [ARCH-15](#arch-15) | Primary sources |
+| [ARCH-17](#arch-17) | Planned multi-quota model, period output and JSON v2 |
+| [ARCH-18](#arch-18) | Planned agy account isolation and adapter gate |
+| [ARCH-19](#arch-19) | Planned Cursor default-login adapter gate |
 
 Section numbers are stable identifiers, not reading order: ARCH-16 was added after ARCH-15 and sits with the other provider adapters.
 
@@ -640,6 +647,27 @@ Cover cached-token negotiation, API-key-only advertisement, interactive-only log
 
 Use a fake `claude` executable. Cover logged-out, API-key, and unrecognized auth modes, none of which may launch the usage command; a missing executable; a usage timeout; the exact two command lines; and the result metadata. For the usage envelope and weekly line, cover other meters beside the all-models line, decimals, a missing or duplicated line, values above 100 and negative values, a model turn, a nonzero cost, non-JSON output, missing envelope fields, and another local command. For reset text, cover whole hours, minutes, noon and midnight, an explicit year, the zone's year, a year change during the command, the comma join, daylight-saving gaps and overlaps, an unknown zone, unrecognized text, an impossible date, an absent suffix, and another meter's reset. Assert that the child environment drops Anthropic credential and routing overrides, sets `CLAUDE_CONFIG_DIR` for custom homes, and leaves it unset for the default home.
 
+<a id="v-agy"></a>
+### V-AGY: Planned agy qualification and integration
+
+TASK-034 owns the actual metadata-only interface, explicit periods, no-update
+policy and concurrent identity isolation for two CLI-managed logins. TASK-037
+owns fake-process tests for its frozen invocation, selector, environments,
+multiple pools, partial failure, absent login, secret exclusion and lifecycle.
+TASK-038 repeats positive known-period measurements through the final executable
+for both accounts. Unknown-only responses cannot pass live acceptance. These
+are planned checks, not current evidence.
+
+<a id="v-cursor"></a>
+### V-CURSOR: Planned Cursor qualification and integration
+
+TASK-039 owns the actual metadata-only interface, native periods, default-login
+selection, ambient overrides and platform credential boundaries. TASK-040 owns
+fake-process coverage for that contract, weekly/monthly and missing-data cases,
+spend exclusion, auth/errors, secrets and child cleanup. TASK-041 owns positive
+final-executable known-period usage and existing-provider regressions. These
+are planned checks; fixture-only periods and platforms remain labelled as such.
+
 <a id="v-identity"></a>
 ### V-IDENTITY: Display identity
 
@@ -790,7 +818,7 @@ README startup instructions assume the user installs and logs into the provider 
 
 Related: [REQ-050](../specs/README.md#req-050). Owner: [TASK-014](../roadmap/README.md#task-014).
 
-The three canonical role documents are the specification authority; implementation evidence lives under `docs/verification/`, and decision rationale that should survive a rewrite of this document lives in an [architecture decision record](../architecture-decision-records/README.md). Do not duplicate competing roadmaps or generate extra dossier/approval frameworks for this small project.
+The three canonical role documents are the specification authority; implementation evidence lives under `docs/verification/`, and decision rationale that should survive a rewrite of this document lives in an [architecture decision record](../architecture-decision-records/README.md). Approved epic dossiers may map work to these owners, but must not create competing lifecycle state, acceptance authority or approval frameworks.
 
 For a contract change, update the relevant requirement, architecture section, task scope/test mapping, and fixtures together, and add a dated Changed note to each affected requirement. Preserve stable IDs. Do not mark later work complete because a helper exists, and do not reopen a completed epic for unrelated improvements.
 
@@ -868,3 +896,275 @@ https://code.claude.com/docs/en/cli-reference
 <a id="s-16"></a>
 **S-16: Anthropic, Claude Code environment variables.** `ANTHROPIC_API_KEY` overrides a subscription in print mode.\
 https://code.claude.com/docs/en/env-vars
+
+### Sources for the planned provider extensions
+
+The following sources inform the 2026-10-15 design. They do not qualify an
+installed executable or establish a metadata response schema.
+
+<a id="s-17"></a>
+**S-17: Google Antigravity, Model quotas.** Interactive `/usage` panel and model quota display.\
+https://antigravity.google/docs/cli/commands/usage/
+
+<a id="s-18"></a>
+**S-18: Google Antigravity, Installation and auth.** CLI-managed keyring authentication.\
+https://antigravity.google/docs/cli/install/
+
+<a id="s-19"></a>
+**S-19: Google Antigravity, Plans.** Five-hour and weekly baseline limits.\
+https://antigravity.google/docs/plans/
+
+<a id="s-20"></a>
+**S-20: Cursor, CLI parameters.** Public CLI command discovery.\
+https://cursor.com/docs/cli/reference/parameters
+
+<a id="s-21"></a>
+**S-21: Cursor, Usage and limits.** Weekly plans, legacy monthly plans and separate overage usage.\
+https://cursor.com/help/models-and-usage/usage-limits
+
+<a id="s-22"></a>
+**S-22: Google Antigravity, Headless mode.** Print/stream output and slash-command caveats.\
+https://antigravity.google/docs/cli/headless/
+
+<a id="arch-17"></a>
+## ARCH-17: Planned quota collections and period output
+
+**Delivery:** EPIC-012, TASK-035 and TASK-036. **Requirements:** REQ-061 through
+REQ-063. This section defines target behavior; ARCH-04 and ARCH-10 remain the
+implemented weekly-only behavior until their owning tasks land.
+
+Keep one account result and one deadline per configured target. Add a collection
+of quota results with provider-local `quota_id`, display `label`, `period`,
+`status`, optional `used_percent` and optional `reset_at`. Account status records
+query/response-level outcomes; each identified quota has its own semantic outcome.
+A successful query can therefore contain an incomplete quota. Evaluate account,
+quota and cleanup outcomes together under the existing exit/signal precedence.
+An account with no quota records is `unavailable/no_data`, with an empty array;
+an empty array must not imply a successful measurement. Explicit API-key
+non-applicability is the sole clean empty-array outcome.
+
+### Provider mappings and identity
+
+TASK-035 implements the following mappings through the existing metadata
+interfaces. These are target mappings, not claims that every variant has been
+observed live. Retain the captured-versus-synthetic distinction in fixtures and
+compatibility records; new live probes require separate bounded authorization.
+
+| Provider input | Planned quota ID and label | Period and evidence boundary |
+|---|---|---|
+| Codex `codex` bucket, primary/secondary windows | `codex`, `Codex` | Explicit 10080 minutes → weekly; 300 → five-hour. Weekly is captured; five-hour is currently synthetic coverage. Slot position is irrelevant. Keep the existing map/legacy selection precedence and exclude other buckets under REQ-028; broadening bucket scope requires qualification and a requirement change. |
+| Grok subscription billing config | `grok_subscription`, `Subscription` | Explicit weekly/monthly enums select the period. Read `creditUsagePercent` for either; monthly omission is missing data, never the weekly zero convention. Weekly is captured; monthly is source-backed/synthetic until observed live. |
+| Claude all-models weekly line | `claude_all_models`, `All models` | Preserve the qualified weekly parser and reset rules. |
+| Claude model-specific weekly lines | Stable app ID per qualified meter, e.g. `claude_model_sonnet`, with its model label | TASK-035 freezes recognized line grammar/IDs from captured sanitized lines or a cited format in the installed CLI's source. Synthetic-only grammar cannot qualify a meter and remains a documented limitation. The compatibility record reports these lines, but is not a complete parser contract. Never classify the session meter as five-hour without explicit duration evidence; leave that unqualified meter outside the supported set. |
+| agy / Cursor subscription pools | Native stable ID, or a documented app ID for a qualified meter | TASK-034 / TASK-039 freezes the mapping before integration. Preserve every pool in that qualified subscription set; exclude spend and activity meters. |
+
+`quota_id` is a nonempty stable provider-local machine key, not an account
+identity or a raw response. Prefer the native key; when none exists, use an
+explicitly documented app-owned meter key, as for Grok above. Never fabricate
+provider provenance or derive keys from secrets, percentages, resets, positions
+or mutable display text. `(period, quota_id)` identifies a quota within an
+account; the same pool may have separate weekly and five-hour entries.
+Unknown-period records retain a stable qualified meter key. A malformed entry
+of a qualified family without establishable identity contributes an account-level `protocol_error`, retaining
+any independently validated sibling quotas; do not invent a pool for that entry.
+Meter families outside a provider's frozen qualified set produce no quota record
+and do not affect status or exit: this includes the Claude session meter,
+model lines outside its frozen list and non-codex Codex buckets. Document those
+exclusions as support limits. For a schema-defined subscription family with
+native IDs (agy/Cursor), every entry in that family belongs to the qualified set;
+a newly seen native pool must not be silently excluded. Its missing or
+unsupported period remains an explicit unknown-period quota outcome.
+
+Use `weekly`, `five_hour`, `monthly` and `unknown` periods. In the qualified
+duration field, explicit 10080 and 300 minutes identify weekly and five-hour windows;
+monthly needs an explicit monthly contract rather than a fixed-day estimate.
+Do not classify by primary/secondary slot names, plan title or reset distance.
+Keep model/pool identities separate. Agreeing duplicate representations of one
+quota/window may collapse; conflicting duplicates become a quota-level protocol
+error without discarding unrelated quotas or accounts.
+
+Retain finite used percentages in [0,100] without clamping or pre-rounding.
+Convert a remaining fraction only when the qualified provider contract defines
+its range and relationship to used allowance. Missing or malformed required
+data is an explicit quota outcome. Keep the Grok weekly omission convention
+scoped to its existing qualified case. Invalid optional reset metadata may be
+discarded without invalidating a measured percentage. A qualified remaining
+fraction `r` in [0,1] becomes `100 * (1 - r)` only under REQ-061. Calculate from
+the original decimal token using exact decimal arithmetic and serialize the
+shortest decimal for that exact result, without insignificant trailing zeros.
+An exact result with zero fractional part is an integer for display formatting.
+Do not expose binary conversion noise or apply arbitrary rounding or clamping.
+
+### Status, exit and diagnostics
+
+The account status describes query/response completion; `ok` may contain failed
+quota records. A transport/auth/process failure has no quota records. Completed sibling
+accounts remain intact when another account is cancelled or fails.
+
+| Level and condition | Status | Exit contribution | Final location |
+|---|---|---|---|
+| Account query completed with quota records | `ok` | Evaluate every quota below | Quota rows |
+| Account explicitly uses API-key auth | `not_applicable/api_key` | Clean | Status area, once |
+| Successful account response contains no quota records | `unavailable/no_data` | Incomplete | Status area, once |
+| Account auth/CLI/home/process/protocol failure | Existing `auth_required`, `unsupported`, `cli_not_found`, `home_not_found`, `home_error`, `timeout`, `protocol_error`, `provider_error` | Incomplete | Status area, once |
+| Response has an unidentifiable malformed quota entry | Account `protocol_error`, retaining validated sibling quotas | Incomplete, also evaluate retained quotas | Account error in status area, plus retained quota rows |
+| Unfinished account cancelled by signal | `cancelled` | Signal | Status area, once |
+| Quota has a known period and valid percentage | `ok` | Clean | Its period section |
+| Quota lacks a required percentage | `unavailable/no_data` | Incomplete | Its period section, or status area if period unknown |
+| Quota has a valid percentage but no supported period | `unavailable/period` | Incomplete | Status area; preserve the numeric value in JSON, not as a successful section measurement |
+| Quota has malformed required data or conflicting duplicate representations | `protocol_error` | Incomplete | Its period section, or status area if period unknown |
+
+These are the complete quota statuses. Missing usage takes `unavailable/no_data`;
+malformed required data takes `protocol_error` even when the period is unknown.
+Monthly is a period, not `not_applicable/monthly`; `unavailable/no_weekly` is
+retired from the new model. API-key non-applicability remains account-only.
+An unknown-period quota with no percentage is `unavailable/no_data`. The no-quota
+fallback never overrides an already established account failure.
+
+Any incomplete account/quota or cleanup failure contributes exit 1; all-clean
+and API-key-only snapshots contribute 0. Preserve usage-error exit 2 and existing
+output-failure/signal precedence (SIGINT 130, SIGTERM 143). Emit at most one
+sanitized stderr diagnostic per incomplete target: account failure first,
+otherwise the first failing quota in JSON order, with a fixed indication if
+additional quota failures exist. Cleanup failure must remain indicated even
+when another failure supplies that line. Raw provider diagnostics stay excluded.
+
+### Presentation
+
+Render nonempty sections in the fixed order `WEEKLY`, `5 HOURS`, `MONTHLY`.
+Within each section retain configured provider/account order, extending the
+current order with agy and then Cursor. Use quota ID order within one account
+when multiple pools need separate rows, and display their sanitized labels.
+Keep period-known quota failures in the matching section. Put account-wide
+outcomes (including API-key non-applicability) and unknown-period quota outcomes in a final status area; do not repeat
+an account-wide error in every section or silently drop a configured account.
+
+Only the interactive terminal view shows collection progress; plain text and
+JSON emit one final snapshot without progress. Use account-level terminal
+progress with a bounded row count. Render
+the complete grouped snapshot after collection. Use final-only output when
+progress cannot fit safely; preserve final output, cursor restoration, label
+width, `NO_COLOR`, reset countdown and signal/output-failure behavior.
+The plain text output uses the same section grouping. TASK-036 freezes text and
+terminal golden layouts before implementation: use a period-neutral usage title,
+provider/account/quota/value columns, one heading per nonempty section and a
+single final status area. This replaces the old N+1-line table contract.
+Document the text layout compatibility break alongside the JSON migration and
+existing-provider exit-status changes. In particular, a valid five-hour-only
+Codex quota becomes clean; an unknown-period Codex window or monthly Grok quota
+missing a percentage contributes incomplete status under the new policy.
+
+### JSON v2
+
+The existing `--json` flag changes to this versioned projection. The example
+values are synthetic; it is not a provider response or an implemented output.
+
+```json
+{"schema_version":2,"results":[{"target_id":"agy:0","provider":"agy","account":"work","status":"ok","cleanup_failed":false,"quotas":[{"quota_id":"model_pool","label":"Model pool","period":"five_hour","status":"ok","used_percent":18,"reset_at":null}]}]}
+```
+
+Account objects contain `target_id`, `provider`, `account`, `status`,
+`cleanup_failed` and `quotas`. Quota objects contain `quota_id`, `label`,
+`period`, `status`, `used_percent` and `reset_at`; absent percentages and resets
+are JSON null, and present resets use RFC 3339 UTC timestamps. Preserve provider
+numeric precision. Results stay in configured order and quotas sort by section
+order, then quota ID, with unknown periods last. A transport/auth/process failure
+has an empty quota array and its account-level failure status. An unattributable
+malformed quota entry instead leaves account `protocol_error` with independently
+validated sibling quotas retained. Raw diagnostics and credentials
+remain excluded. There is no legacy-output flag. TASK-036 updates REQ-052,
+public examples and executable tests for this compatibility break.
+
+TASK-035 and TASK-036 test all periods and mixed quotas using existing fake
+Codex/Grok responses and synthetic Claude fixtures. They do not depend on an
+agy production adapter or require live coverage of every period variant.
+
+<a id="arch-18"></a>
+## ARCH-18: Planned agy adapter and authenticated namespaces
+
+**Delivery:** EPIC-012, TASK-034, TASK-037 and TASK-038. **Requirements:** REQ-060
+and REQ-064. The [agy compatibility note](../verification/agy-compatibility.md)
+records the unqualified installed interface and account-isolation gaps.
+
+The target configuration is an optional ordered `agy` list with the existing
+`name`/`path` validation and a `--agy-bin` override defaulting to `agy`. Each
+path must select a complete CLI-managed authenticated namespace. Preserve HOME
+and required platform context unless the qualified selector explicitly requires
+otherwise; never assume that changing HOME or a data directory isolates Keychain
+or shared backend state. Do not mutate the process-global environment.
+The planned provider value is `agy`, target IDs are `agy:<list-index>` and the
+display name is `agy`. Provider order is Codex, Grok, Claude, agy, then Cursor.
+TASK-034 freezes selector type and default-namespace behavior. If the qualified
+selector cannot be represented truthfully as a path, block before TASK-035 and
+obtain an explicit requirement/configuration decision; do not overload `path`.
+
+TASK-034 must establish the official selector, its credential and shared-process
+boundaries, exact metadata invocation, response schema and safe no-login behavior.
+It must prove two distinct pre-authenticated accounts under concurrent queries
+without altering default login selection. Then freeze the actual arguments and
+environment filter in the compatibility record and fixtures. Binary strings
+alone cannot establish this contract, and `AGY_ACCOUNT` plugin-account text is
+not proof of a Google authentication selector.
+Use metadata-only CLI-reported identities in private evidence, not operator
+aliases: query both namespaces concurrently, recheck each after querying the
+other, and verify the same distinct identities. Do not commit those identifiers.
+Freeze explicit period/meter mappings and automatic-update suppression as well.
+If identity isolation, no-update behavior or a known-period measured quota for
+each account cannot be demonstrated, the qualification gate remains blocked.
+
+After that gate, implement `app.Querier` through the existing owned-child
+infrastructure, with explicit provider dispatch, one target budget and bounded
+output/cleanup. Read every qualified native quota into ARCH-17. Keep login,
+credential discovery and token refresh inside agy; no agent session, model turn,
+tool, browser or account-switch action belongs in the query.
+
+If the installed CLI lacks this contract, stop before production integration.
+The missing upstream capability is structured metadata-only quota reads and
+independent authenticated namespaces; this document invents no supported command
+or home variable. A helper that extracts tokens, calls Google APIs directly or
+scrapes the TUI is outside ARCH-09.
+
+<a id="arch-19"></a>
+## ARCH-19: Planned Cursor default-login adapter
+
+**Delivery:** EPIC-013, TASK-039 through TASK-041. **Requirements:** REQ-065 and
+REQ-066. EPIC-012 must complete first. The
+[Cursor compatibility note](../verification/cursor-compatibility.md) records
+the current metadata-interface gap.
+
+Use one optional named default-login target, represented by a `cursor` list
+with one `name` entry and no account-home selector. Omission or `[]` disables
+Cursor; more than one entry is invalid. Retain the common alias validation and
+require at least one enabled account overall. The binary override is
+`--cursor-bin`, default `cursor-agent`. These are planned options, not current
+configuration or flags. In particular, do not add a misleading `path` account
+selector for a globally selected default credential namespace.
+The provider value is `cursor`, the sole target ID is `cursor:0` and the display
+name is `Cursor`.
+
+TASK-039 must qualify the actual installed noninteractive usage interface,
+default-login selection, period and pool schema, absent-login behavior and
+process lifecycle. The current interactive usage modules and `status`/`about`
+identity JSON are discovery inputs, not positive qualification. Direct Dashboard
+RPC calls or wrappers around private packaged modules exceed the chosen boundary.
+Also freeze automatic-update suppression and credential selection on each
+claimed platform. Record macOS/Linux differences and unqualified platforms;
+cross-build or fake-process success is not live credential qualification.
+
+After qualification, use `app.Querier` and the existing child lifecycle, budget
+and environment-filter construction. Freeze conflicting authentication and
+routing variables from evidence instead of dumping or indiscriminately clearing
+the environment. Keep credentials and refresh inside Cursor. Preserve every
+qualified subscription pool and explicit native period through ARCH-17; do not
+borrow the interactive pager's defaults, clamping or monthly title as semantics.
+On-demand spend is not a subscription quota percentage.
+Ambient API keys, credential or routing selectors must not silently substitute
+another login. TASK-039 proves which variables can do so, including whether
+`CURSOR_CONFIG_DIR` affects identity on each platform; TASK-040 filters those
+overrides only in the child. Keep ordinary platform context, and do not invent
+an explicit credential selector for the default-login target. Exclude on-demand
+spend from quota results entirely.
+
+TASK-041 requires a positive final-executable metadata query plus complete
+offline and earlier-provider regressions. A missing method or unsupported row
+does not close the epic, and Cursor multi-account support is not claimed.

@@ -1,8 +1,9 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
-Version: 0.1 specification  
-Status: EPIC-001 through EPIC-010 COMPLETE; v0.1.0 public release acceptance remains open for current configuration, Claude, and REQ-048.
+Version: v0.1.0 baseline with planned provider extensions\
+Status: EPIC-001 through EPIC-011 retain their recorded COMPLETE milestones; EPIC-012 and EPIC-013 are NOT STARTED. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
+Extension plan registered: 2026-10-15\
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
@@ -11,6 +12,8 @@ The Claude extension and YAML account configuration are described in the
 [current requirements](../specs/README.md) and [architecture](../architecture/README.md).
 Historical task records below retain the meaning they had when completed;
 the [current release gate](#current-release-gate) governs v0.1.0 publication.
+The planned agy and Cursor extensions do not change current executable behavior
+or establish positive provider support.
 
 ## How to use this plan
 
@@ -36,7 +39,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011 -> EPIC-012 -> EPIC-013
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -52,6 +55,8 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (implementation milestone) |
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
+| 12 | [EPIC-012: agy multi-account support and period-aware usage](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; TASK-034 must qualify agy before production changes | NOT STARTED |
+| 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | NOT STARTED |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -63,8 +68,15 @@ the interactive terminal view. EPIC-011 completed current public-release
 readiness: YAML and Claude acceptance, packaging, and the REQ-048 live gate.
 The exact release commit still needs its post-commit gate receipt before tagging.
 
-The task order is globally sequential: TASK-001 through TASK-033. Runtime
+The task order is globally sequential: TASK-001 through TASK-041. Runtime
 account queries may be concurrent; development tasks may not.
+
+EPIC-012 and EPIC-013 are adopted future work with separate execution dossiers.
+Their entry tasks must qualify real metadata-only CLI interfaces. The current
+static [agy](../verification/agy-compatibility.md) and
+[Cursor](../verification/cursor-compatibility.md) findings leave those gates
+unqualified. If TASK-034 blocks, later tasks and EPIC-013 wait under the existing
+sequence; changing that order requires an explicit roadmap decision.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -87,7 +99,7 @@ Task commit subject or already-known commit reference:
 Handoff to next task/epic:
 ```
 
-Avoid a self-referential commit-hash loop. The evidence inside a task commit can identify that commit by its unique `TASK-NNN` commit subject. After committing, report its hash in the handoff or a later already-needed record. Do not create another commit solely to insert the current commit's own hash.
+Avoid a self-referential commit-hash loop. Identify a task commit by its Aquarium attribution trailers and concise subject; keep primary IDs in trailers as AGENTS.md requires. After committing, report its hash in the handoff or a later already-needed record. Do not create another commit solely to insert the current commit's own hash.
 
 The normal task commit includes code, focused tests and documentation/evidence updates. Record test outcomes against the tested tree; do not claim a changed tree passed an earlier test. On a dirty repository, exclude unrelated user changes and report them rather than cleaning or committing them.
 
@@ -1438,8 +1450,343 @@ evidence. The current release gate below remains separate: run it on that clean
 commit, then close EPIC-011 in a documentation commit and repeat the gate on
 the exact closeout commit before tagging.
 
+<a id="epic-012"></a>
+## EPIC-012: agy multi-account support and period-aware usage
+
+- [ ] Epic complete. **Status: NOT STARTED.**
+
+**Goal:** Support at least two independently authenticated agy accounts and
+introduce native-period quota results, weekly/five-hour/monthly output sections
+and JSON v2 for the provider set.
+
+**Entry:** EPIC-011's recorded implementation milestone is complete. This epic
+does not reopen or satisfy the separate v0.1.0 publication gate.
+
+**Detailed SOT:** [agy execution dossier](../todo/TODO-AGY-MULTI-ACCOUNT-SUPPORT.md).
+
+**Task sequence:** [TASK-034](#task-034) -> [TASK-035](#task-035) ->
+[TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038).
+
+**Local epic acceptance:** REQ-060 through REQ-064 are fully verified; a final
+candidate returns independent results for two distinct agy logins without model
+work or changing the default login selection; the complete offline gate and
+existing-provider regressions pass. Placeholder failures do not satisfy support.
+Each agy account must have a measured quota in a supported known-period section;
+unknown-only results cannot close the epic. Unobserved period variants remain
+explicit coverage limits, not a requirement to change the owner's subscription.
+
+**Handoff:** EPIC-013 consumes the canonical quota model, period rendering,
+JSON v2 and provider extension points after this epic closes. Installation and
+publication are excluded.
+
+<a id="task-034"></a>
+### TASK-034: Qualify agy metadata and authenticated account isolation
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Resolve the metadata-only interface and required multi-account
+isolation before production integration.
+
+**Dependency:** EPIC-012 entry; two distinct CLI-managed logins prepared outside
+the query and separately authorized bounded live qualification.
+
+**Owners:** REQ-060; ARCH-18 and ARCH-09.
+
+**Scope and deliverables:** Reuse the static compatibility assessment, inspect
+the actual installed CLI contract and freeze the executable invocation, response
+schema, periods, auth failures, credential namespace and process boundaries.
+Freeze the selector type/default-namespace rules and automatic-update suppression.
+Qualify two accounts concurrently and retain sanitized captured fixtures with
+provenance in the agy compatibility record. Do not write a production adapter.
+
+**Acceptance:** Both accounts return structured quota metadata without model
+turns, tools, sessions, interactive auth or account switching. Their identities
+are distinct in the private qualification evidence, their results remain
+independent, and default login selection is preserved. A missing capability
+marks the task and epic BLOCKED and prevents TASK-035; recording the blocker
+alone does not complete this task.
+CLI-reported metadata identities must remain distinct when read concurrently
+and rechecked after querying the other namespace; aliases are not identity
+evidence. Each account supplies at least one measured quota with explicit period
+metadata or a captured, version-bound period mapping. Unknown-only results fail.
+If the selector is not path-shaped, block for an explicit configuration decision
+before TASK-035 rather than invent a path convention.
+
+**Verification:** Bounded CLI metadata probes, absent-login and lifecycle checks,
+fixture parsing and redaction inspection. No login, upgrade, token extraction,
+direct API or PTY fallback is authorized by this task definition.
+
+**Handoff:** TASK-035 receives one qualified observed contract and its limitations.
+
+<a id="task-035"></a>
+### TASK-035: Model multiple quota periods and migrate existing providers
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Preserve the provider's quota periods and model pools in one result
+per configured account.
+
+**Dependency:** TASK-034 complete.
+
+**Owners:** REQ-061; ARCH-17. Existing weekly contracts remain regression inputs.
+
+**Scope and deliverables:** Add quota results to the domain model and adapt the
+runner and existing Codex, Grok and Claude normalization. Keep the shared query
+budget, concurrency, cancellation and owned-child cleanup. Accept additional
+periods only from qualified metadata; do not relabel an unqualified Claude
+session meter or estimate a period from its reset. Add focused behavioral tests.
+Implement ARCH-17's provider mapping, stable meter IDs, status/exit table and
+conditional remaining-fraction conversion. Freeze any newly recognized Claude
+model-weekly grammar from a captured sanitized line or a cited format in the
+installed CLI's source before adding it; synthetic-only grammar is outside the
+supported set and recorded as a limit. Record whether each test variant
+is captured, source-backed or synthetic; synthetic coverage does not claim live
+qualification. Reconcile the baseline owners listed in the planned specs table.
+Keep the current weekly presentation and JSON working until TASK-036 delivers
+the output migration, so this task leaves a usable executable.
+
+**Acceptance:** One account retains each distinct quota, its period and outcome.
+Missing values remain distinct from zero; unrelated quotas and sibling accounts
+survive a local failure. Existing measured weekly values retain their meaning.
+Grok's established weekly omission convention remains confined to its qualified
+weekly case and is not generalized to other periods or providers.
+
+**Verification:** Domain, normalization and runner tests with race coverage;
+weekly, five-hour, monthly, unknown-period, duplicate-window and partial-failure
+fixtures. Update the current architecture only for behavior actually delivered.
+REQ-061 closes here after its complete offline scope passes. Public output stays
+on its prior weekly projection (including legacy non-applicability and JSON)
+until TASK-036, including its prior stderr diagnostics and exit codes. Apply the
+new status/exit matrix publicly only in TASK-036; test both the legacy public
+projection and the richer internal result so the transition is independently usable.
+Retain the existing weekly selection outcome alongside new quotas during this
+transition; do not reconstruct it from lossy new statuses or issue another CLI
+query. TASK-036 removes this temporary projection with the public migration.
+
+**Handoff:** TASK-036 receives the tested account/quotas model and runner behavior.
+
+<a id="task-036"></a>
+### TASK-036: Render period sections and deliver JSON v2
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Show native quota periods consistently in every output mode.
+
+**Dependency:** TASK-035 complete.
+
+**Owners:** REQ-062 and REQ-063; ARCH-17 and ADR-0002.
+
+**Scope and deliverables:** Implement weekly, five-hour and monthly sections,
+account query progress and a final status area. Replace `--json` with the
+versioned v2 account/quotas structure. Update the affected existing output
+requirements, root README and configuration examples together with executable
+tests and the intentional JSON migration notice.
+Freeze text/terminal golden layouts and implement the ARCH-17 status/diagnostic
+matrix, including clean API-key accounts and unknown periods. Reconcile all
+output owners and planned/implemented preambles listed in the specifications;
+retain IDs with dated Changed notes. Document the plain-text layout break too.
+Include existing-provider exit-status changes in the migration notice and the
+REQ-024 Changed note. Update the current Final handoff format guidance when its
+output claims change; preserve the historical v0.1.0 release gate and its evidence.
+
+**Acceptance:** Empty sections are omitted; native model pools stay separate;
+aliases, ordering and reset countdowns remain safe. Unknown-period and
+account-wide failures remain visible without repeating a failed account in all
+sections. JSON includes every account and quota outcome without raw provider
+diagnostics. Terminal output restores cursor visibility on completion,
+cancellation and output failure.
+
+**Verification:** Renderer tests and fake-provider executable tests covering
+section order, multiple quotas, JSON shape, partial failure, narrow/short
+terminals, `NO_COLOR`, redirection and signals. Retain the existing exit policy,
+evaluating quota outcomes as well as account and cleanup outcomes.
+Use existing fake Codex/Grok metadata responses and synthetic Claude fixtures
+for multiple periods/pools; this task does not wait for the agy adapter.
+Revalidate the existing E2E waiver against the changed public output boundary.
+REQ-062 and REQ-063 close here when their offline acceptance scope passes.
+
+**Handoff:** TASK-037 receives the complete output contract and regression tests.
+
+<a id="task-037"></a>
+### TASK-037: Integrate isolated agy account configuration and queries
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Connect the qualified agy contract to configured account targets.
+
+**Dependency:** TASK-036 complete; TASK-034's qualified contract still applies.
+
+**Owners:** REQ-064 implementation; ARCH-18. TASK-038 owns final positive acceptance.
+
+**Scope and deliverables:** Add the `agy` account list, `--agy-bin` with default
+`agy`, explicit provider dispatch, per-target environment policy and adapter.
+Use the proven selector for each configured `name`/`path`; reject duplicate
+aliases and equivalent paths under the existing configuration policy. Add the
+provider suite to the test-stage mapping and update user-facing account guidance.
+Mark final live acceptance pending until TASK-038 and revalidate the existing
+E2E waiver for the added fake-provider identity and isolation.
+
+**Acceptance:** Each account gets its own namespace and bounded query; one
+account's auth or protocol failure preserves the other rows. Omitted agy starts
+no process. No application credential handling or global login switching occurs.
+
+**Verification:** Fake-process tests for invocation, environment filtering,
+namespace isolation, missing CLI/home, auth failure, malformed data, timeout,
+cancellation, secret-marker non-disclosure and cleanup failure.
+
+**Handoff:** TASK-038 receives a fully wired, offline-tested executable candidate.
+
+<a id="task-038"></a>
+### TASK-038: Accept agy multi-account support and the shared output
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Assess the complete EPIC-012 outcome on the final integrated candidate.
+
+**Dependency:** TASK-037 complete and the bounded final live run is authorized.
+
+**Owners:** REQ-064 final acceptance and complete EPIC-012 requirement coverage.
+
+**Scope and deliverables:** Run the full offline gate and focused regression
+coverage; qualify the final executable against two distinct agy accounts and the
+configured existing providers. Reconcile requirement, architecture and user
+documentation with actual outcomes and record remaining compatibility limits.
+
+**Acceptance:** Both agy accounts return positive independent quota results
+without model work, default-login changes or cleanup failure. Per-account
+failures remain isolated. REQ-060 through REQ-064 have full evidence; all child
+task gates and the local epic acceptance pass before epic completion is proposed.
+Each account must supply at least one measured quota in a known supported period
+and the final grouped output. Unknown-only results cannot pass. Recheck REQ-061
+through REQ-063 on this integrated candidate; do not invent live coverage of
+every period or require changing the owner's plan to exercise another variant.
+
+**Verification:** `make test`, final-candidate prompt-free metadata acceptance,
+and retained focused isolation/cancellation tests. Label native platforms and
+live period variants actually exercised. Do not stage or publish a release.
+
+**Handoff:** Canonical shared outcomes and compatibility limits for EPIC-013;
+closeout replaces this epic's Detailed SOT only after its acceptance is established.
+
+<a id="epic-013"></a>
+## EPIC-013: Cursor Agent usage support
+
+- [ ] Epic complete. **Status: NOT STARTED.**
+
+**Goal:** Query the default Cursor Agent CLI login through a qualified
+metadata-only interface and show its native subscription quotas using the
+shared period sections and JSON v2.
+
+**Entry:** EPIC-012 complete. Cursor multi-account management is excluded.
+
+**Detailed SOT:** [Cursor execution dossier](../todo/TODO-CURSOR-AGENT-SUPPORT.md).
+
+**Task sequence:** [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041).
+
+**Local epic acceptance:** REQ-065 and REQ-066 are fully verified, the final
+candidate completes a positive prompt-free Cursor query, and the full offline
+gate and existing-provider regressions pass. A source handler or failure row
+does not establish runtime support.
+
+**Handoff:** Canonical Cursor configuration, adapter contract, user guidance and
+compatibility limits. Installation and publication remain separate work.
+
+<a id="task-039"></a>
+### TASK-039: Qualify Cursor usage metadata and period semantics
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Establish an actual noninteractive CLI usage interface before its adapter.
+
+**Dependency:** EPIC-012 complete; bounded live qualification separately authorized.
+
+**Owners:** REQ-065; ARCH-19 and ARCH-09.
+
+**Scope and deliverables:** Reuse the Cursor static assessment and qualify the
+installed executable, invocation, default credential selection, structured quota
+response, periods, pool identities, reset timestamps, errors and lifecycle.
+Freeze a compatibility contract and sanitized fixtures. An interactive pager,
+identity JSON, bundled private RPC function or `-p /usage` spelling is insufficient.
+Include update suppression, ambient auth/routing overrides and the credential
+selection boundary on each claimed platform. Record unqualified Linux/macOS
+variants explicitly rather than infer them from a configuration directory.
+
+**Acceptance:** The actual CLI returns subscription usage with no model turns,
+agent tools, sessions, login or billing mutations. Explicit period metadata
+supports every accepted weekly/monthly interpretation. Missing capabilities
+block the task and epic before TASK-040; a blocker record is not a passing gate.
+
+**Verification:** Authorized metadata-only probes, absent-login and child cleanup
+checks, fixture parsing and redaction review. Do not create a direct provider
+API client, extract credentials, or wrap bundled private modules.
+
+**Handoff:** TASK-040 receives the frozen installed CLI contract and its limitations.
+
+<a id="task-040"></a>
+### TASK-040: Integrate the Cursor default-login provider
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Add Cursor to the common account query and output path.
+
+**Dependency:** TASK-039 complete and its qualified contract still applies.
+
+**Owners:** REQ-066 implementation; ARCH-19. TASK-041 owns final positive acceptance.
+
+**Scope and deliverables:** Add the named single default-login configuration,
+`--cursor-bin` with default `cursor-agent`, explicit runner dispatch, environment
+filtering and adapter. Normalize qualified native periods and pools into the
+shared model. Add its offline suite to the test stages and update public usage
+and configuration guidance.
+Mark final live acceptance pending until TASK-041 and revalidate the existing
+E2E waiver when adding the fake provider. Exclude spend from quota results.
+
+**Acceptance:** Omission disables Cursor; enabled configuration selects the
+existing CLI default login without treating a config directory as a credential
+namespace. Preserve explicit usage percentages and missing fields, separate
+subscription pools, exclude on-demand spend from quota results, and retain
+sibling results on failure. Ambient credential/routing overrides must not
+silently change the default-login identity.
+
+**Verification:** Fake-process and executable checks for configuration, command
+and environment policy, weekly/monthly fixtures, missing data, unsupported CLI,
+auth-required, timeout, cancellation, secret markers and cleanup failure.
+
+**Handoff:** TASK-041 receives the integrated, offline-tested Cursor candidate.
+
+<a id="task-041"></a>
+### TASK-041: Accept Cursor support and provider regressions
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Assess the complete EPIC-013 outcome on the final candidate.
+
+**Dependency:** TASK-040 complete and the bounded final live run is authorized.
+
+**Owners:** REQ-066 final acceptance and complete EPIC-013 requirement coverage.
+
+**Scope and deliverables:** Run full offline and existing-provider regression
+checks, qualify a positive final-candidate Cursor query, and reconcile canonical
+and user documentation with observed periods and failure behavior.
+
+**Acceptance:** REQ-065 and REQ-066 have complete evidence, the live CLI returns
+native-period subscription usage without model work or cleanup failure, and
+earlier providers retain their qualified behavior. Complete all child gates and
+the epic acceptance before proposing closeout.
+
+**Verification:** `make test`, final-executable prompt-free acceptance and focused
+failure/isolation checks. Distinguish live plan variants from fixture coverage;
+do not infer another platform or plan passed. No install or publication is included.
+
+**Handoff:** Canonical Cursor outcomes and exact remaining compatibility limits;
+closeout replaces this epic's Detailed SOT only after acceptance.
+
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate
+
+This gate covers the v0.1.0 baseline, REQ-001 through REQ-059. Planned REQ-060
+through REQ-066 have their own EPIC-012 and EPIC-013 acceptance gates and do not
+change this historical release scope.
 
 The commit-bound checks below reflect the qualified TASK-033 candidate. Their
 checked state is provisional for the documentation-only closeout commit until

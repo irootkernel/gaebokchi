@@ -52,6 +52,50 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
    note to each affected requirement.
 4. Keep live account queries out of the normal test suite.
 
+## Planned provider and output work
+
+The adopted [agy](../todo/TODO-AGY-MULTI-ACCOUNT-SUPPORT.md) and
+[Cursor](../todo/TODO-CURSOR-AGENT-SUPPORT.md) dossiers map the future work to
+requirements and architecture. TASK-034 and TASK-039 must qualify the actual CLI
+metadata contracts before their production changes. Reuse the static findings;
+do not guess account-home variables. A model-capable print path is eligible for
+a separately authorized probe only after its zero-turn guard has independently
+been established; the `-p /usage` spelling alone is not that guard. No such agy
+or Cursor path is currently qualified.
+
+For documentation-only registration, run `go run scripts/check-docs.go` and
+`git diff --check`, then inspect ID uniqueness, anchors, task ownership,
+dependencies and planned-versus-implemented wording. A full product test run or
+live account query is not evidence produced by registering a plan.
+
+When TASK-035 changes the result model, keep the current weekly presentation,
+status/diagnostics and exit codes working until TASK-036 delivers the grouped
+output and JSON compatibility break.
+Add focused period/normalization tests alongside the model change. TASK-036
+must migrate public examples and executable assertions with `--json`, including
+unknown periods, missing data, account-wide errors, short terminals and signals.
+Update affected baseline requirements only when the new behavior lands.
+Use the provider/status tables in ARCH-17 and the migration ownership table in
+the specifications. Distinguish app-owned meter IDs from provider provenance.
+Freeze text/terminal golden layouts before renderer implementation and include
+text, JSON and existing-provider exit-status changes in the compatibility notice.
+TASK-036 already owns executable
+tests with existing fake providers; it does not wait for an agy adapter.
+
+Add each new provider's fake-process suite to the explicit Makefile stage lists
+and the root `TESTING.md` mapping in TASK-037 or TASK-040. Never allow the offline
+E2E harness to fall through to a real `agy` or `cursor-agent` executable.
+Revalidate the existing `GAEBOKCHI-AQTEST-008-001` waiver in TASK-036, TASK-037
+and TASK-040 for changes to public CLI output, fake-provider identity/isolation
+and cleanup. This preserves the established Go E2E route, not an automatic
+framework migration. Mark new-provider guidance as final live acceptance pending
+until TASK-038 or TASK-041, then reconcile it with the actual accepted scope.
+Use the existing injected process boundary, bounded reads, target deadline and
+cleanup rules. At the epic acceptance task, run the complete offline gate and
+only the separately authorized metadata-only live checks; report fixture-only
+period or platform coverage explicitly. Release staging and publication remain
+outside these epics.
+
 ## Release procedure
 
 These steps stage and publish a release from a clean checkout. Building and
