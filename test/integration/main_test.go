@@ -55,12 +55,20 @@ func TestMain(m *testing.M) {
 	if os.Getenv("GAEBOKCHI_FAKE") == "1" {
 		isClaude := false
 		isClaudeAuth := false
+		isAgyVersion := false
+		isAgyUsage := false
 		for _, arg := range os.Args[1:] {
 			if arg == "--safe-mode" {
 				isClaude = true
 			}
 			if arg == "auth" {
 				isClaudeAuth = true
+			}
+			if arg == "--version" {
+				isAgyVersion = true
+			}
+			if arg == "--print" {
+				isAgyUsage = true
 			}
 		}
 		if path := os.Getenv("GAEBOKCHI_FAKE_ARGLOG"); path != "" {
@@ -89,6 +97,14 @@ func TestMain(m *testing.M) {
 				_, _ = f.WriteString(env.String())
 				_ = f.Close()
 			}
+		}
+		if isAgyVersion {
+			_, _ = os.Stdout.WriteString("1.4.0\n")
+			os.Exit(0)
+		}
+		if isAgyUsage {
+			_, _ = os.Stdout.WriteString(`{"status":"SUCCESS","num_turns":0,"usage":{"total_tokens":0},"command":{"name":"usage","data":{"groups":[{"name":"Gemini Models","buckets":[{"id":"gemini-weekly","name":"Weekly Limit Remaining","window":"weekly","remaining_fraction":0.2584281265735626,"reset_time":"2026-10-21T15:42:40Z"},{"id":"gemini-5h","name":"Five Hour Limit Remaining","window":"5h","remaining_fraction":0.85,"reset_time":"2026-10-16T18:01:19Z"}]},{"name":"Claude and GPT models","buckets":[{"id":"3p-weekly","name":"Weekly Limit Remaining","window":"weekly","remaining_fraction":0.8723080158233643,"reset_time":"2026-10-23T15:13:44Z"},{"id":"3p-5h","name":"Five Hour Limit Remaining","window":"5h","remaining_fraction":0.74,"reset_time":"2026-10-16T20:13:44Z"}]}]}}}`)
+			os.Exit(0)
 		}
 		if isClaude {
 			if isClaudeAuth {

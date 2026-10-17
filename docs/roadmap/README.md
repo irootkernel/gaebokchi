@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
-Version: v0.1.0 baseline with planned provider extensions\
-Status: EPIC-001 through EPIC-011 retain their recorded COMPLETE milestones; EPIC-012 and EPIC-013 are NOT STARTED. The exact-release gate remains separately recorded below.
+Version: v0.1.0 baseline with provider extensions\
+Status: EPIC-001 through EPIC-012 retain their recorded COMPLETE milestones; EPIC-013 is NOT STARTED. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
@@ -9,11 +9,11 @@ Project: Gaebokchi (개복치)
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
 
-The Claude extension and YAML account configuration are described in the
+The Claude and `agy` extensions and YAML account configuration are described in the
 [current requirements](../specs/README.md) and [architecture](../architecture/README.md).
 Historical task records below retain the meaning they had when completed;
 the [current release gate](#current-release-gate) governs v0.1.0 publication.
-The planned agy and Cursor extensions do not change current executable behavior
+The planned Cursor extension does not change current executable behavior
 or establish positive provider support.
 
 ## How to use this plan
@@ -56,7 +56,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (implementation milestone) |
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
-| 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | NOT STARTED |
+| 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | NOT STARTED |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
@@ -1466,7 +1466,7 @@ the exact closeout commit before tagging.
 <a id="epic-012"></a>
 ## EPIC-012: agy single-account weekly support
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Query the single default `agy` CLI login through its qualified
 metadata-only interface (`agy --print /usage --output-format json
@@ -1493,7 +1493,7 @@ conventions after this epic closes. Installation and publication are excluded.
 <a id="task-034"></a>
 ### TASK-034: Freeze qualified agy single-account metadata contract
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Record and freeze the verified metadata-only `agy` contract for the
 single default CLI login before production adapter implementation.
@@ -1510,15 +1510,15 @@ version guard (`>= 1.2.15`), child environment policy (`HOME` preserved,
 `AGY_CLI_DISABLE_AUTO_UPDATE=true`, `ANTIGRAVITY_*` / `JETSKI_*` / `AGY_*` and
 API-key/ADC overrides stripped), absent-login stderr fast-fail rule
 (`Authentication required`), and sanitized captured fixture for `gemini-weekly`
-and `3p-weekly`. Multi-account `agy` isolation is out of scope. Do not write
-production Go code in this task.
+and `3p-weekly` under `command.data.groups[].buckets[]`. Multi-account `agy`
+isolation is out of scope. Do not write production Go code in this task.
 
 **Acceptance:** The compatibility record and task verification evidence
 completely cover REQ-060 for the single default `agy` login with zero model
 turns, zero token usage, and explicit weekly pool metadata.
 
 **Verification:** `go run scripts/check-docs.go`, fixture validation, and
-redaction inspection.
+redaction inspection. Evidence: [agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Handoff:** TASK-035 receives the frozen `agy 1.4.0` JSON contract and weekly
 pool mapping.
@@ -1526,7 +1526,7 @@ pool mapping.
 <a id="task-035"></a>
 ### TASK-035: Implement exact remaining-fraction conversion and agy weekly pool parsing
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Convert `agy`'s `remaining_fraction` values without binary
 floating-point truncation noise and normalize the `gemini-weekly` and
@@ -1540,11 +1540,12 @@ remain regression inputs.
 **Scope and deliverables:** Add bounded exact-decimal `remaining_fraction`
 conversion (`used_percent = 100 * (1 - r)` from the JSON number token, with
 128-byte token, 64-digit coefficient, and `[-128, 128]` exponent bounds) and
-parse `command.data.groups[]` for `id == "gemini-weekly"` (`window == "weekly"`)
-and `id == "3p-weekly"` (`window == "weekly"`), ignoring `"5h"` entries. Parse
-RFC 3339 UTC `reset_time` into `ResetAt` and preserve a valid sibling pool row
-when the other pool is missing or malformed. Add `ProviderAgy` (`"agy"`,
-`DisplayName() == "agy"`) and `SourceAgyCLIUsage` to `internal/domain`.
+parse `command.data.groups[].buckets[]` for `id == "gemini-weekly"`
+(`window == "weekly"`) and `id == "3p-weekly"` (`window == "weekly"`), ignoring
+`"5h"` entries. Parse RFC 3339 UTC `reset_time` into `ResetAt` and preserve a
+valid sibling pool row when the other pool is missing or malformed. Add
+`ProviderAgy` (`"agy"`, `DisplayName() == "agy"`) and `SourceAgyCLIUsage` to
+`internal/domain`.
 
 **Acceptance:** Exact integer results (such as `remaining = 0.9` -> `10%`) and
 fractional results (`0.2584281265735626` -> `74.15718734264374%`, display
@@ -1553,7 +1554,7 @@ without discarding sibling pools; existing providers remain unchanged.
 
 **Verification:** Focused unit and race tests covering `0`, `1`, `0.9`,
 captured `agy 1.4.0` fractions, exponent bounds, missing/duplicate weekly pools,
-and invalid reset timestamps.
+and invalid reset timestamps. Evidence: [agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Handoff:** TASK-036 receives the tested `ProviderAgy` domain types, exact
 fraction converter, and weekly pool parser.
@@ -1561,7 +1562,7 @@ fraction converter, and weekly pool parser.
 <a id="task-036"></a>
 ### TASK-036: Verify two-row agy weekly rendering across table, terminal, and JSON
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Ensure `agy`'s two weekly rows (`gemini` and `claude/gpt`) render
 cleanly in the existing 3-column plain table, interactive terminal view, and
@@ -1584,15 +1585,15 @@ configured order after Claude in plain table, interactive terminal, and `--json`
 modes with no breaking change to existing output contracts.
 
 **Verification:** Renderer unit and golden tests covering two-row `agy`
- alignment, reset countdowns, partial pool failure, narrow/short terminals, and
-JSON serialization.
+alignment, reset countdowns, partial pool failure, narrow/short terminals, and
+JSON serialization. Evidence: [agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Handoff:** TASK-037 receives verified two-row rendering coverage.
 
 <a id="task-037"></a>
 ### TASK-037: Integrate single-account agy configuration and shared query adapter
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Wire `agy` configuration (`config.yaml` and `--agy-bin`), explicit
 provider dispatch, and the shared one-shot `internal/provider/agy` adapter.
@@ -1622,13 +1623,14 @@ map to the right statuses without breaking sibling providers.
 **Verification:** Fake-process unit, integration, and E2E tests for `--version`
 guard, one-shot shared execution across two rows, environment filtering, stderr
 auth fast-fail, malformed JSON, timeout, cancellation, and cleanup failure.
+Evidence: [agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Handoff:** TASK-038 receives a fully wired, offline-tested executable candidate.
 
 <a id="task-038"></a>
 ### TASK-038: Accept agy weekly support on the integrated executable
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Assess the complete EPIC-012 outcome on the final integrated candidate.
 
@@ -1647,7 +1649,8 @@ percentages, reset countdowns, zero model turns, and no cleanup failure.
 REQ-060 through REQ-064 have complete evidence and all child task gates pass.
 
 **Verification:** `make test` and a bounded prompt-free live run of the final
-executable. Do not stage or publish a release.
+executable. Do not stage or publish a release. Evidence:
+[agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Handoff:** Canonical shared outcomes and explicit dispatch foundation for
 EPIC-013.

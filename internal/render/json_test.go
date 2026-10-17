@@ -28,4 +28,17 @@ var _ = ginkgo.It("TestJSONSnapshotContract", func() {
 	if strings.Contains(got, "secret") || strings.Contains(got, "AI PROVIDER") {
 		t.Fatal("private fields or table leaked into JSON")
 	}
+
+	agyResults := []domain.Result{
+		{TargetID: "agy:0", Provider: domain.ProviderAgy, Account: "gemini", Status: domain.StatusOK, UsedPercent: pct(74.15718734264374), Period: domain.PeriodWeekly, Source: domain.SourceAgyCLIUsage},
+		{TargetID: "agy:1", Provider: domain.ProviderAgy, Account: "claude/gpt", Status: domain.StatusOK, UsedPercent: pct(12.76919841766357), Period: domain.PeriodWeekly, Source: domain.SourceAgyCLIUsage},
+	}
+	gotAgy, err := JSON(agyResults)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantAgy := `{"results":[{"target_id":"agy:0","provider":"agy","account":"gemini","status":"ok","used_percent":74.15718734264374,"cleanup_failed":false},{"target_id":"agy:1","provider":"agy","account":"claude/gpt","status":"ok","used_percent":12.76919841766357,"cleanup_failed":false}]}` + "\n"
+	if gotAgy != wantAgy {
+		t.Fatalf("agy JSON mismatch:\n got: %s\nwant: %s", gotAgy, wantAgy)
+	}
 })

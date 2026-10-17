@@ -26,6 +26,7 @@ type accountConfig struct {
 	Codex  []account `yaml:"codex"`
 	Grok   []account `yaml:"grok"`
 	Claude []account `yaml:"claude"`
+	Agy    []account `yaml:"agy"`
 }
 
 func configf(path, format string, args ...any) error {
@@ -101,7 +102,24 @@ func loadConfig(path, home string) (accountConfig, error) {
 			seenPaths = append(seenPaths, identity)
 		}
 	}
-	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude) == 0 {
+	if len(cfg.Agy) > 1 {
+		return accountConfig{}, configf(path, "agy supports at most one account")
+	}
+	for i := range cfg.Agy {
+		a := &cfg.Agy[i]
+		a.Name = domain.NormalizeLabel(a.Name)
+		if a.Name == "" {
+			return accountConfig{}, configf(path, "agy account %d needs a visible name", i+1)
+		}
+		if a.Path != "" {
+			expanded, err := expandPath(a.Path, home)
+			if err != nil {
+				return accountConfig{}, configf(path, "agy account %d path must be absolute or start with ~/", i+1)
+			}
+			a.Path = expanded
+		}
+	}
+	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+len(cfg.Agy) == 0 {
 		return accountConfig{}, configf(path, "configuration needs at least one account")
 	}
 	return cfg, nil
@@ -236,7 +254,7 @@ func expandPath(raw, home string) (string, error) {
 }
 
 func buildTargets(cfg accountConfig, o Options) []domain.Target {
-	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude))
+	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy))
 	for _, group := range []struct {
 		kind     domain.ProviderKind
 		accounts []account
@@ -250,6 +268,14 @@ func buildTargets(cfg accountConfig, o Options) []domain.Target {
 			targets = append(targets, domain.Target{
 				ID: fmt.Sprintf("%s:%d", group.kind, i), Index: len(targets), Provider: group.kind,
 				Home: a.Path, FallbackAccount: a.Name, Bin: group.bin,
+			})
+		}
+	}
+	if len(cfg.Agy) > 0 {
+		for i, pool := range []string{"gemini", "claude/gpt"} {
+			targets = append(targets, domain.Target{
+				ID: fmt.Sprintf("%s:%d", domain.ProviderAgy, i), Index: len(targets),
+				Provider: domain.ProviderAgy, FallbackAccount: pool, Bin: o.AgyBin,
 			})
 		}
 	}

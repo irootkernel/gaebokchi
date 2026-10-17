@@ -27,6 +27,7 @@ const (
 	SourceCodexAppServer = "codex_app_server"
 	SourceGrokACPBilling = "grok_acp_billing"
 	SourceClaudeCLIUsage = "claude_cli_usage"
+	SourceAgyCLIUsage    = "agy_cli_usage"
 )
 
 // Diagnostic is a safe, application-owned error summary. Codes and messages

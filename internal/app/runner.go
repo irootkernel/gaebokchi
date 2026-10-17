@@ -25,6 +25,7 @@ type Runner struct {
 	Codex  Querier
 	Grok   Querier
 	Claude Querier
+	Agy    Querier
 	// Observe receives a stored terminal result once for each target. Calls
 	// can arrive concurrently; the observer must not mutate the result.
 	Observe func(index int, result domain.Result)
@@ -48,12 +49,16 @@ func (r *Runner) maxActive() int {
 
 func (r *Runner) querierFor(p domain.ProviderKind) Querier {
 	switch p {
+	case domain.ProviderCodex:
+		return r.Codex
 	case domain.ProviderGrok:
 		return r.Grok
 	case domain.ProviderClaude:
 		return r.Claude
+	case domain.ProviderAgy:
+		return r.Agy
 	default:
-		return r.Codex
+		return nil
 	}
 }
 
@@ -87,18 +92,38 @@ func (r *Runner) Run(ctx context.Context, targets []domain.Target, timeout time.
 			defer wg.Done()
 			defer func() { <-sem }()
 
+			q := r.querierFor(tgt.Provider)
+			if q == nil {
+				r.store(results, tgt, unsupportedProviderResult(tgt))
+				return
+			}
 			qctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 			// A clean result here means its final response was routed
 			// before the deadline (the rpc layer rejects later ones), so
 			// it survives even when the provider's bounded cleanup runs
 			// past the deadline inside Query.
-			res := r.querierFor(tgt.Provider).Query(qctx, tgt)
+			res := q.Query(qctx, tgt)
 			r.store(results, tgt, res)
 		}()
 	}
 	wg.Wait()
 	return results
+}
+
+func unsupportedProviderResult(tgt domain.Target) domain.Result {
+	return domain.Result{
+		TargetID:      tgt.ID,
+		Provider:      tgt.Provider,
+		Account:       tgt.FallbackAccount,
+		AccountSource: domain.AccountSourceConfiguredAlias,
+		Status:        domain.StatusUnsupported,
+		ObservedAt:    time.Now(),
+		Diagnostic: domain.Diagnostic{
+			Code:    "provider_unsupported",
+			Message: tgt.ID + ": unsupported provider",
+		},
+	}
 }
 
 func cancelledResult(tgt domain.Target) domain.Result {

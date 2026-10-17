@@ -6,9 +6,9 @@ Project: **Gaebokchi (개복치)** · Ecosystem: Aquarium tool · Repository and
 
 The [requirements](../specs/README.md) define required behavior and acceptance. The [roadmap](../roadmap/README.md) owns work identity, execution order, status, and delivery history. This document describes the current implementation and its boundaries: components, data semantics, protocol and process rules, and verification design. Release archives carry these three documents, while links to verification records and other maintainer documents resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them. Decisions whose rationale should outlive a rewrite of this document are kept as [architecture decision records](../architecture-decision-records/README.md).
 
-ARCH-01 through ARCH-16 describe the implemented baseline. ARCH-17 through
-ARCH-19 are explicitly planned extensions for EPIC-012 and EPIC-013; their
-interfaces and positive provider support are not implemented or qualified.
+ARCH-01 through ARCH-18 describe the implemented baseline. ARCH-19 is an
+explicitly planned extension for EPIC-013; its interface and positive provider
+support are not yet implemented or qualified.
 
 | Section | Responsibility |
 |---|---|
@@ -28,8 +28,8 @@ interfaces and positive provider support are not implemented or qualified.
 | [ARCH-13](#arch-13) | Build and distribution |
 | [ARCH-14](#arch-14) | Change and completion discipline |
 | [ARCH-15](#arch-15) | Primary sources |
-| [ARCH-17](#arch-17) | Planned multi-quota model, period output and JSON v2 |
-| [ARCH-18](#arch-18) | Planned agy account isolation and adapter gate |
+| [ARCH-17](#arch-17) | Weekly model-pool rows and exact remaining-fraction conversion |
+| [ARCH-18](#arch-18) | agy single-account adapter and shared two-row query |
 | [ARCH-19](#arch-19) | Planned Cursor default-login adapter gate |
 
 Section numbers are stable identifiers, not reading order: ARCH-16 was added after ARCH-15 and sits with the other provider adapters.
@@ -45,7 +45,7 @@ Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req
 | Ecosystem | Aquarium tool | Standalone; no Aquarium runtime or build dependency |
 | Repository and executable | `gaebokchi` | One consistent ASCII name for repository, binary and command directory |
 | Language | Go, standard library first | Small build and deployment surface |
-| Providers | Codex, Grok, and Claude, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
+| Providers | Codex, Grok, Claude, and `agy`, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
 | Authentication | Existing provider CLI login | No token parsing or account-linking workflow |
 | Account set | Required `~/.config/gaebokchi/config.yaml` | Only listed accounts are queried; omitted providers are disabled |
 | Metric | Provider-defined weekly allowance consumed | No cross-provider arithmetic or cost comparison |
@@ -77,8 +77,9 @@ cmd/gaebokchi   composition root: version dispatch, help, output mode, signals, 
  +-> internal/provider/grok   --+-> internal/process              owned child lifecycle
  |                              +-> internal/provider/envfilter   child environment policy
  +-> internal/provider/claude ----> internal/process, internal/provider/envfilter (no RPC)
+ +-> internal/provider/agy    ----> internal/process, internal/provider/envfilter (no RPC)
 
-cmd/gaebokchi builds the three providers and injects them into internal/app through the
+cmd/gaebokchi builds the providers and injects them into internal/app through the
 app.Querier interface; internal/app imports only internal/domain.
 Every package above depends inward on internal/domain, which imports no internal package.
 internal/rpc, internal/process, and internal/provider/envfilter import only the standard library.
@@ -87,7 +88,7 @@ internal/testutil is an offline fake-process harness that only tests import.
 
 The application boundary is the small `app.Querier` interface, `Query(context.Context, domain.Target) domain.Result`. A provider returns exactly one terminal result for one target; it does not render, terminate the program, mutate the global environment, or coordinate other accounts. Expected provider failures belong in a typed result. Setup and argument failures before targets exist remain command-level errors.
 
-Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)).
+Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)); the `agy` adapter runs `--version` and `--print /usage --output-format json --print-timeout 15s` once per invocation and projects its two weekly pools (`gemini` and `claude/gpt`) onto `agy:0` and `agy:1` ([ARCH-18](#arch-18)).
 
 Repository layout (test suites are listed in `TESTING.md`):
 
@@ -104,6 +105,7 @@ internal/provider/codex/testdata/            # sanitized captured fixtures
 internal/provider/grok/{provider,normalize}.go
 internal/provider/grok/testdata/             # sanitized captured fixtures
 internal/provider/claude/provider.go
+internal/provider/agy/provider.go
 internal/provider/envfilter/envfilter.go
 internal/provider/home/home.go
 internal/render/{terminal,live,table,json}.go
@@ -119,13 +121,13 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064).
 
-A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, and `claude` lists, each containing `name` and `path`. At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
+A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, and `agy` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
 
-Targets are built in Codex, Grok, Claude order, preserving list order within each provider. IDs are `codex:0`, `grok:0`, `claude:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. The configured `name` is the output account alias on every status. Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
+Targets are built in Codex, Grok, Claude, `agy` order, preserving list order within each provider. IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
-Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
+Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -953,12 +955,12 @@ row semantics remain unchanged.
 ### Weekly model-pool mapping for `agy`
 
 A single `agy --print /usage --output-format json --print-timeout 15s` response
-contains `command.data.groups[]`, where each group has a `quotas[]` list of
+contains `command.data.groups[]`, where each group has a `buckets[]` list of
 windowed entries (`window: "weekly"` or `window: "5h"`). `gaebokchi` extracts
 only the two weekly model-group quotas and maps them to two ordered `domain.Result`
 rows under provider `agy` (`DisplayName() == "agy"`):
 
-| Target ID | Row label (`Account`) | Matched entry in `command.data.groups[].quotas[]` | Period |
+| Target ID | Row label (`Account`) | Matched entry in `command.data.groups[].buckets[]` | Period |
 |---|---|---|---|
 | `agy:0` | `gemini` | `id == "gemini-weekly"` and `window == "weekly"` | `weekly` (`domain.PeriodWeekly`) |
 | `agy:1` | `claude/gpt` | `id == "3p-weekly"` and `window == "weekly"` | `weekly` (`domain.PeriodWeekly`) |
@@ -1038,7 +1040,7 @@ fallback; unknown providers or missing adapter wiring fail without launching any
 provider process.
 
 <a id="arch-18"></a>
-## ARCH-18: Planned agy single-account adapter and shared two-row query
+## ARCH-18: agy single-account adapter and shared two-row query
 
 **Delivery:** EPIC-012, TASK-034, TASK-037 and TASK-038. **Requirements:** REQ-060
 and REQ-064. The [agy compatibility record](../verification/agy-compatibility.md)
@@ -1081,9 +1083,10 @@ documents the qualified `agy 1.4.0` contract on `darwin/arm64`.
      terminate the child process group immediately instead of waiting for `agy`'s
      60-second OAuth prompt timeout, and return `StatusAuthRequired`
      (`AUTH REQUIRED`) for both rows.
-  5. **Response validation:** Require top-level `type == "result"`,
-     `status == "SUCCESS"`, `num_turns == 0`, and `command.name == "usage"`.
-     Extract `gemini-weekly` for `agy:0` and `3p-weekly` for `agy:1`.
+  5. **Response validation:** Require `status == "SUCCESS"`, `num_turns == 0`,
+     `command.name == "usage"`, and optional top-level `type` (`""` in `json`
+     mode or `"result"`). Extract `gemini-weekly` for `agy:0` and `3p-weekly`
+     for `agy:1` from `command.data.groups[].buckets[]`.
 
 <a id="arch-19"></a>
 ## ARCH-19: Planned Cursor default-login adapter

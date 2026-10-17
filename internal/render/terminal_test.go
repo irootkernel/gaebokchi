@@ -59,6 +59,37 @@ var _ = ginkgo.It("renders a colorless grouped frame with a sanitized wide label
 	}
 })
 
+var _ = ginkgo.It("renders two agy weekly rows with blanked second provider label and reset countdowns", func() {
+	t := testT{ginkgo.GinkgoT()}
+	g := domain.Result{
+		TargetID:    "agy:0",
+		Provider:    domain.ProviderAgy,
+		Account:     "gemini",
+		Status:      domain.StatusOK,
+		UsedPercent: pct(74.15718734264374),
+		Period:      domain.PeriodWeekly,
+		ResetAt:     ptrTime(fixedNow.Add(4*24*time.Hour + 3*time.Hour)),
+		Source:      domain.SourceAgyCLIUsage,
+	}
+	c := domain.Result{
+		TargetID:    "agy:1",
+		Provider:    domain.ProviderAgy,
+		Account:     "claude/gpt",
+		Status:      domain.StatusOK,
+		UsedPercent: pct(12.76919841766357),
+		Period:      domain.PeriodWeekly,
+		ResetAt:     ptrTime(fixedNow.Add(6*24*time.Hour + 3*time.Hour)),
+		Source:      domain.SourceAgyCLIUsage,
+	}
+	frame, lines := TerminalFrame([]domain.Result{g, c}, 100, fixedNow, false, false, "")
+	want := "\n  🐡 gaebokchi · weekly usage\n\n" +
+		"  agy  gemini      ███████████████░░░░░   74.2%  ↻ 4d 3h\n" +
+		"       claude/gpt  ███░░░░░░░░░░░░░░░░░   12.8%  ↻ 6d 3h\n\n"
+	if plain(frame) != want || lines != 6 {
+		t.Fatalf("agy frame = %q, lines = %d; want %q", plain(frame), lines, want)
+	}
+})
+
 func ptrTime(value time.Time) *time.Time { return &value }
 
 var _ = ginkgo.It("rounds bars to whole cells and leaves precision in the percentage", func() {

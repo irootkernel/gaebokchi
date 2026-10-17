@@ -42,9 +42,10 @@ On 2026-10-17, bounded live probes against `agy 1.4.0` on `darwin/arm64`
 - `agy --print /usage --output-format json --print-timeout 15s` exits `0` in
   ~5.2s with `status: "SUCCESS"`, `num_turns: 0`, `usage.total_tokens: 0`,
   `conversation_id: ""`, and no created files.
-- `command.data.groups[]` exposes two weekly model pools (`id: "gemini-weekly"`
-  and `id: "3p-weekly"`, both with `window: "weekly"`, `remaining_fraction`, and
-  RFC 3339 UTC `reset_time`) alongside 5-hour pools (`window: "5h"`).
+- `command.data.groups[].buckets[]` exposes two weekly model pools
+  (`id: "gemini-weekly"` and `id: "3p-weekly"`, both with `window: "weekly"`,
+  `remaining_fraction`, and RFC 3339 UTC `reset_time`) alongside 5-hour pools
+  (`window: "5h"`).
 - `agy` changelog confirms v1.1.11 added turn-free JSON `/usage` responses in
   print mode and v1.2.15 normalized piped/JSON reset timestamps to UTC (minimum
   supported version `>= 1.2.15`).
@@ -74,10 +75,11 @@ On 2026-10-17, bounded live probes against `agy 1.4.0` on `darwin/arm64`
 
 ## Acceptance and downstream handoff
 
-The epic closes when `make test` passes and a bounded live run of the final
-executable returns ordered weekly rows for the configured providers plus both
-`agy` rows (`gemini` and `claude/gpt`) with valid percentages, reset countdowns,
-zero model turns, and no cleanup failure.
+Completed on 2026-10-17 ([agy compatibility](../verification/agy-compatibility.md)):
+`make test` passed and a bounded live run of the final executable returned
+ordered weekly rows for the configured providers plus both `agy` rows (`gemini`
+and `claude/gpt`) with valid percentages, reset countdowns, zero model turns,
+and no cleanup failure.
 
 Handoff to [EPIC-013](../roadmap/README.md#epic-013) consists of explicit
 provider dispatch and the shared runtime guard conventions. Installation,

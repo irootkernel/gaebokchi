@@ -109,6 +109,9 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	if !hasFlag(inv.args, "--claude-bin") {
 		args = append(args, "--claude-bin", fake)
 	}
+	if !hasFlag(inv.args, "--agy-bin") {
+		args = append(args, "--agy-bin", fake)
+	}
 	args = append(args, inv.args...)
 
 	cmd := exec.Command(bin, args...)
@@ -724,6 +727,61 @@ var _ = ginkgo.It("uses implicit Claude credentials for the default home", func(
 	}
 	if strings.Count(string(logged), "=== child") != 2 || strings.Contains(string(logged), "\nCLAUDE_CONFIG_DIR=") {
 		t.Fatalf("default Claude child received a config override")
+	}
+})
+
+var _ = ginkgo.It("queries agy once and emits gemini and claude/gpt weekly rows in table and JSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	argLog, envLog := filepath.Join(dir, "args.log"), filepath.Join(dir, "env.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "agy:\n  - name: default\n",
+		args:   []string{"--json"},
+		argLog: argLog, envLog: envLog,
+		env: []string{
+			"ANTIGRAVITY_LS_ADDRESS=127.0.0.1:9999",
+			"GEMINI_API_KEY=secret-gemini-key",
+		},
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 2 ||
+		rows[0].TargetID != "agy:0" || rows[0].Provider != "agy" || rows[0].Account != "gemini" ||
+		rows[0].Status != "ok" || rows[0].UsedPercent == nil || *rows[0].UsedPercent != 74.15718734264374 ||
+		rows[1].TargetID != "agy:1" || rows[1].Provider != "agy" || rows[1].Account != "claude/gpt" ||
+		rows[1].Status != "ok" || rows[1].UsedPercent == nil || *rows[1].UsedPercent != 12.76919841766357 {
+		t.Fatalf("agy JSON rows = %+v", rows)
+	}
+	args, err := os.ReadFile(argLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(args)) != "argv: --version\nargv: --print /usage --output-format json --print-timeout 15s" {
+		t.Fatalf("unexpected agy argv log: %q", args)
+	}
+	env, err := os.ReadFile(envLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(env), "ANTIGRAVITY_LS_ADDRESS=") ||
+		strings.Contains(string(env), "GEMINI_API_KEY=") ||
+		!strings.Contains(string(env), "\nAGY_CLI_DISABLE_AUTO_UPDATE=true\n") {
+		t.Fatalf("agy child env was not filtered: %q", env)
+	}
+
+	tableOut, tableErr, tableCode := runCLI(t, invocation{
+		config: "agy:\n  - name: default\n",
+	})
+	if tableCode != 0 || tableErr != "" {
+		t.Fatalf("table code=%d stderr=%q", tableCode, tableErr)
+	}
+	lines := strings.Split(strings.TrimSuffix(tableOut, "\n"), "\n")
+	if len(lines) != 3 ||
+		!strings.Contains(lines[1], "agy") || !strings.Contains(lines[1], "gemini") || !strings.Contains(lines[1], "74.2%") ||
+		!strings.Contains(lines[2], "agy") || !strings.Contains(lines[2], "claude/gpt") || !strings.Contains(lines[2], "12.8%") {
+		t.Fatalf("unexpected agy table:\n%s", tableOut)
 	}
 })
 

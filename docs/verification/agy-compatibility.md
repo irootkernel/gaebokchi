@@ -47,12 +47,15 @@ absent-login probes.
 
 ## Sanitized captured response fixture (`agy 1.4.0`, `darwin/arm64`)
 
- Provenance: captured live on 2026-10-17 from `agy 1.4.0` using the qualified
+Provenance: captured live on 2026-10-17 from `agy 1.4.0` using the qualified
 command above; field-allowlisted with no account identifiers or credentials.
+Note that in `--output-format json`, the top-level keys are `status`,
+`num_turns`, `conversation_id`, `duration_seconds`, `response`, `usage`, and
+`command` (`type: "result"` is emitted only in `stream-json`), and each model
+group's quota entries appear under `command.data.groups[].buckets[]`:
 
 ```json
 {
-  "type": "result",
   "status": "SUCCESS",
   "num_turns": 0,
   "conversation_id": "",
@@ -72,17 +75,19 @@ command above; field-allowlisted with no account identifiers or credentials.
         {
           "name": "Gemini Models",
           "description": "Models within this group: Gemini Flash, Gemini Pro",
-          "quotas": [
+          "buckets": [
             {
               "id": "gemini-weekly",
-              "label": "Weekly",
+              "name": "Weekly",
+              "description": "Gemini Models Weekly Quota",
               "window": "weekly",
               "remaining_fraction": 0.2584281265735626,
               "reset_time": "2026-10-21T15:42:40Z"
             },
             {
               "id": "gemini-5h",
-              "label": "5-Hour",
+              "name": "5-Hour",
+              "description": "Gemini Models 5-Hour Quota",
               "window": "5h",
               "remaining_fraction": 0.8503220677375793,
               "reset_time": "2026-10-16T18:01:19Z"
@@ -92,17 +97,19 @@ command above; field-allowlisted with no account identifiers or credentials.
         {
           "name": "Claude and GPT models",
           "description": "Models within this group: Claude Opus, Claude Sonnet, GPT-OSS",
-          "quotas": [
+          "buckets": [
             {
               "id": "3p-weekly",
-              "label": "Weekly",
+              "name": "Weekly",
+              "description": "Claude and GPT models Weekly Quota",
               "window": "weekly",
               "remaining_fraction": 0.8723080158233643,
               "reset_time": "2026-10-23T15:13:44Z"
             },
             {
               "id": "3p-5h",
-              "label": "5-Hour",
+              "name": "5-Hour",
+              "description": "Claude and GPT models 5-Hour Quota",
               "window": "5h",
               "remaining_fraction": 0.7446160912513733,
               "reset_time": "2026-10-16T20:13:44Z"
@@ -120,7 +127,7 @@ command above; field-allowlisted with no account identifiers or credentials.
 One shared `agy` query per `gaebokchi` invocation populates two weekly rows under
 provider `agy` (`DisplayName: "agy"`):
 
-| Target ID | Row label (`ACCOUNT` column) | Matched quota (`command.data.groups[].quotas[]`) | Used percentage calculation | Observed sample |
+| Target ID | Row label (`ACCOUNT` column) | Matched quota (`command.data.groups[].buckets[]`) | Used percentage calculation | Observed sample |
 |---|---|---|---|---|
 | `agy:0` | `gemini` | `id == "gemini-weekly"` and `window == "weekly"` | `100 * (1 - remaining_fraction)` via exact decimal token math | `74.15718734264374%` (`74.2%`, `↻ 4d 3h`) |
 | `agy:1` | `claude/gpt` | `id == "3p-weekly"` and `window == "weekly"` | `100 * (1 - remaining_fraction)` via exact decimal token math | `12.76919841766357%` (`12.8%`, `↻ 6d 3h`) |
@@ -148,9 +155,71 @@ Quotas with `window: "5h"` (`gemini-5h`, `3p-5h`) are ignored because
   Because `gaebokchi` supports only the single main `agy` login, no `HOME`
   relocation or multi-account selector is used.
 
+## EPIC-012 implementation and live acceptance evidence (`TASK-034` through `TASK-038`)
+
+- **Tasks:** [TASK-034](../roadmap/README.md#task-034),
+  [TASK-035](../roadmap/README.md#task-035),
+  [TASK-036](../roadmap/README.md#task-036),
+  [TASK-037](../roadmap/README.md#task-037),
+  [TASK-038](../roadmap/README.md#task-038) — **Status: COMPLETE** (2026-10-17).
+- **Requirements and architecture covered:**
+  [REQ-060](../specs/README.md#req-060) through
+  [REQ-064](../specs/README.md#req-064);
+  [ARCH-02](../architecture/README.md#arch-02),
+  [ARCH-03](../architecture/README.md#arch-03),
+  [ARCH-09](../architecture/README.md#arch-09),
+  [ARCH-11](../architecture/README.md#arch-11),
+  [ARCH-17](../architecture/README.md#arch-17), and
+  [ARCH-18](../architecture/README.md#arch-18).
+- **Changed files:**
+  - `internal/domain/{target,result,percent,domain_test}.go`
+  - `internal/provider/envfilter/{envfilter,envfilter_test}.go`
+  - `internal/provider/agy/{provider,agy_suite_test,provider_test}.go`
+  - `internal/options/{options,config,options_test}.go`
+  - `internal/app/{runner,runner_test}.go`
+  - `internal/render/{table_test,terminal_test,json_test}.go`
+  - `cmd/gaebokchi/{main,main_test}.go`
+  - `test/integration/{main_test,e2e_test}.go`
+  - `Makefile`, `TESTING.md`, `README.md`, `configuration/README.md`, `docs/*`
+- **Offline verification (`darwin/arm64`, Go 1.27.0, `golangci-lint` v2.13.2):**
+  - `V-QUOTA`, `V-OPTIONS`, `V-OUTPUT`, `V-RUNNER`, `V-AGY`, `V-E2E`:
+    `make test` (`test-prepare`, `test-unit`, `test-int`, `test-e2e`) — **PASS**
+    (all race-instrumented unit, integration, and E2E suites passed with 0 failures).
+- **Live integrated-executable verification (`V-AGY`, `V-LIVE`, `darwin/arm64`, 2026-10-17):**
+  - Ran the built `gaebokchi` executable against the configured two Codex homes,
+    Grok, Claude, and the default `agy 1.4.0` login (`agy:\n  - name: default\n`)
+    across plain table, `--json`, and interactive terminal view.
+  - All 6 rows returned `status: "ok"` (`cleanup_failed: false`, exit `0`, empty
+    stderr):
+    - Plain table:
+      ```text
+      AI PROVIDER  ACCOUNT     WEEKLY USAGE
+      ChatGPT      default     84%
+      ChatGPT      hsy         75%
+      Grok         default     94%
+      Claude       default     75%
+      agy          gemini      16.4%
+      agy          claude/gpt  100%
+      ```
+    - Interactive terminal view:
+      ```text
+        🐡 gaebokchi · weekly usage
+
+        ChatGPT  default     █████████████████░░░     84%  ↻ 4d 22h
+                 hsy         ███████████████░░░░░     75%  ↻ 4d 22h
+        Grok     default     ███████████████████░     94%  ↻ 7h 58m
+        Claude   default     ███████████████░░░░░     75%  ↻ 2d 2h
+        agy      gemini      ███░░░░░░░░░░░░░░░░░   16.4%  ↻ 6d 15h
+                 claude/gpt  ████████████████████    100%  ↻ 6d 7h
+      ```
+  - **Skipped / not run:** Native Linux execution of the new `EPIC-012` suite was
+    not run on this macOS host (`darwin/arm64`); cross-compilation remains covered
+    by `V-BUILD`.
+
 Sources: [S-17](../architecture/README.md#s-17),
 [S-18](../architecture/README.md#s-18), [S-19](../architecture/README.md#s-19),
 [S-22](../architecture/README.md#s-22), and
 [S-23](../architecture/README.md#s-23). See
 [ARCH-18](../architecture/README.md#arch-18) and the
 [execution dossier](../todo/TODO-AGY-MULTI-ACCOUNT-SUPPORT.md).
+

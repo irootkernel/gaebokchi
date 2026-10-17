@@ -23,6 +23,8 @@ claude:
     path: ~/.claude-work
   - name: personal
     path: ~/.claude-personal
+agy:
+  - name: default
 ```
 
 Save that YAML as `~/.config/gaebokchi/config.yaml`. The example names and paths
@@ -31,15 +33,19 @@ contains display aliases and paths, not passwords or tokens.
 
 ## Account paths and logins
 
-Each list entry needs a `name` and a `path`. `name` is the label shown in the
-table and JSON output. It does not select or verify a provider login. `path`
-selects the CLI-managed account state for that row:
+Each `codex`, `grok`, and `claude` entry needs a `name` and a `path`. `name` is
+the label shown in the table and JSON output. It does not select or verify a
+provider login. `path` selects the CLI-managed account state for that row.
+`agy` accepts at most one entry (such as `- name: default`, with no `path`
+required) and queries the single default `agy` login once to display two weekly
+model-pool rows (`gemini` and `claude/gpt`):
 
 | List | Child environment variable | Login state |
 |---|---|---|
 | `codex` | `CODEX_HOME` | Codex CLI home |
 | `grok` | `GROK_HOME` | Grok CLI home |
 | `claude` | `CLAUDE_CONFIG_DIR` for other homes | Claude Code configuration directory |
+| `agy` | Preserves `HOME` (`AGY_CLI_DISABLE_AUTO_UPDATE=true`) | Single default Google Antigravity CLI login (`gemini` and `claude/gpt` weekly pools) |
 
 Log in separately through each provider CLI with the matching variable. For
 example:
@@ -50,11 +56,12 @@ CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
 ```
 
 For Grok, set `GROK_HOME` to the configured path while using the installed
-Grok CLI's login flow. Gaebokchi does not create provider homes, read
-credentials, or perform logins. For Claude, it removes an inherited
-`CLAUDE_CODE_OAUTH_TOKEN` from the child environment so the configured login
-state is used. The default `~/.claude` home uses the CLI's implicit credential
-namespace; other Claude homes set `CLAUDE_CONFIG_DIR` and need their own login.
+Grok CLI's login flow. For `agy`, log in once through the installed `agy` CLI.
+Gaebokchi does not create provider homes, read credentials, or perform logins.
+For Claude, it removes an inherited `CLAUDE_CODE_OAUTH_TOKEN` from the child
+environment so the configured login state is used. The default `~/.claude` home
+uses the CLI's implicit credential namespace; other Claude homes set
+`CLAUDE_CONFIG_DIR` and need their own login.
 
 ## Choose which providers run
 
@@ -70,9 +77,9 @@ claude:
     path: ~/.claude-personal
 ```
 
-At least one account is required. Rows appear in Codex, Grok, Claude order,
-then in each list's order. A missing CLI for a configured account produces a
-`NOT INSTALLED` row; an omitted provider launches no CLI.
+At least one account is required. Rows appear in Codex, Grok, Claude, `agy`
+order, then in each list's order. A missing CLI for a configured account
+produces a `NOT INSTALLED` row; an omitted provider launches no CLI.
 
 ## Check the file
 

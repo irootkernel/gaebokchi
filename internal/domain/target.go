@@ -12,6 +12,7 @@ const (
 	// ProviderGrok is the xAI Grok CLI (ACP stdio protocol).
 	ProviderGrok   ProviderKind = "grok"
 	ProviderClaude ProviderKind = "claude"
+	ProviderAgy    ProviderKind = "agy"
 )
 
 // DisplayName returns the AI PROVIDER column text for a provider kind.
@@ -23,6 +24,8 @@ func (p ProviderKind) DisplayName() string {
 		return "Grok"
 	case ProviderClaude:
 		return "Claude"
+	case ProviderAgy:
+		return "agy"
 	default:
 		return string(p)
 	}

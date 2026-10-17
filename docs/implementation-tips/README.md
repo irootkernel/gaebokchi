@@ -35,6 +35,7 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 | Concurrency, deadlines, or cancellation | `internal/app`, `internal/process` | ARCH-05, REQ-009, REQ-020, REQ-022, REQ-023 |
 | Codex or Grok wire behavior | `internal/rpc`, `internal/provider/codex`, `internal/provider/grok` | ARCH-06 to ARCH-08, the `testdata/` fixtures, the compatibility record |
 | Claude behavior | `internal/provider/claude` | ARCH-16, REQ-056 to REQ-059, the Claude compatibility record |
+| `agy` behavior | `internal/provider/agy` | ARCH-17, ARCH-18, REQ-060 to REQ-064, the agy compatibility record |
 | Child environment filtering | `internal/provider/envfilter` | ARCH-09 and the provider's own section |
 | Table, JSON, terminal view, or diagnostics | `internal/render`, `cmd/gaebokchi` | ARCH-10, REQ-011, REQ-012, REQ-052 to REQ-055, the README |
 | Exit codes or signals | `cmd/gaebokchi` | ARCH-10, REQ-024 |

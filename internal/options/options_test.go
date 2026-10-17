@@ -496,14 +496,34 @@ var _ = ginkgo.It("rejects removed account flags and invalid scalar flags", func
 		{"--timeout", "999ms"}, {"--timeout", "121s"}, {"--timeout", "bad"},
 		{"--timeout"}, {"--json=true"}, {"--help", "--help"},
 		{"--codex-bin", ""}, {"--claude-bin", "a", "--claude-bin", "b"},
+		{"--agy-bin", ""}, {"--agy-bin", "a", "--agy-bin", "b"},
 	} {
 		_, err := parse(args)
 		if !IsUsageError(err) {
 			ginkgo.Fail("accepted invalid args: " + strings.Join(args, " "))
 		}
 	}
-	o, err := parse([]string{"--codex-bin=/tmp/codex", "-h"})
-	if err != nil || o.CodexBin != "/tmp/codex" || !o.Help {
+	o, err := parse([]string{"--codex-bin=/tmp/codex", "--agy-bin=/tmp/agy", "-h"})
+	if err != nil || o.CodexBin != "/tmp/codex" || o.AgyBin != "/tmp/agy" || !o.Help {
 		ginkgo.Fail("valid flags rejected")
+	}
+})
+
+var _ = ginkgo.It("emits two weekly pool targets for a single configured agy account and rejects more than one", func() {
+	t := testT{ginkgo.GinkgoT()}
+	o := parseWithConfig(t, "agy:\n  - name: default\n", "--agy-bin", "/opt/bin/agy")
+	targets := o.Targets()
+	if len(targets) != 2 {
+		t.Fatalf("targets = %+v, want 2 agy pool targets", targets)
+	}
+	if targets[0].ID != "agy:0" || targets[0].FallbackAccount != "gemini" || targets[0].Bin != "/opt/bin/agy" ||
+		targets[1].ID != "agy:1" || targets[1].FallbackAccount != "claude/gpt" || targets[1].Bin != "/opt/bin/agy" {
+		t.Fatalf("unexpected agy targets: %+v", targets)
+	}
+
+	home := t.TempDir()
+	path := writeConfig(t, home, "agy:\n  - name: first\n  - name: second\n")
+	if _, err := loadConfig(path, home); !IsConfigError(err) || !strings.Contains(err.Error(), "agy supports at most one account") {
+		t.Fatalf("multiple agy accounts were accepted: %v", err)
 	}
 })

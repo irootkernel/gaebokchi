@@ -11,6 +11,9 @@ type Rule struct {
 	// Drop lists variable names to remove from the inherited
 	// environment (credential overrides and parent-session markers).
 	Drop []string
+	// DropPrefixes lists variable name prefixes to remove from the
+	// inherited environment.
+	DropPrefixes []string
 	// Set maps variable names to replacement values applied after the
 	// drops (e.g. the per-target CODEX_HOME).
 	Set map[string]string
@@ -42,6 +45,24 @@ func Claude() Rule {
 	}}
 }
 
+// Agy drops ambient Antigravity/Jetski/Gemini/ADC overrides and disables
+// background CLI auto-updates while preserving HOME for the user's main
+// Google sign-in.
+func Agy() Rule {
+	return Rule{
+		Drop: []string{
+			"GEMINI_API_KEY", "GOOGLE_GEMINI_BASE_URL", "AGY_ADC_AUTH",
+			"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_QUOTA_PROJECT",
+		},
+		DropPrefixes: []string{
+			"ANTIGRAVITY_", "JETSKI_", "AGY_",
+		},
+		Set: map[string]string{
+			"AGY_CLI_DISABLE_AUTO_UPDATE": "true",
+		},
+	}
+}
+
 // Apply returns the child environment for parent. Later duplicate
 // entries for the same name win in the parent list; after Apply each
 // adjusted name appears exactly once, at its last position, and
@@ -50,6 +71,17 @@ func Apply(parent []string, r Rule) []string {
 	drop := make(map[string]bool, len(r.Drop))
 	for _, name := range r.Drop {
 		drop[name] = true
+	}
+	shouldDrop := func(name string) bool {
+		if drop[name] {
+			return true
+		}
+		for _, prefix := range r.DropPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				return true
+			}
+		}
+		return false
 	}
 
 	// Resolve the winning entry per name while preserving order.
@@ -70,7 +102,7 @@ func Apply(parent []string, r Rule) []string {
 	out := make([]string, 0, len(parent))
 	emitted := make(map[string]bool, len(r.Set))
 	for _, name := range order {
-		if drop[name] {
+		if shouldDrop(name) {
 			continue
 		}
 		if v, ok := r.Set[name]; ok {

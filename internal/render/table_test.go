@@ -162,3 +162,20 @@ var _ = ginkgo.It("TestResetAndProvenanceNeverRendered", func() {
 		t.Fatalf("window provenance leaked into the table:\n%s", got)
 	}
 })
+
+var _ = ginkgo.It("TestTableAgyTwoRows", func() {
+	t := testT{ginkgo.GinkgoT()}
+	results := []domain.Result{
+		{TargetID: "claude:0", Provider: domain.ProviderClaude, Account: "default", Status: domain.StatusOK, UsedPercent: pct(42)},
+		{TargetID: "agy:0", Provider: domain.ProviderAgy, Account: "gemini", Status: domain.StatusOK, UsedPercent: pct(74.15718734264374)},
+		{TargetID: "agy:1", Provider: domain.ProviderAgy, Account: "claude/gpt", Status: domain.StatusOK, UsedPercent: pct(12.76919841766357)},
+	}
+	got := Table(results)
+	want := "AI PROVIDER  ACCOUNT     WEEKLY USAGE\n" +
+		"Claude       default     42%\n" +
+		"agy          gemini      74.2%\n" +
+		"agy          claude/gpt  12.8%\n"
+	if got != want {
+		t.Fatalf("agy two-row table mismatch:\n got:\n%s\nwant:\n%s", got, want)
+	}
+})

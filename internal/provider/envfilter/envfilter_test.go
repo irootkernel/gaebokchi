@@ -68,6 +68,31 @@ var _ = ginkgo.It("TestSetWithoutExistingEntryAppends", func() {
 	}
 })
 
+var _ = ginkgo.It("TestAgyRuleDropsPrefixesAndSetsAutoUpdateDisable", func() {
+	t := testT{ginkgo.GinkgoT()}
+	parent := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"ANTIGRAVITY_APP_DATA_DIR=/tmp/override",
+		"JETSKI_TEST=1",
+		"AGY_ADC_AUTH=true",
+		"AGY_CLI_DISABLE_AUTO_UPDATE=false",
+		"GEMINI_API_KEY=gem-secret",
+		"GOOGLE_GEMINI_BASE_URL=https://example.invalid",
+		"GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json",
+		"GOOGLE_CLOUD_QUOTA_PROJECT=my-proj",
+	}
+	got := Apply(parent, Agy())
+	want := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"AGY_CLI_DISABLE_AUTO_UPDATE=true",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("agy env = %v, want %v", got, want)
+	}
+})
+
 func contains(list []string, want string) bool {
 	for _, v := range list {
 		if v == want {

@@ -16,6 +16,7 @@ const (
 	DefaultCodexBin  = "codex"
 	DefaultGrokBin   = "grok"
 	DefaultClaudeBin = "claude"
+	DefaultAgyBin    = "agy"
 	DefaultTimeout   = 20 * time.Second
 	minTimeout       = 1 * time.Second
 	maxTimeout       = 120 * time.Second
@@ -26,6 +27,7 @@ type Options struct {
 	CodexBin  string
 	GrokBin   string
 	ClaudeBin string
+	AgyBin    string
 	Timeout   time.Duration
 	Help      bool
 	JSON      bool
@@ -78,6 +80,7 @@ func specs() map[string]*flagSpec {
 		"codex-bin":  {name: "codex-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.CodexBin }, "codex-bin")},
 		"grok-bin":   {name: "grok-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.GrokBin }, "grok-bin")},
 		"claude-bin": {name: "claude-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.ClaudeBin }, "claude-bin")},
+		"agy-bin":    {name: "agy-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.AgyBin }, "agy-bin")},
 		"timeout": {name: "timeout", kind: kindDuration, set: func(o *Options, v string) error {
 			d, err := time.ParseDuration(v)
 			if err != nil || d < minTimeout || d > maxTimeout {
@@ -111,7 +114,11 @@ func Parse(args []string) (Options, error) {
 func parse(args []string) (Options, error) {
 	table := specs()
 	seen := map[string]bool{}
-	o := Options{CodexBin: DefaultCodexBin, GrokBin: DefaultGrokBin, ClaudeBin: DefaultClaudeBin, Timeout: DefaultTimeout}
+	o := Options{
+		CodexBin: DefaultCodexBin, GrokBin: DefaultGrokBin,
+		ClaudeBin: DefaultClaudeBin, AgyBin: DefaultAgyBin,
+		Timeout: DefaultTimeout,
+	}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if !strings.HasPrefix(arg, "-") || arg == "-" {
