@@ -650,7 +650,7 @@ Cover cached-token negotiation, API-key-only advertisement, interactive-only log
 Use a fake `claude` executable. Cover logged-out, API-key, and unrecognized auth modes, none of which may launch the usage command; a missing executable; a usage timeout; the exact two command lines; and the result metadata. For the usage envelope and weekly line, cover other meters beside the all-models line, decimals, a missing or duplicated line, values above 100 and negative values, a model turn, a nonzero cost, non-JSON output, missing envelope fields, and another local command. For reset text, cover whole hours, minutes, noon and midnight, an explicit year, the zone's year, a year change during the command, the comma join, daylight-saving gaps and overlaps, an unknown zone, unrecognized text, an impossible date, an absent suffix, and another meter's reset. Assert that the child environment drops Anthropic credential and routing overrides, sets `CLAUDE_CONFIG_DIR` for custom homes, and leaves it unset for the default home.
 
 <a id="v-agy"></a>
-### V-AGY: Planned agy qualification and integration
+### V-AGY: agy qualification and integration
 
 TASK-034 owns the metadata-only interface (`agy --print /usage --output-format json --print-timeout 15s`),
 runtime version guard (`>= 1.2.15`), update opt-out (`AGY_CLI_DISABLE_AUTO_UPDATE=true`),
@@ -704,7 +704,7 @@ Assert complete outbound method allowlists, false host capabilities, no raw secr
 <a id="v-e2e"></a>
 ### V-E2E: Executable-level offline acceptance
 
-Build gaebokchi into a temporary directory and point the Codex, Grok, and Claude executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
+Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, and `agy` executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
 
 <a id="v-build"></a>
 ### V-BUILD: Reproducible local builds
@@ -738,9 +738,9 @@ The canonical offline gate is `make test`. `TESTING.md` maps its prepare, unit, 
 <a id="arch-12"></a>
 ## ARCH-12: Compatibility gate and evidence policy
 
-Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013).
+Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038).
 
-Compatibility status; the [compatibility record](../verification/compatibility.md) and the [Claude compatibility record](../verification/claude-compatibility.md) hold the details and dates:
+Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), and the [agy compatibility record](../verification/agy-compatibility.md) hold the details and dates:
 
 | Integration | Public evidence | Installed CLI qualification |
 |---|---|---|
@@ -752,6 +752,7 @@ Compatibility status; the [compatibility record](../verification/compatibility.m
 | Grok 1.0.41 weekly response | Local 1.0.41 source checkout | Metadata-only live probe: weekly period with the percentage member omitted; handled by the ARCH-08 display convention |
 | Claude auth status and `/usage` local command | Claude Code command, CLI, and environment references ([S-14](#s-14) through [S-16](#s-16)) | Observed live with Claude Code 2.1.280 on darwin/arm64 |
 | Claude weekly reset text | Installed CLI formatter behavior | Observed live with Claude Code 2.1.283 on darwin/arm64 |
+| `agy` single-account `/usage` JSON weekly pools (`gemini-weekly`, `3p-weekly`) | Antigravity CLI headless, usage, and troubleshooting references ([S-17](#s-17) through [S-19](#s-19), [S-22](#s-22), [S-23](#s-23)) | QUALIFIED live with `agy 1.4.0` on darwin/arm64 (TASK-034, TASK-038) |
 | macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); TASK-031 and TASK-032 reran the full gates on both; TASK-033 reran them on its corrected uncommitted candidate |
 
 Run small, bounded, developer-only metadata probes before production transport or provider work, as TASK-001 did for Codex and Grok. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.

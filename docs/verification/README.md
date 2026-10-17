@@ -10,8 +10,9 @@ current merely because a later tree retains the record.
   local-command and weekly reset-text qualification.
 - [agy-compatibility.md](agy-compatibility.md) records the qualified `agy 1.4.0`
   single-account `/usage` JSON metadata contract, version guard (`>= 1.2.15`),
-  child environment filter, absent-login fast-fail behavior, and sanitized
-  captured fixture for the `gemini` and `claude/gpt` weekly pools.
+  child environment filter, absent-login fast-fail behavior, sanitized captured
+  fixture for the `gemini` and `claude/gpt` weekly pools, and the completed
+  `EPIC-012` (`TASK-034` through `TASK-038`) offline and live acceptance evidence.
 - [cursor-compatibility.md](cursor-compatibility.md) records static capability
   findings and the noninteractive usage-interface prerequisite for TASK-039.
   It contains no positive live qualification.

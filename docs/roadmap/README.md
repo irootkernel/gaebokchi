@@ -72,13 +72,12 @@ The exact release commit still needs its post-commit gate receipt before tagging
 The task order is globally sequential: TASK-001 through TASK-041. Runtime
 account queries may be concurrent; development tasks may not.
 
-EPIC-012 and EPIC-013 are adopted future work with separate execution dossiers.
-On 2026-10-17, the owner scoped `EPIC-012` to the single default `agy` login
-with two weekly rows (`gemini` and `claude/gpt`) in the existing weekly output,
-and the `agy 1.4.0` metadata contract was qualified in
+EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
+single-account `agy` weekly usage support with two weekly rows (`gemini` and
+`claude/gpt`) in the existing weekly output, verified in
 [agy-compatibility.md](../verification/agy-compatibility.md).
-[Cursor](../verification/cursor-compatibility.md) remains unqualified until
-TASK-039.
+EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) remains adopted
+future work and is unqualified until TASK-039.
 
 <a id="provider-discovery-preflight"></a>
 ### Independent provider discovery preflights

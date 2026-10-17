@@ -40,25 +40,22 @@ The root README is the public product entrypoint and must stay useful to someone
 
 Release archives carry the root README, LICENSE, THIRD_PARTY_NOTICES.txt, configuration guide, specifications, architecture, and roadmap (`scripts/build-release.sh`, enforced by `scripts/archivecheck.go`). Links from those documents to other files, such as verification records, resolve only in the repository.
 
-## Planned provider work
+## Provider extensions
 
-[EPIC-012](roadmap/README.md#epic-012) adopts `agy` single-account weekly usage
-support (`gemini` and `claude/gpt` rows). [EPIC-013](roadmap/README.md#epic-013)
-adopts Cursor default-login usage support after EPIC-012 completes. Independent,
-evidence-only discovery for either provider is allowed under the
+[EPIC-012](roadmap/README.md#epic-012) (`TASK-034` through `TASK-038`, `REQ-060`
+through `REQ-064`, `ARCH-17`, and `ARCH-18`) is **COMPLETE**: `gaebokchi` supports
+single-account `agy` weekly usage (`gemini` and `claude/gpt` rows) from a single
+shared `agy --print /usage --output-format json --print-timeout 15s` invocation,
+verified in [agy-compatibility.md](verification/agy-compatibility.md) and the
+[preflight record](verification/provider-extension-preflight-2026-10-16.md).
+
+[EPIC-013](roadmap/README.md#epic-013) (`TASK-039` through `TASK-041`, `REQ-065`,
+`REQ-066`, and `ARCH-19`) adopts planned Cursor default-login usage support.
+Independent, evidence-only discovery for Cursor is allowed under the
 [roadmap exception](roadmap/README.md#provider-discovery-preflight), without
-changing production order or task completion. Each has a linked
+changing production order or task completion. Each extension has a linked
 [execution dossier](todo/README.md). The roadmap owns lifecycle state; the
 dossiers map tasks to canonical requirements and architecture.
-
-REQ-060 through REQ-066 and ARCH-17 through ARCH-19 describe planned behavior.
-The executable remains the weekly-only Codex/Grok/Claude implementation until
-the owning tasks deliver changes. On 2026-10-17, the `agy 1.4.0` single-account
-`/usage` JSON contract was qualified in
-[agy-compatibility.md](verification/agy-compatibility.md) and the
-[preflight record](verification/provider-extension-preflight-2026-10-16.md),
-and the owner confirmed weekly-only continuity with two weekly rows (`gemini`
-and `claude/gpt`) from a single `agy` invocation.
 
 ## Precedence
 

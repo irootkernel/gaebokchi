@@ -10,16 +10,17 @@ Release archives carry this document, the architecture, the roadmap, and the roo
 
 A checked box means that the requirement's complete acceptance scope is verified; the [completion rules](#completion-rules) define what that takes. The [acceptance history](#acceptance-history) summarizes how the checklist reached its current state.
 
-The implemented baseline below remains weekly-only for Codex, Grok and Claude.
-[Planned provider extensions](#planned-provider-extensions) define adopted,
-unchecked requirements for EPIC-012 and EPIC-013. Their registration does not
-change current behavior or reuse earlier acceptance as evidence for the new scope.
+The implemented baseline below remains weekly-only for Codex, Grok, Claude, and
+`agy` ([EPIC-012](../roadmap/README.md#epic-012), [REQ-060](#req-060) through
+[REQ-064](#req-064)). [Planned provider extensions](#planned-provider-extensions)
+also holds the unchecked requirements for [EPIC-013](../roadmap/README.md#epic-013)
+([REQ-065](#req-065) and [REQ-066](#req-066)).
 
 ## Product outcome
 
-**Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for configured Codex (ChatGPT), Grok, and Claude accounts. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
+**Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for configured Codex (ChatGPT), Grok, Claude, and `agy` accounts. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
 
-The project name is **Gaebokchi (개복치)**; the repository basename and executable are `gaebokchi`, as defined in [ARCH-01](../architecture/README.md#arch-01). A usage run requires `~/.config/gaebokchi/config.yaml` and queries only its listed accounts in Codex, Grok, Claude order ([REQ-002](#req-002)); each provider list preserves its file order. Each row displays its configured alias, including when two different providers use the same alias.
+The project name is **Gaebokchi (개복치)**; the repository basename and executable are `gaebokchi`, as defined in [ARCH-01](../architecture/README.md#arch-01). A usage run requires `~/.config/gaebokchi/config.yaml` and queries only its listed accounts in Codex, Grok, Claude, `agy` order ([REQ-002](#req-002)); each provider list preserves its file order. Each row displays its configured alias (or `gemini` and `claude/gpt` for `agy`'s two weekly model-pool rows), including when two different providers use the same alias.
 
 One ordered result set has three presentations, described under [output modes](#output-modes): an interactive terminal view, the plain table for every other stdout, and a JSON snapshot selected with `--json`. Illustrative plain-table output, not measured account data:
 
