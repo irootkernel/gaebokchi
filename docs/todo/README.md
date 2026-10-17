@@ -9,7 +9,7 @@ adopts it into the [roadmap](../roadmap/README.md).
 
 | Dossier | Consumer epic | Execution authority |
 |---|---|---|
-| [agy multi-account support](TODO-AGY-MULTI-ACCOUNT-SUPPORT.md) | [EPIC-012](../roadmap/README.md#epic-012) | TASK-034 through TASK-038 in the canonical roadmap |
+| [agy single-account weekly support](TODO-AGY-MULTI-ACCOUNT-SUPPORT.md) | [EPIC-012](../roadmap/README.md#epic-012) | TASK-034 through TASK-038 in the canonical roadmap |
 | [Cursor Agent usage support](TODO-CURSOR-AGENT-SUPPORT.md) | [EPIC-013](../roadmap/README.md#epic-013) | TASK-039 through TASK-041 in the canonical roadmap |
 
 These dossiers map execution requirements to their owners. Read status and order

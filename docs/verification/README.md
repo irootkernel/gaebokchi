@@ -8,12 +8,16 @@ current merely because a later tree retains the record.
   qualification and sanitized fixture provenance.
 - [claude-compatibility.md](claude-compatibility.md) records the later Claude
   local-command and weekly reset-text qualification.
-- [agy-compatibility.md](agy-compatibility.md) records static capability findings
-  and the metadata/account-isolation prerequisites for TASK-034. It contains no
-  positive live qualification.
+- [agy-compatibility.md](agy-compatibility.md) records the qualified `agy 1.4.0`
+  single-account `/usage` JSON metadata contract, version guard (`>= 1.2.15`),
+  child environment filter, absent-login fast-fail behavior, and sanitized
+  captured fixture for the `gemini` and `claude/gpt` weekly pools.
 - [cursor-compatibility.md](cursor-compatibility.md) records static capability
   findings and the noninteractive usage-interface prerequisite for TASK-039.
   It contains no positive live qualification.
+- [provider-extension-preflight-2026-10-16.md](provider-extension-preflight-2026-10-16.md)
+  records the 2026-10-16 discovery pass and the 2026-10-17 live `agy 1.4.0`
+  metadata qualification and single-account weekly two-row scope alignment.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
 - `TASK-001.md` through `TASK-028.md` record historical task-scoped checks,

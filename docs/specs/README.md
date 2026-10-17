@@ -357,61 +357,61 @@ On a wider terminal, all qualified reset countdowns appear inline when every res
 <a id="planned-provider-extensions"></a>
 ## Planned provider extensions
 
-These requirements were adopted on 2026-10-15 and are not implemented or
-qualified. [EPIC-012](../roadmap/README.md#epic-012) owns agy and the shared
-period/output changes; [EPIC-013](../roadmap/README.md#epic-013) owns Cursor.
+These requirements were adopted on 2026-10-15 and revised on 2026-10-17 after
+live `agy 1.4.0` qualification and the owner's scope decision.
+[EPIC-012](../roadmap/README.md#epic-012) owns `agy` single-account weekly
+support (`gemini` and `claude/gpt` rows); [EPIC-013](../roadmap/README.md#epic-013)
+owns Cursor.
 [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)
 records the accepted design direction. Retain REQ-037 through REQ-043 throughout,
 including no provider auto-upgrade and offline test isolation.
 
 <a id="req-060"></a>
-- [ ] **REQ-060: Qualified agy metadata interface.** Establish a real installed-CLI path that returns structured subscription quota metadata without model turns, agent tools, sessions, interactive auth, account switching or billing mutations. Require explicit period metadata or a captured, version-bound contract mapping for every accepted period interpretation; time until reset is not such a mapping. Prove independent authenticated namespaces for two pre-authenticated agy accounts before production integration. Each account must expose at least one measured quota with a known supported period; unknown-only results cannot pass. Published documentation, binary strings and a failure-only fallback do not satisfy the gate. If a required capability is missing, block the owning task and epic without weakening this requirement.
-  - Architecture: [ARCH-18](../architecture/README.md#arch-18). Owner: [TASK-034](../roadmap/README.md#task-034). Verification: [V-AGY](../architecture/README.md#v-agy). Qualification gaps: [agy compatibility](../verification/agy-compatibility.md).
+- [ ] **REQ-060: Qualified agy metadata interface.** Establish a real installed-CLI path (`agy --print /usage --output-format json --print-timeout 15s`) for the single default `agy` login that returns structured weekly subscription quota metadata without model turns, agent tools, sessions, interactive auth, account switching or billing mutations. Enforce a pre-invocation runtime version guard (`agy --version` `>= 1.2.15`) within the target timeout budget and terminate the child immediately if `Authentication required` appears on stderr. Multi-account `agy` isolation is out of scope.
+  - Architecture: [ARCH-18](../architecture/README.md#arch-18). Owner: [TASK-034](../roadmap/README.md#task-034). Verification: [V-AGY](../architecture/README.md#v-agy). Evidence: [agy compatibility](../verification/agy-compatibility.md).
+  - Changed 2026-10-17: scoped to the single default CLI login after the owner confirmed single-account weekly usage; qualified live against `agy 1.4.0` on `darwin/arm64` ([preflight record](../verification/provider-extension-preflight-2026-10-16.md)).
 
 <a id="req-061"></a>
-- [ ] **REQ-061: Multiple native quota results per account.** Preserve each distinct quota or model pool in the qualified subscription set, with its stable identity, display label, explicit period, used percentage, reset instant and outcome under ARCH-17's provider mappings and status table. Support weekly, five-hour, monthly and unknown periods; classify by qualified metadata rather than slot names or time remaining. Never average pools, select their maximum as an account total, or convert local token totals or on-demand spend into subscription usage. A remaining fraction may become used percent only when its qualified contract establishes a finite range [0,1] and the relationship `100 * (1 - remaining)`. Derive it from the original decimal token using exact decimal arithmetic; serialize the shortest exact decimal without insignificant trailing zeros, and treat a zero fractional part as an integer for display. Do not expose binary conversion noise or apply arbitrary rounding or clamping. Other ratios are not percentages. Missing values remain distinct from measured zero; retain the established Grok omission convention only for its qualified weekly case. Preserve unaffected quotas and accounts when one quota fails.
+- [ ] **REQ-061: Weekly model-pool extraction and exact remaining-fraction conversion.** Extract `agy`'s two weekly model-group quotas (`id == "gemini-weekly"` with `window == "weekly"` and `id == "3p-weekly"` with `window == "weekly"`) from `command.data.groups[]`, ignoring non-weekly (`"5h"`) entries. Never average pools or select their maximum as a single row. Convert a qualified remaining fraction $r \in [0,1]$ to `used_percent = 100 * (1 - r)` from the original JSON decimal token using bounded exact decimal arithmetic (at most 128 ASCII bytes, 64 coefficient digits, exponent in `[-128, 128]`) so exact integer percentages (such as `remaining = 0.9` -> `10%`) never expose binary floating-point truncation noise. Parse optional RFC 3339 UTC `reset_time` values into `ResetAt` and preserve sibling pool results when one pool is missing or malformed.
   - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-035](../roadmap/README.md#task-035). Verification: [V-QUOTA](../architecture/README.md#v-quota), [V-RUNNER](../architecture/README.md#v-runner).
+  - Changed 2026-10-17: focused on weekly model pools (`gemini-weekly` and `3p-weekly`) and exact remaining-fraction conversion while preserving existing Codex, Grok, and Claude weekly normalization.
 
 <a id="req-062"></a>
-- [ ] **REQ-062: Period sections and account progress.** Show weekly, five-hour and monthly sections in that order in the terminal and text outputs; omit empty sections. Repeat an account for each applicable quota and identify its model or pool. Only the interactive terminal view shows account-level query progress, then the complete grouped snapshot; plain text and JSON emit final snapshots only. Display account-wide failures and explicit API-key non-applicability once in a final status area; display a period-known quota failure in its own section and unknown-period outcomes in the status area. Apply ARCH-17's status, exit and bounded diagnostic rules. Preserve every configured account, label sanitization, reset handling, output-failure and signal behavior. Use final-only output where progress cannot fit safely in the terminal.
-  - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e).
+- [ ] **REQ-062: Two-row weekly presentation for agy.** Keep `gaebokchi` weekly-only in both the plain 3-column table (`AI PROVIDER`, `ACCOUNT`, `WEEKLY USAGE`) and the interactive terminal view (`🐡 gaebokchi · weekly usage`). Present the enabled default `agy` account as two ordered rows under provider `agy`: `gemini` (`agy:0`) followed by `claude/gpt` (`agy:1`), with the interactive terminal view blanking the repeated provider label on the second row and displaying each pool's weekly progress bar, percentage, and `↻` reset countdown. Preserve all existing statuses, exit codes, bounded stderr diagnostics, and signal/output-failure rules.
+  - Architecture: [ARCH-17](../architecture/README.md#arch-17), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e).
+  - Changed 2026-10-17: replaced multi-period (`WEEKLY` / `5 HOURS` / `MONTHLY`) section headers with two weekly rows (`gemini` and `claude/gpt`) inside the existing weekly-only table and terminal view.
 
 <a id="req-063"></a>
-- [ ] **REQ-063: Versioned JSON v2 snapshot.** Change the existing `--json` output to a single newline-terminated object with `schema_version: 2` and ordered account `results`, each containing its quota outcomes in `quotas`. Move the old account-level `used_percent` into quota entries and expose each quota's period and optional reset instant. Use ARCH-17's exact fields, stable native or documented app-owned quota IDs, null semantics and ordering. An app-owned meter key must not pretend to be a provider-supplied identifier. Retain account aliases, account outcomes and cleanup failure, including accounts with no usable quota. Do not add a legacy-output flag. Document both text and JSON compatibility breaks and migrate executable tests and public examples with the implementation.
-  - Architecture: [ARCH-17](../architecture/README.md#arch-17). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e).
+- [ ] **REQ-063: JSON weekly snapshot continuity for agy pools.** Keep the existing `--json` output shape (`{"results":[...]}`) without a breaking schema change. Include `agy:0` (`provider: "agy"`, `account: "gemini"`) and `agy:1` (`provider: "agy"`, `account: "claude/gpt"`) in configured display order with their weekly `status`, `used_percent`, and `cleanup_failed` fields.
+  - Architecture: [ARCH-17](../architecture/README.md#arch-17), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-036](../roadmap/README.md#task-036). Verification: [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e).
+  - Changed 2026-10-17: retained the existing JSON v1 `results` array instead of introducing `schema_version: 2` multi-period objects.
 
 <a id="req-064"></a>
-- [ ] **REQ-064: Positive agy multi-account support.** Add an optional ordered `agy` list of `name`/`path` accounts and `--agy-bin` with default `agy`. Each path must select the credential namespace qualified by REQ-060, with existing alias/path validation and no implicit account discovery. Query at least two distinct CLI-managed logins concurrently without changing their default login selection or sharing account state. Isolate auth, protocol and timeout failures, retain sibling results and satisfy the existing lifecycle/privacy rules. Final-executable positive live acceptance and complete offline checks are required.
+- [ ] **REQ-064: Single-account agy configuration and shared query execution.** Add an optional `agy` list in `~/.config/gaebokchi/config.yaml` accepting at most one entry (such as `- name: default`, with `path` optional and not used as a credential selector) and `--agy-bin` with default `agy`. Omission or `[]` disables `agy`. Execute at most one `agy` query per `gaebokchi` invocation to populate both `agy:0` (`gemini`) and `agy:1` (`claude/gpt`) rows within a single target timeout budget, using explicit provider dispatch in `Runner.querierFor` with no implicit Codex fallback. Isolate child environment variables (`AGY_CLI_DISABLE_AUTO_UPDATE=true`, stripping `ANTIGRAVITY_*`, `JETSKI_*`, `AGY_*`, and API-key/ADC overrides while keeping `HOME`) and satisfy the complete offline gate and final-executable positive live acceptance.
   - Architecture: [ARCH-18](../architecture/README.md#arch-18). Implementation: [TASK-037](../roadmap/README.md#task-037). Acceptance owner: [TASK-038](../roadmap/README.md#task-038). Verification: [V-AGY](../architecture/README.md#v-agy), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety).
+  - Changed 2026-10-17: scoped to a single default-login `agy` entry producing two weekly pool rows (`gemini` and `claude/gpt`) from one shared CLI invocation.
 
 <a id="req-065"></a>
 - [ ] **REQ-065: Qualified Cursor metadata interface.** Establish a real installed-CLI path for subscription quotas using the existing default CLI login without model turns, agent tools, session creation, interactive auth or billing mutations. Freeze its actual invocation, response schema, auth errors, explicit periods, model/pool identities, reset semantics and process boundaries before adapter implementation. Identity JSON, an interactive pager or an internal RPC function alone cannot pass this gate.
   - Architecture: [ARCH-19](../architecture/README.md#arch-19). Owner: [TASK-039](../roadmap/README.md#task-039). Verification: [V-CURSOR](../architecture/README.md#v-cursor). Qualification gaps: [Cursor compatibility](../verification/cursor-compatibility.md).
+  - Planned clarification 2026-10-16: apply the [shared qualification and runtime guards](../architecture/README.md#provider-extension-qualification), including the applicability check for version-bound period mappings. ACP transport support alone does not qualify a session-free quota method. Earlier discovery can inform this task without depending on agy's outcome.
 
 <a id="req-066"></a>
-- [ ] **REQ-066: Positive Cursor default-login support.** Add an optional single named Cursor target and `--cursor-bin` with default `cursor-agent`. Query its existing default CLI login, preserving qualified native periods and subscription pools in the shared results, period sections and JSON v2. Omission disables the provider. Keep on-demand spend outside quota percentages, preserve missing values and sibling outcomes, and verify the complete offline gate and a positive prompt-free final-executable live query. Multi-account management is outside this requirement, and a configuration directory is not an authenticated account selector.
+- [ ] **REQ-066: Positive Cursor default-login support.** Add an optional single named Cursor target and `--cursor-bin` with default `cursor-agent`. Query its existing default CLI login and present its qualified weekly usage in the shared output and JSON snapshot. Omission disables the provider. Keep on-demand spend outside quota percentages, preserve missing values and sibling outcomes, and verify the complete offline gate and a positive prompt-free final-executable live query. Multi-account management is outside this requirement, and a configuration directory is not an authenticated account selector. Cursor is the query source, not necessarily a Grok-only meter: preserve qualified shared-pool scope and do not add source-specific views as independent allowances. Cross-provider account merging or automatic deduplication is outside scope.
   - Architecture: [ARCH-19](../architecture/README.md#arch-19). Implementation: [TASK-040](../roadmap/README.md#task-040). Acceptance owner: [TASK-041](../roadmap/README.md#task-041). Verification: [V-CURSOR](../architecture/README.md#v-cursor), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety).
-
-When TASK-035 through TASK-037 or TASK-040 change implemented behavior, update
-the affected baseline requirements and their evidence in the same delivery.
-Update every baseline REQ/ARCH that conflicts with delivered behavior, not only
-the examples below. Keep IDs and add dated Changed notes; the new requirements
-extend those owners rather than create a competing output contract.
 
 | Delivery | Required reconciliation |
 |---|---|
-| TASK-035 | Internal normalization aspects of REQ-003, REQ-013 through REQ-015, REQ-028, REQ-029, REQ-034 and REQ-058; ARCH-04, ARCH-07, ARCH-08, ARCH-16 and V-QUOTA/provider tests. Include period/pool mappings, app-owned identity and conditional fraction conversion. Keep their public display/status wording and the old weekly projection, diagnostics and exit codes unchanged until TASK-036. |
-| TASK-036 | Public display/status aspects of REQ-003, REQ-013, REQ-014, REQ-034 and REQ-058, plus REQ-011, REQ-015, REQ-024, REQ-049, REQ-052 through REQ-055; ARCH-10, V-OUTPUT, V-EXIT and V-E2E. Replace table/JSON/reset exclusions and weekly-only status rules; document text, JSON and existing-provider exit-status changes, and update planned/implemented preambles in this document, architecture, roadmap, docs index and ADR-0002, plus the roadmap's current Final handoff format guidance. |
-| TASK-037 / TASK-040 | REQ-002, REQ-006, REQ-007 and provider-specific requirements; ARCH-02, ARCH-03, ARCH-09, ARCH-11 and the relevant new provider section. Update public guidance and test-stage mapping with the delivered configuration and dispatch. |
+| TASK-035 | Implement exact decimal `remaining_fraction` conversion (`100 * (1 - r)`) with token/exponent bounds and `agy` weekly pool normalization (`gemini-weekly` -> `gemini`, `3p-weekly` -> `claude/gpt`), keeping all existing Codex, Grok, and Claude weekly contracts intact. |
+| TASK-036 | Verify two-row `agy` (`gemini` and `claude/gpt`) rendering in the existing 3-column plain table, interactive terminal view (with blanked second-row provider cell and `↻` reset countdowns), and `--json` `results` array. |
+| TASK-037 / TASK-040 | Update REQ-002, REQ-006, REQ-007 and provider-specific sections; ARCH-02, ARCH-03, ARCH-09, ARCH-11 and the relevant new provider section. Remove the implicit Codex fallback in `Runner.querierFor` and update public guidance and test-stage mapping. |
 
 REQ-060 and REQ-065 close at their qualification tasks. REQ-061 closes at
-TASK-035 and REQ-062/063 at TASK-036 after their complete offline scope passes;
-they require no live observation of every period variant. TASK-038 rechecks
-that evidence against the integrated candidate and owns REQ-064; TASK-041 owns
-REQ-066. Until then, public provider-support claims must say final live
-acceptance is pending. Preserve completed task/evidence bodies and the historical
-v0.1.0 release gate; they are snapshots, not extension contracts. This plan does
-not uncheck historical acceptance or claim it covers expanded behavior.
+TASK-035 and REQ-062/063 at TASK-036 after their complete offline scope passes.
+TASK-038 rechecks that evidence against the integrated candidate and owns REQ-064;
+TASK-041 owns REQ-066. Until then, public provider-support claims must say final
+live acceptance is pending. Preserve completed task/evidence bodies and the
+historical v0.1.0 release gate.
 
 <a id="completion-rules"></a>
 ## Completion rules
@@ -422,9 +422,7 @@ REQ-005, REQ-048, and REQ-056 require live successful queries. A live valid mont
 
 Checklists are not a replacement for evidence. Check a requirement only when its complete acceptance scope is verified, the evidence is recorded in the [task evidence format](../roadmap/README.md#plan-evidence), and a roadmap task owns it ([REQ-050](#req-050)). Preserve failures and unrun checks. A dated **Changed** note records a contract change that took effect after the original evidence, together with the evidence that covers it.
 
-For the planned extensions, explicit monthly subscription usage belongs in its
-own section once implemented. The baseline's `N/A (monthly)` rule does not
-satisfy REQ-061 or REQ-066. REQ-060 and REQ-065 require actual CLI qualification;
+For the planned extensions, REQ-060 and REQ-065 require actual CLI qualification;
 REQ-064 and REQ-066 additionally require positive integrated-executable live
 acceptance. Static inspection or a recorded blocker cannot close these gates.
 

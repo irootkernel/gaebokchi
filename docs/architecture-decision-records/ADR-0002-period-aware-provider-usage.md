@@ -1,6 +1,8 @@
-# ADR-0002: Preserve native quota periods and CLI credential ownership
+# ADR-0002: Weekly model-pool rows and single-account CLI credential ownership for agy and Cursor
 
-- **Status:** Accepted design direction on 2026-10-15; implementation pending.
+- **Status:** Accepted on 2026-10-15; revised on 2026-10-17 after live `agy 1.4.0`
+  qualification and owner scope decision (weekly-only continuity, single default
+  `agy` login, and two weekly rows for `gemini` and `claude/gpt`).
 - **Delivery:** [EPIC-012](../roadmap/README.md#epic-012) and
   [EPIC-013](../roadmap/README.md#epic-013).
 - **Related:** [REQ-060](../specs/README.md#req-060) through
@@ -10,58 +12,78 @@
 
 ## Context
 
-The implemented product selects a weekly quota for each configured account.
-agy needs multiple independent accounts and can have model-specific limits
-across five-hour and weekly periods. Cursor plans can use weekly or monthly
-allowances. A single weekly percentage cannot represent these results.
+`gaebokchi` renders a weekly subscription usage snapshot across configured AI
+coding CLIs using three columns in plain text (`AI PROVIDER`, `ACCOUNT`,
+`WEEKLY USAGE`), an inline interactive terminal frame with progress bars and
+reset countdowns (`↻`), and a machine-readable `--json` `results` array.
 
-The installed CLIs have not yet passed the new providers' metadata-only
-qualification gates. agy's authenticated account isolation is also unproven.
-Adding a provider requires the same credential and business-level read-only
-boundaries as the existing adapters.
+Live qualification of `agy 1.4.0` (`agy --print /usage --output-format json
+--print-timeout 15s`) established that:
+1. `agy` exposes two distinct weekly model-group quotas in one structured JSON
+   response: **Gemini Models** (`id: "gemini-weekly"`, `window: "weekly"`) and
+   **Claude and GPT models** (`id: "3p-weekly"`, `window: "weekly"`), alongside
+   5-hour windows (`window: "5h"`).
+2. `agy` stores credentials in the user's default CLI login context and ignores
+   `ANTIGRAVITY_APP_DATA_DIR` / `JETSKI_APP_DATA_DIR` as input selectors.
+3. The owner confirmed that `gaebokchi` must remain **weekly-only**, use **only
+   the single main (default) `agy` login**, and display `agy`'s **Gemini** and
+   **Claude/GPT** weekly usage as **two separate rows** (`gemini` and
+   `claude/gpt`) in the existing weekly output format.
 
 ## Decision
 
-Represent each account query as a result containing quota results. Preserve the
-provider's quota identity, model or pool label, period, used percentage, reset
-instant and per-quota outcome.
-
-Show weekly, five-hour and monthly sections in that order. Repeat an account in
-each applicable section and keep model pools separate. Show account-wide errors
-and explicit non-applicable accounts once in a final status area. Omit empty sections and avoid inferred periods or
-cross-pool arithmetic.
-
-Change `--json` to a versioned v2 snapshot containing `schema_version: 2` and a
-`quotas` array in each account result. This is an intentional compatibility
-break; there is no additional legacy-output flag. The grouped plain-text layout
-also changes its public contract. Existing JSON and text consumers need
-to migrate when TASK-036 delivers the change.
-
-Leave credential discovery, login, refresh and storage with each installed CLI.
-Require agy to support at least two independent authenticated account namespaces.
-Cursor starts with one default CLI login. Production adapters follow successful
-qualification of the actual installed metadata interfaces.
-Require measured known-period quotas for both agy accounts; unknown-only results
-cannot establish positive support. ARCH-17 owns provider mappings, status/exit
-semantics and stable native or documented app-owned meter keys. App-owned keys
-identify application meters and never claim provider provenance. The spec's
-conditional remaining-fraction rule is the sole permitted ratio conversion.
+1. **Preserve the weekly-only output and existing JSON contract.** Keep the
+   current 3-column plain table (`AI PROVIDER`, `ACCOUNT`, `WEEKLY USAGE`),
+   the interactive terminal frame (`🐡 gaebokchi · weekly usage`), and the
+   existing `--json` `results` snapshot without introducing multi-period
+   (`5 HOURS`, `MONTHLY`) sections or a breaking JSON v2 schema. Ignore
+   non-weekly (`5h`) windows in `agy` responses.
+2. **Use the single default CLI login for `agy` and Cursor.** Neither `EPIC-012`
+   (`agy`) nor `EPIC-013` (`Cursor`) manages multiple accounts or relocates
+   `HOME`. Credentials, login, and refresh remain inside each provider CLI.
+3. **Render `agy`'s two weekly model pools as two ordered weekly rows from one
+   shared CLI query.** When `agy` is enabled in `~/.config/gaebokchi/config.yaml`
+   (at most one entry, e.g. `- name: default`), target construction emits two
+   weekly targets under provider `agy`:
+   - `agy:0` with row label `gemini` (`QuotaID: "gemini-weekly"`)
+   - `agy:1` with row label `claude/gpt` (`QuotaID: "3p-weekly"`)
+   A single `agy --print /usage --output-format json --print-timeout 15s`
+   invocation per `gaebokchi` run (`sync.Once`) populates both rows. Because the
+   existing terminal renderer blanks repeated provider names on consecutive rows,
+   `agy` naturally displays as two lines (`gemini` and `claude/gpt`) just like
+   multi-row `ChatGPT`.
+4. **Convert `remaining_fraction` using exact decimal token arithmetic.** Derive
+   `used_percent = 100 * (1 - remaining_fraction)` from the JSON number token
+   before storing or formatting so exact integers (such as `remaining = 0.9` ->
+   `10%`) never suffer IEEE-754 floating-point truncation artifacts.
+5. **Enforce runtime version, environment, and auth fast-fail guards.** Verify
+   `agy --version` (`>= 1.2.15`) within the target timeout budget before running
+   `/usage`, strip ambient `ANTIGRAVITY_*`, `JETSKI_*`, `AGY_*`, and API-key/ADC
+   overrides while setting `AGY_CLI_DISABLE_AUTO_UPDATE=true`, and terminate the
+   child immediately if `Authentication required` appears on stderr. Use explicit
+   provider dispatch in `Runner.querierFor` with no implicit Codex fallback.
 
 ## Alternatives considered
 
-- Keeping weekly output alone would hide the additional supported periods.
-- Combining periods or model pools into one percentage would change the metric.
-- A second JSON flag would retain two output contracts; the owner chose to
-  migrate the existing flag to the new versioned structure.
-- Direct provider APIs, credential extraction and interactive screen scraping
-  would exceed the retained product boundary.
+- **Multi-period sections (`WEEKLY`, `5 HOURS`, `MONTHLY`) and JSON v2:**
+  Rejected by the owner on 2026-10-17 because `gaebokchi`'s purpose is a concise
+  weekly usage view, and all target providers (`ChatGPT`, `Grok`, `Claude`,
+  `agy`) provide weekly usage.
+- **Multi-account `agy` via synthetic `HOME` directories:** Rejected by the owner
+  on 2026-10-17; only the single main `agy` account is needed.
+- **Combining Gemini and Claude/GPT pools into one row:** Rejected because `agy`
+  enforces separate weekly quotas and reset times for `gemini-weekly` and
+  `3p-weekly`.
 
 ## Consequences
 
-The common model, rendering, JSON and existing-provider tests change in EPIC-012.
-EPIC-013 consumes those outcomes. CLI capability gaps can block provider
-implementation, and an `UNSUPPORTED` row cannot close either epic.
-
-Current weekly behavior and the original JSON shape remain implemented until
-their owning tasks land. This ADR does not qualify a provider, implement an
-interface, authorize live account operations, or change release status.
+- `internal/render/table.go`, `internal/render/terminal.go`,
+  `internal/render/live.go`, and `internal/render/json.go` retain their existing
+  public contracts without breaking changes.
+- `TASK-034`'s metadata qualification for the single main `agy` login is satisfied
+  by the 2026-10-17 `agy 1.4.0` evidence recorded in
+  [agy-compatibility.md](../verification/agy-compatibility.md).
+- `EPIC-012` implementation tasks (`TASK-035` through `TASK-038`) focus on exact
+  remaining-fraction conversion, two-row `agy` target expansion (`gemini` and
+  `claude/gpt`), the `internal/provider/agy` shared-query adapter, explicit
+  provider dispatch, and final offline/live verification.

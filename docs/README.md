@@ -42,16 +42,23 @@ Release archives carry the root README, LICENSE, THIRD_PARTY_NOTICES.txt, config
 
 ## Planned provider work
 
-[EPIC-012](roadmap/README.md#epic-012) adopts agy multi-account support and the
-shared period/output changes. [EPIC-013](roadmap/README.md#epic-013) adopts
-Cursor default-login usage support after EPIC-012 completes. Each has a linked
+[EPIC-012](roadmap/README.md#epic-012) adopts `agy` single-account weekly usage
+support (`gemini` and `claude/gpt` rows). [EPIC-013](roadmap/README.md#epic-013)
+adopts Cursor default-login usage support after EPIC-012 completes. Independent,
+evidence-only discovery for either provider is allowed under the
+[roadmap exception](roadmap/README.md#provider-discovery-preflight), without
+changing production order or task completion. Each has a linked
 [execution dossier](todo/README.md). The roadmap owns lifecycle state; the
 dossiers map tasks to canonical requirements and architecture.
 
 REQ-060 through REQ-066 and ARCH-17 through ARCH-19 describe planned behavior.
 The executable remains the weekly-only Codex/Grok/Claude implementation until
-the owning tasks deliver changes. The provider qualification notes distinguish
-static capability findings from the positive live gates still required.
+the owning tasks deliver changes. On 2026-10-17, the `agy 1.4.0` single-account
+`/usage` JSON contract was qualified in
+[agy-compatibility.md](verification/agy-compatibility.md) and the
+[preflight record](verification/provider-extension-preflight-2026-10-16.md),
+and the owner confirmed weekly-only continuity with two weekly rows (`gemini`
+and `claude/gpt`) from a single `agy` invocation.
 
 ## Precedence
 
@@ -60,7 +67,7 @@ When documents disagree, resolve the conflict in the same scoped change. Until t
 ## Identifiers
 
 - **Roadmap.** The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN` and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history are preserved. Epic and task sequences are independent and monotonic; numbers are never reused. New allocations increment the current epic maximum of 13 and task maximum of 41. Cross-scope qualification is unnecessary while this repository has one delivery scope.
-- **Specification.** Requirements (`REQ-###`), architecture sections (`ARCH-##`), verification catalog entries (such as V-CODEX, in ARCH-11), and primary sources (`S-##`, in ARCH-15) are stable identifiers with explicit `<a id>` anchors. They are never renumbered or reused. The current maxima are REQ-066, ARCH-19, and S-22.
+- **Specification.** Requirements (`REQ-###`), architecture sections (`ARCH-##`), verification catalog entries (such as V-CODEX, in ARCH-11), and primary sources (`S-##`, in ARCH-15) are stable identifiers with explicit `<a id>` anchors. They are never renumbered or reused. The current maxima are REQ-066, ARCH-19, and S-24.
 - **Decision records.** ADR file names are numbered from `ADR-0001` upward.
 
 ## Checks

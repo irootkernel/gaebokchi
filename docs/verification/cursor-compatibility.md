@@ -2,10 +2,12 @@
 
 ## Current finding
 
-The installed Cursor Agent identifies itself as 2026.10.14-0f9edde. Static
-inspection on 2026-10-15 found usage code in its package, but no qualified
-metadata-only noninteractive quota command. Positive runtime support remains
-unqualified under [TASK-039](../roadmap/README.md#task-039).
+The 2026-10-15 inspection identified Cursor Agent 2026.10.14-0f9edde and found
+usage code in its package, but no qualified metadata-only noninteractive quota
+command. On 2026-10-16 the installation symlink still selected that package;
+this pass did not rerun its version command or inspect its implementation.
+Positive runtime support remains unqualified under
+[TASK-039](../roadmap/README.md#task-039).
 
 The command help lists `status` and `about` with JSON output, but their inspected
 implementations return identity, tier or system information rather than quota
@@ -35,6 +37,33 @@ default, Keychain entries independent of that configuration directory.
 Changing the configuration path is not proof of a different authenticated
 account. This epic uses one existing default CLI login.
 
+## 2026-10-16 public-interface supplement
+
+The [ACP guide](https://cursor.com/docs/cli/acp) documents a stdio JSON-RPC
+transport and an ordinary flow that creates a session and sends a model prompt.
+It does not establish a session-free quota method. ACP is therefore a discovery
+lead, not a qualified billing endpoint; its session/prompt example must not be
+used as a metadata probe. The CLI parameters guide also describes print mode
+as tool-capable. Identity JSON does not establish a quota path.
+
+The newer [official usage page](https://prod.cursor.com/help/models-and-usage/usage-limits)
+distinguishes shared weekly usage from legacy monthly pools and includes multiple
+models in the Cursor Models pool. An older cached version of the main usage URL
+retrieved in the same pass described monthly pools only. These descriptions
+explain why plan names, a pager title or a cached web page cannot classify a
+live response. The owner's plan was not queried.
+
+Treat `cursor` as the query source, not a Grok-only meter. Preserve the qualified
+native pool's label and scope, including shared allowances; do not sum it with
+a Grok-source view as another independent allowance. Cross-provider identity
+matching and deduplication remain out of scope.
+
+Independent discovery can proceed before agy delivery under the
+[roadmap exception](../roadmap/README.md#provider-discovery-preflight). It does not
+close TASK-039 or authorize its adapter early. The
+[dated preflight](provider-extension-preflight-2026-10-16.md) contains no new
+Cursor live evidence.
+
 ## Required next qualification
 
 TASK-039 must qualify an actual installed CLI entry point that returns usage
@@ -44,10 +73,15 @@ missing-data behavior, reset timestamps and process lifecycle before production
 implementation. The [CLI parameters reference](https://cursor.com/docs/cli/reference/parameters)
 is a discovery source, not proof that a particular binary supports an interface.
 Freeze automatic-update suppression, identity-affecting ambient overrides and
-credential selection on every claimed platform. Investigate `CURSOR_CONFIG_DIR`
+credential selection on every claimed platform. Apply the
+[shared runtime guards](../architecture/README.md#provider-extension-qualification):
+identify version-dependent safety/period assumptions and define their applicability
+check before production use. An unknown version must not reach a potentially
+model-capable fallback, and all checks share the one target deadline. Investigate `CURSOR_CONFIG_DIR`
 without treating the macOS observation as Linux qualification. Mark untested
 platforms explicitly. [S-20](../architecture/README.md#s-20) and
-[S-21](../architecture/README.md#s-21) are discovery sources only.
+[S-21](../architecture/README.md#s-21) and [S-24](../architecture/README.md#s-24)
+are discovery sources only.
 
 `cursor-agent -p /usage` was not executed and is not a qualified local-command
 path. Neither a wrapper around bundled private modules nor a direct Dashboard

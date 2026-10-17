@@ -4,6 +4,7 @@ Version: v0.1.0 baseline with planned provider extensions\
 Status: EPIC-001 through EPIC-011 retain their recorded COMPLETE milestones; EPIC-012 and EPIC-013 are NOT STARTED. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
+Preflight and implementation-contract supplement: 2026-10-16\
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
@@ -24,7 +25,7 @@ Keep all three canonical documents under their role directories. Start with the 
 <a id="plan-execution"></a>
 ## Execution rules
 
-1. Run one epic at a time, in the exact roadmap order. Finish all its tasks and its local acceptance gate before starting the next epic. There is no interleaving, partial-epic jump, or hidden dependency on a later epic.
+1. Run one epic at a time, in the exact roadmap order. Finish all its tasks and its local acceptance gate before starting the next epic. There is no production interleaving, partial-epic jump, or hidden dependency on a later epic. The [provider discovery exception](#provider-discovery-preflight) permits bounded evidence-only preflights, not early adapter work or task completion.
 2. Run one task at a time. Each task is one coherent implementation/evidence commit, with its own focused tests. Do not auto-commit unrelated user changes or rewrite existing history. The first task may include the initial specification import in a new repository.
 3. An epic is a component milestone. Its local gate must be complete, but the full product is not declared complete until EPIC-006. Cross-cutting requirement checkboxes can remain pending until the integration/release evidence exists, without reopening a correctly completed component epic.
 4. Mark a task `IN PROGRESS` when work begins. Complete it only after its acceptance criteria pass, evidence is recorded and the task-scoped commit exists. Otherwise mark it `BLOCKED` with the exact unsatisfied prerequisite and safe next action. An implementation AI must not silently weaken a gate.
@@ -55,7 +56,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 9 | [EPIC-009: Machine-readable usage snapshot](#epic-009) | [TASK-029](#task-029) | [EPIC-008](#epic-008) complete | COMPLETE (implementation milestone) |
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
-| 12 | [EPIC-012: agy multi-account support and period-aware usage](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; TASK-034 must qualify agy before production changes | NOT STARTED |
+| 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | NOT STARTED |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | NOT STARTED |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
@@ -72,11 +73,23 @@ The task order is globally sequential: TASK-001 through TASK-041. Runtime
 account queries may be concurrent; development tasks may not.
 
 EPIC-012 and EPIC-013 are adopted future work with separate execution dossiers.
-Their entry tasks must qualify real metadata-only CLI interfaces. The current
-static [agy](../verification/agy-compatibility.md) and
-[Cursor](../verification/cursor-compatibility.md) findings leave those gates
-unqualified. If TASK-034 blocks, later tasks and EPIC-013 wait under the existing
-sequence; changing that order requires an explicit roadmap decision.
+On 2026-10-17, the owner scoped `EPIC-012` to the single default `agy` login
+with two weekly rows (`gemini` and `claude/gpt`) in the existing weekly output,
+and the `agy 1.4.0` metadata contract was qualified in
+[agy-compatibility.md](../verification/agy-compatibility.md).
+[Cursor](../verification/cursor-compatibility.md) remains unqualified until
+TASK-039.
+
+<a id="provider-discovery-preflight"></a>
+### Independent provider discovery preflights
+
+Planning clarification adopted on 2026-10-16 and updated on 2026-10-17: before
+either adapter is built, allow a bounded discovery pass for each new provider
+independently. Store findings in the provider compatibility records and the
+dated [preflight record](../verification/provider-extension-preflight-2026-10-16.md).
+Do not mark TASK-034 or TASK-039 complete from a planning pass alone; those
+tasks still own their task-scoped delivery in the recorded order. Reuse the
+qualified 2026-10-17 `agy 1.4.0` evidence when TASK-034 executes.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -1451,13 +1464,15 @@ commit, then close EPIC-011 in a documentation commit and repeat the gate on
 the exact closeout commit before tagging.
 
 <a id="epic-012"></a>
-## EPIC-012: agy multi-account support and period-aware usage
+## EPIC-012: agy single-account weekly support
 
 - [ ] Epic complete. **Status: NOT STARTED.**
 
-**Goal:** Support at least two independently authenticated agy accounts and
-introduce native-period quota results, weekly/five-hour/monthly output sections
-and JSON v2 for the provider set.
+**Goal:** Query the single default `agy` CLI login through its qualified
+metadata-only interface (`agy --print /usage --output-format json
+--print-timeout 15s`) and display its two weekly model pools (`gemini` and
+`claude/gpt`) as two weekly rows in `gaebokchi`'s existing table, interactive
+terminal view, and `--json` output.
 
 **Entry:** EPIC-011's recorded implementation milestone is complete. This epic
 does not reopen or satisfy the separate v0.1.0 publication gate.
@@ -1468,176 +1483,150 @@ does not reopen or satisfy the separate v0.1.0 publication gate.
 [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038).
 
 **Local epic acceptance:** REQ-060 through REQ-064 are fully verified; a final
-candidate returns independent results for two distinct agy logins without model
-work or changing the default login selection; the complete offline gate and
-existing-provider regressions pass. Placeholder failures do not satisfy support.
-Each agy account must have a measured quota in a supported known-period section;
-unknown-only results cannot close the epic. Unobserved period variants remain
-explicit coverage limits, not a requirement to change the owner's subscription.
+candidate returns both weekly `agy` rows (`gemini` and `claude/gpt`) from a
+single prompt-free `agy` query using the default login without model work; the
+complete offline gate and existing-provider regressions pass.
 
-**Handoff:** EPIC-013 consumes the canonical quota model, period rendering,
-JSON v2 and provider extension points after this epic closes. Installation and
-publication are excluded.
+**Handoff:** EPIC-013 consumes the explicit provider dispatch and runtime guard
+conventions after this epic closes. Installation and publication are excluded.
 
 <a id="task-034"></a>
-### TASK-034: Qualify agy metadata and authenticated account isolation
+### TASK-034: Freeze qualified agy single-account metadata contract
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Resolve the metadata-only interface and required multi-account
-isolation before production integration.
+**Purpose:** Record and freeze the verified metadata-only `agy` contract for the
+single default CLI login before production adapter implementation.
 
-**Dependency:** EPIC-012 entry; two distinct CLI-managed logins prepared outside
-the query and separately authorized bounded live qualification.
+**Dependency:** EPIC-012 entry; reuses the 2026-10-17 `agy 1.4.0` live metadata
+and absent-login qualification recorded in
+[agy-compatibility.md](../verification/agy-compatibility.md).
 
 **Owners:** REQ-060; ARCH-18 and ARCH-09.
 
-**Scope and deliverables:** Reuse the static compatibility assessment, inspect
-the actual installed CLI contract and freeze the executable invocation, response
-schema, periods, auth failures, credential namespace and process boundaries.
-Freeze the selector type/default-namespace rules and automatic-update suppression.
-Qualify two accounts concurrently and retain sanitized captured fixtures with
-provenance in the agy compatibility record. Do not write a production adapter.
+**Scope and deliverables:** Verify and freeze the `agy 1.4.0` metadata invocation
+(`agy --print /usage --output-format json --print-timeout 15s`), pre-invocation
+version guard (`>= 1.2.15`), child environment policy (`HOME` preserved,
+`AGY_CLI_DISABLE_AUTO_UPDATE=true`, `ANTIGRAVITY_*` / `JETSKI_*` / `AGY_*` and
+API-key/ADC overrides stripped), absent-login stderr fast-fail rule
+(`Authentication required`), and sanitized captured fixture for `gemini-weekly`
+and `3p-weekly`. Multi-account `agy` isolation is out of scope. Do not write
+production Go code in this task.
 
-**Acceptance:** Both accounts return structured quota metadata without model
-turns, tools, sessions, interactive auth or account switching. Their identities
-are distinct in the private qualification evidence, their results remain
-independent, and default login selection is preserved. A missing capability
-marks the task and epic BLOCKED and prevents TASK-035; recording the blocker
-alone does not complete this task.
-CLI-reported metadata identities must remain distinct when read concurrently
-and rechecked after querying the other namespace; aliases are not identity
-evidence. Each account supplies at least one measured quota with explicit period
-metadata or a captured, version-bound period mapping. Unknown-only results fail.
-If the selector is not path-shaped, block for an explicit configuration decision
-before TASK-035 rather than invent a path convention.
+**Acceptance:** The compatibility record and task verification evidence
+completely cover REQ-060 for the single default `agy` login with zero model
+turns, zero token usage, and explicit weekly pool metadata.
 
-**Verification:** Bounded CLI metadata probes, absent-login and lifecycle checks,
-fixture parsing and redaction inspection. No login, upgrade, token extraction,
-direct API or PTY fallback is authorized by this task definition.
+**Verification:** `go run scripts/check-docs.go`, fixture validation, and
+redaction inspection.
 
-**Handoff:** TASK-035 receives one qualified observed contract and its limitations.
+**Handoff:** TASK-035 receives the frozen `agy 1.4.0` JSON contract and weekly
+pool mapping.
 
 <a id="task-035"></a>
-### TASK-035: Model multiple quota periods and migrate existing providers
+### TASK-035: Implement exact remaining-fraction conversion and agy weekly pool parsing
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Preserve the provider's quota periods and model pools in one result
-per configured account.
+**Purpose:** Convert `agy`'s `remaining_fraction` values without binary
+floating-point truncation noise and normalize the `gemini-weekly` and
+`3p-weekly` weekly pools.
 
 **Dependency:** TASK-034 complete.
 
-**Owners:** REQ-061; ARCH-17. Existing weekly contracts remain regression inputs.
+**Owners:** REQ-061; ARCH-17. Existing Codex, Grok, and Claude weekly contracts
+remain regression inputs.
 
-**Scope and deliverables:** Add quota results to the domain model and adapt the
-runner and existing Codex, Grok and Claude normalization. Keep the shared query
-budget, concurrency, cancellation and owned-child cleanup. Accept additional
-periods only from qualified metadata; do not relabel an unqualified Claude
-session meter or estimate a period from its reset. Add focused behavioral tests.
-Implement ARCH-17's provider mapping, stable meter IDs, status/exit table and
-conditional remaining-fraction conversion. Freeze any newly recognized Claude
-model-weekly grammar from a captured sanitized line or a cited format in the
-installed CLI's source before adding it; synthetic-only grammar is outside the
-supported set and recorded as a limit. Record whether each test variant
-is captured, source-backed or synthetic; synthetic coverage does not claim live
-qualification. Reconcile the baseline owners listed in the planned specs table.
-Keep the current weekly presentation and JSON working until TASK-036 delivers
-the output migration, so this task leaves a usable executable.
+**Scope and deliverables:** Add bounded exact-decimal `remaining_fraction`
+conversion (`used_percent = 100 * (1 - r)` from the JSON number token, with
+128-byte token, 64-digit coefficient, and `[-128, 128]` exponent bounds) and
+parse `command.data.groups[]` for `id == "gemini-weekly"` (`window == "weekly"`)
+and `id == "3p-weekly"` (`window == "weekly"`), ignoring `"5h"` entries. Parse
+RFC 3339 UTC `reset_time` into `ResetAt` and preserve a valid sibling pool row
+when the other pool is missing or malformed. Add `ProviderAgy` (`"agy"`,
+`DisplayName() == "agy"`) and `SourceAgyCLIUsage` to `internal/domain`.
 
-**Acceptance:** One account retains each distinct quota, its period and outcome.
-Missing values remain distinct from zero; unrelated quotas and sibling accounts
-survive a local failure. Existing measured weekly values retain their meaning.
-Grok's established weekly omission convention remains confined to its qualified
-weekly case and is not generalized to other periods or providers.
+**Acceptance:** Exact integer results (such as `remaining = 0.9` -> `10%`) and
+fractional results (`0.2584281265735626` -> `74.15718734264374%`, display
+`74.2%`) convert losslessly; out-of-budget tokens fail fast as `protocol_error`
+without discarding sibling pools; existing providers remain unchanged.
 
-**Verification:** Domain, normalization and runner tests with race coverage;
-weekly, five-hour, monthly, unknown-period, duplicate-window and partial-failure
-fixtures. Update the current architecture only for behavior actually delivered.
-REQ-061 closes here after its complete offline scope passes. Public output stays
-on its prior weekly projection (including legacy non-applicability and JSON)
-until TASK-036, including its prior stderr diagnostics and exit codes. Apply the
-new status/exit matrix publicly only in TASK-036; test both the legacy public
-projection and the richer internal result so the transition is independently usable.
-Retain the existing weekly selection outcome alongside new quotas during this
-transition; do not reconstruct it from lossy new statuses or issue another CLI
-query. TASK-036 removes this temporary projection with the public migration.
+**Verification:** Focused unit and race tests covering `0`, `1`, `0.9`,
+captured `agy 1.4.0` fractions, exponent bounds, missing/duplicate weekly pools,
+and invalid reset timestamps.
 
-**Handoff:** TASK-036 receives the tested account/quotas model and runner behavior.
+**Handoff:** TASK-036 receives the tested `ProviderAgy` domain types, exact
+fraction converter, and weekly pool parser.
 
 <a id="task-036"></a>
-### TASK-036: Render period sections and deliver JSON v2
+### TASK-036: Verify two-row agy weekly rendering across table, terminal, and JSON
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Show native quota periods consistently in every output mode.
+**Purpose:** Ensure `agy`'s two weekly rows (`gemini` and `claude/gpt`) render
+cleanly in the existing 3-column plain table, interactive terminal view, and
+`--json` output.
 
 **Dependency:** TASK-035 complete.
 
-**Owners:** REQ-062 and REQ-063; ARCH-17 and ADR-0002.
+**Owners:** REQ-062 and REQ-063; ARCH-17, ARCH-10, and ADR-0002.
 
-**Scope and deliverables:** Implement weekly, five-hour and monthly sections,
-account query progress and a final status area. Replace `--json` with the
-versioned v2 account/quotas structure. Update the affected existing output
-requirements, root README and configuration examples together with executable
-tests and the intentional JSON migration notice.
-Freeze text/terminal golden layouts and implement the ARCH-17 status/diagnostic
-matrix, including clean API-key accounts and unknown periods. Reconcile all
-output owners and planned/implemented preambles listed in the specifications;
-retain IDs with dated Changed notes. Document the plain-text layout break too.
-Include existing-provider exit-status changes in the migration notice and the
-REQ-024 Changed note. Update the current Final handoff format guidance when its
-output claims change; preserve the historical v0.1.0 release gate and its evidence.
+**Scope and deliverables:** Verify and test two-row `agy` output (`agy:0` with
+account label `gemini` and `agy:1` with account label `claude/gpt`) in
+`internal/render/table.go`, `internal/render/terminal.go`,
+`internal/render/live.go`, and `internal/render/json.go`. Confirm that the
+interactive terminal view blanks the repeated `agy` provider name on the second
+row, renders `↻` reset countdowns for both weekly rows, and preserves live
+spinner updates, clipping, `NO_COLOR`, and stderr diagnostics.
 
-**Acceptance:** Empty sections are omitted; native model pools stay separate;
-aliases, ordering and reset countdowns remain safe. Unknown-period and
-account-wide failures remain visible without repeating a failed account in all
-sections. JSON includes every account and quota outcome without raw provider
-diagnostics. Terminal output restores cursor visibility on completion,
-cancellation and output failure.
+**Acceptance:** Both `agy` weekly rows (`gemini` and `claude/gpt`) render in
+configured order after Claude in plain table, interactive terminal, and `--json`
+modes with no breaking change to existing output contracts.
 
-**Verification:** Renderer tests and fake-provider executable tests covering
-section order, multiple quotas, JSON shape, partial failure, narrow/short
-terminals, `NO_COLOR`, redirection and signals. Retain the existing exit policy,
-evaluating quota outcomes as well as account and cleanup outcomes.
-Use existing fake Codex/Grok metadata responses and synthetic Claude fixtures
-for multiple periods/pools; this task does not wait for the agy adapter.
-Revalidate the existing E2E waiver against the changed public output boundary.
-REQ-062 and REQ-063 close here when their offline acceptance scope passes.
+**Verification:** Renderer unit and golden tests covering two-row `agy`
+ alignment, reset countdowns, partial pool failure, narrow/short terminals, and
+JSON serialization.
 
-**Handoff:** TASK-037 receives the complete output contract and regression tests.
+**Handoff:** TASK-037 receives verified two-row rendering coverage.
 
 <a id="task-037"></a>
-### TASK-037: Integrate isolated agy account configuration and queries
+### TASK-037: Integrate single-account agy configuration and shared query adapter
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Connect the qualified agy contract to configured account targets.
+**Purpose:** Wire `agy` configuration (`config.yaml` and `--agy-bin`), explicit
+provider dispatch, and the shared one-shot `internal/provider/agy` adapter.
 
-**Dependency:** TASK-036 complete; TASK-034's qualified contract still applies.
+**Dependency:** TASK-036 complete.
 
 **Owners:** REQ-064 implementation; ARCH-18. TASK-038 owns final positive acceptance.
 
-**Scope and deliverables:** Add the `agy` account list, `--agy-bin` with default
-`agy`, explicit provider dispatch, per-target environment policy and adapter.
-Use the proven selector for each configured `name`/`path`; reject duplicate
-aliases and equivalent paths under the existing configuration policy. Add the
-provider suite to the test-stage mapping and update user-facing account guidance.
-Mark final live acceptance pending until TASK-038 and revalidate the existing
-E2E waiver for the added fake-provider identity and isolation.
+**Scope and deliverables:** Add the optional single-entry `agy` list in
+`internal/options` (expanding an enabled `agy` entry into two weekly targets
+`agy:0` = `gemini` and `agy:1` = `claude/gpt`), add `--agy-bin` (default `agy`),
+replace the implicit Codex fallback in `Runner.querierFor` with explicit provider
+dispatch, and implement `internal/provider/agy` so a single `agy --version` +
+`agy --print /usage --output-format json --print-timeout 15s` execution per
+invocation (`sync.Once`) populates both `agy:0` and `agy:1`. Implement child
+environment filtering (`AGY_CLI_DISABLE_AUTO_UPDATE=true`, stripping
+`ANTIGRAVITY_*`, `JETSKI_*`, `AGY_*`, and API-key/ADC overrides while keeping
+`HOME`) and stderr `Authentication required` fast-fail termination. Update
+`test/integration`, `TESTING.md`, `Makefile`, `README.md`, and
+`configuration/README.md`.
 
-**Acceptance:** Each account gets its own namespace and bounded query; one
-account's auth or protocol failure preserves the other rows. Omitted agy starts
-no process. No application credential handling or global login switching occurs.
+**Acceptance:** Enabling `agy` queries the `agy` CLI once and populates both
+`gemini` and `claude/gpt` weekly rows; omitting `agy` starts no `agy` process;
+more than one `agy` config entry exits 2; auth/version/timeout/protocol failures
+map to the right statuses without breaking sibling providers.
 
-**Verification:** Fake-process tests for invocation, environment filtering,
-namespace isolation, missing CLI/home, auth failure, malformed data, timeout,
-cancellation, secret-marker non-disclosure and cleanup failure.
+**Verification:** Fake-process unit, integration, and E2E tests for `--version`
+guard, one-shot shared execution across two rows, environment filtering, stderr
+auth fast-fail, malformed JSON, timeout, cancellation, and cleanup failure.
 
 **Handoff:** TASK-038 receives a fully wired, offline-tested executable candidate.
 
 <a id="task-038"></a>
-### TASK-038: Accept agy multi-account support and the shared output
+### TASK-038: Accept agy weekly support on the integrated executable
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
@@ -1647,26 +1636,21 @@ cancellation, secret-marker non-disclosure and cleanup failure.
 
 **Owners:** REQ-064 final acceptance and complete EPIC-012 requirement coverage.
 
-**Scope and deliverables:** Run the full offline gate and focused regression
-coverage; qualify the final executable against two distinct agy accounts and the
-configured existing providers. Reconcile requirement, architecture and user
-documentation with actual outcomes and record remaining compatibility limits.
+**Scope and deliverables:** Run the full offline gate (`make test`) and qualify
+the final `gaebokchi` executable live against the configured providers plus the
+single default `agy` login. Reconcile requirement, architecture, roadmap, and
+user documentation with actual outcomes.
 
-**Acceptance:** Both agy accounts return positive independent quota results
-without model work, default-login changes or cleanup failure. Per-account
-failures remain isolated. REQ-060 through REQ-064 have full evidence; all child
-task gates and the local epic acceptance pass before epic completion is proposed.
-Each account must supply at least one measured quota in a known supported period
-and the final grouped output. Unknown-only results cannot pass. Recheck REQ-061
-through REQ-063 on this integrated candidate; do not invent live coverage of
-every period or require changing the owner's plan to exercise another variant.
+**Acceptance:** The live `gaebokchi` run returns ordered weekly rows for the
+existing providers plus both `agy` rows (`gemini` and `claude/gpt`) with valid
+percentages, reset countdowns, zero model turns, and no cleanup failure.
+REQ-060 through REQ-064 have complete evidence and all child task gates pass.
 
-**Verification:** `make test`, final-candidate prompt-free metadata acceptance,
-and retained focused isolation/cancellation tests. Label native platforms and
-live period variants actually exercised. Do not stage or publish a release.
+**Verification:** `make test` and a bounded prompt-free live run of the final
+executable. Do not stage or publish a release.
 
-**Handoff:** Canonical shared outcomes and compatibility limits for EPIC-013;
-closeout replaces this epic's Detailed SOT only after its acceptance is established.
+**Handoff:** Canonical shared outcomes and explicit dispatch foundation for
+EPIC-013.
 
 <a id="epic-013"></a>
 ## EPIC-013: Cursor Agent usage support
@@ -1674,8 +1658,8 @@ closeout replaces this epic's Detailed SOT only after its acceptance is establis
 - [ ] Epic complete. **Status: NOT STARTED.**
 
 **Goal:** Query the default Cursor Agent CLI login through a qualified
-metadata-only interface and show its native subscription quotas using the
-shared period sections and JSON v2.
+metadata-only interface and show its weekly subscription usage in `gaebokchi`'s
+output and JSON snapshot.
 
 **Entry:** EPIC-012 complete. Cursor multi-account management is excluded.
 
@@ -1705,8 +1689,13 @@ compatibility limits. Installation and publication remain separate work.
 **Scope and deliverables:** Reuse the Cursor static assessment and qualify the
 installed executable, invocation, default credential selection, structured quota
 response, periods, pool identities, reset timestamps, errors and lifecycle.
-Freeze a compatibility contract and sanitized fixtures. An interactive pager,
-identity JSON, bundled private RPC function or `-p /usage` spelling is insufficient.
+Freeze a compatibility contract and sanitized fixtures. Reuse any independent
+discovery preflight and recheck only evidence affected by changed versions or
+contracts. Apply ARCH-17's shared qualification and runtime guards, including the
+runtime applicability check for version-bound periods or local-command safety.
+An interactive pager, identity JSON, bundled private RPC function or `-p /usage`
+spelling is insufficient. ACP support is only a transport lead; require an actual
+session-free metadata method rather than using `session/new` or a prompt.
 Include update suppression, ambient auth/routing overrides and the credential
 selection boundary on each claimed platform. Record unqualified Linux/macOS
 variants explicitly rather than infer them from a configuration directory.
@@ -1740,6 +1729,11 @@ shared model. Add its offline suite to the test stages and update public usage
 and configuration guidance.
 Mark final live acceptance pending until TASK-041 and revalidate the existing
 E2E waiver when adding the fake provider. Exclude spend from quota results.
+Preserve shared-pool scope instead of labeling every Cursor meter as Grok-only;
+add shared-weekly and separate-monthly synthetic cases without inventing native
+IDs. Do not add cross-provider totals or account deduplication. Test exact Cursor
+dispatch, no Codex fallback, unknown-provider/missing-wiring no-launch behavior,
+and version-dependent guards within the single target budget.
 
 **Acceptance:** Omission disables Cursor; enabled configuration selects the
 existing CLI default login without treating a config directory as a credential

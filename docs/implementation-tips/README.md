@@ -56,45 +56,32 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 
 The adopted [agy](../todo/TODO-AGY-MULTI-ACCOUNT-SUPPORT.md) and
 [Cursor](../todo/TODO-CURSOR-AGENT-SUPPORT.md) dossiers map the future work to
-requirements and architecture. TASK-034 and TASK-039 must qualify the actual CLI
-metadata contracts before their production changes. Reuse the static findings;
-do not guess account-home variables. A model-capable print path is eligible for
-a separately authorized probe only after its zero-turn guard has independently
-been established; the `-p /usage` spelling alone is not that guard. No such agy
-or Cursor path is currently qualified.
+requirements and architecture. On 2026-10-17, the owner scoped `EPIC-012` to the
+single default `agy` login with two weekly rows (`gemini` and `claude/gpt`) in
+`gaebokchi`'s existing weekly-only output, and the `agy 1.4.0` metadata contract
+was qualified in [agy-compatibility.md](../verification/agy-compatibility.md)
+and the [preflight record](../verification/provider-extension-preflight-2026-10-16.md).
+TASK-039 must still qualify the Cursor CLI metadata contract before TASK-040.
 
-For documentation-only registration, run `go run scripts/check-docs.go` and
-`git diff --check`, then inspect ID uniqueness, anchors, task ownership,
-dependencies and planned-versus-implemented wording. A full product test run or
-live account query is not evidence produced by registering a plan.
+Use ARCH-17 and ARCH-18's runtime guards for `agy`: verify `<agy-bin> --version`
+(`>= 1.2.15`) within the target timeout budget before running
+`agy --print /usage --output-format json --print-timeout 15s`, inject
+`AGY_CLI_DISABLE_AUTO_UPDATE=true`, strip `ANTIGRAVITY_*`, `JETSKI_*`, `AGY_*`,
+and API-key/ADC overrides while preserving `HOME`, and terminate the child
+immediately if `Authentication required` appears on stderr. Convert
+`remaining_fraction` $r \in [0, 1]$ using bounded exact decimal token math
+(`100 * (1 - r)`) in TASK-035 and ignore `window: "5h"` entries.
 
-When TASK-035 changes the result model, keep the current weekly presentation,
-status/diagnostics and exit codes working until TASK-036 delivers the grouped
-output and JSON compatibility break.
-Add focused period/normalization tests alongside the model change. TASK-036
-must migrate public examples and executable assertions with `--json`, including
-unknown periods, missing data, account-wide errors, short terminals and signals.
-Update affected baseline requirements only when the new behavior lands.
-Use the provider/status tables in ARCH-17 and the migration ownership table in
-the specifications. Distinguish app-owned meter IDs from provider provenance.
-Freeze text/terminal golden layouts before renderer implementation and include
-text, JSON and existing-provider exit-status changes in the compatibility notice.
-TASK-036 already owns executable
-tests with existing fake providers; it does not wait for an agy adapter.
-
-Add each new provider's fake-process suite to the explicit Makefile stage lists
-and the root `TESTING.md` mapping in TASK-037 or TASK-040. Never allow the offline
-E2E harness to fall through to a real `agy` or `cursor-agent` executable.
-Revalidate the existing `GAEBOKCHI-AQTEST-008-001` waiver in TASK-036, TASK-037
-and TASK-040 for changes to public CLI output, fake-provider identity/isolation
-and cleanup. This preserves the established Go E2E route, not an automatic
-framework migration. Mark new-provider guidance as final live acceptance pending
-until TASK-038 or TASK-041, then reconcile it with the actual accepted scope.
-Use the existing injected process boundary, bounded reads, target deadline and
-cleanup rules. At the epic acceptance task, run the complete offline gate and
-only the separately authorized metadata-only live checks; report fixture-only
-period or platform coverage explicitly. Release staging and publication remain
-outside these epics.
+In TASK-036 and TASK-037, keep the existing 3-column plain table, interactive
+terminal view, and `--json` `results` schema unchanged. Expand an enabled `agy`
+entry in `config.yaml` into two weekly targets (`agy:0` with label `gemini` and
+`agy:1` with label `claude/gpt`) populated by a single shared `agy` subprocess
+invocation (`sync.Once`). Add each new provider's fake-process suite to the
+explicit Makefile stage lists and the root `TESTING.md` mapping, and replace the
+implicit Codex fallback in `Runner.querierFor` with explicit provider dispatch.
+Never allow the offline E2E harness (`test/integration/main_test.go`) to fall
+through to a real `agy` or `cursor-agent` executable or misroute `agy` argv to
+Grok. Release staging and publication remain outside these epics.
 
 ## Release procedure
 

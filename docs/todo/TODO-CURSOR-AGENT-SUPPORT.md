@@ -6,14 +6,14 @@ The [roadmap](../roadmap/README.md) owns its task membership, order and status.
 ## Outcome and authority
 
 Read the installed Cursor Agent CLI's subscription quotas for one named default
-login and present them through the period sections and JSON v2 delivered by
-EPIC-012. Cursor multi-account management is outside this epic.
+login and present its weekly usage in `gaebokchi`'s output and JSON snapshot.
+Cursor multi-account management is outside this epic.
 
 | Decision | Canonical owner |
 |---|---|
 | Required metadata interface and qualification | [REQ-065](../specs/README.md#req-065), [ARCH-19](../architecture/README.md#arch-19) |
 | Configuration, adapter and positive support | [REQ-066](../specs/README.md#req-066), [ARCH-19](../architecture/README.md#arch-19) |
-| Shared quota, display and JSON contracts | [REQ-061](../specs/README.md#req-061) through [REQ-063](../specs/README.md#req-063), [ARCH-17](../architecture/README.md#arch-17) |
+| Shared display, JSON and dispatch contracts | [REQ-061](../specs/README.md#req-061) through [REQ-063](../specs/README.md#req-063), [ARCH-17](../architecture/README.md#arch-17), [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md) |
 | Qualification gaps | [Cursor compatibility](../verification/cursor-compatibility.md) |
 
 ## Work map
@@ -26,16 +26,22 @@ EPIC-012. Cursor multi-account management is outside this epic.
 
 ## Entry gate and stop conditions
 
-EPIC-012 must be complete before TASK-039 begins. The repository runs one epic
-at a time. A blocked agy gate therefore also prevents Cursor execution until
-the owner approves a different roadmap dependency or scope.
+EPIC-012 must be complete before TASK-039's formal delivery begins. The repository
+runs one production epic at a time. Under the 2026-10-16
+[discovery exception](../roadmap/README.md#provider-discovery-preflight), a bounded
+evidence-only Cursor preflight may proceed independently while agy is blocked.
+It does not close TASK-039 or start the Cursor adapter. A different production
+order still requires an explicit roadmap decision.
 
 Cursor Agent 2026.10.14-0f9edde has interactive usage code, but its inspected
 command surface does not expose that data through a qualified noninteractive
 JSON command. `status` and `about` JSON do not supply quota data.
 TASK-039 must qualify an actual installed metadata path before TASK-040 starts.
 If it cannot, mark the task and epic blocked; do not substitute a direct API
-client, a package-internals wrapper, or a model prompt.
+client, a package-internals wrapper, or a model prompt. Reuse the
+[dated preflight](../verification/provider-extension-preflight-2026-10-16.md)
+where still applicable. Public ACP documentation establishes transport, not
+a session-free quota method; an execution-tool denial is not an upstream failure.
 
 ## Implementation boundaries
 
@@ -49,9 +55,15 @@ client, a package-internals wrapper, or a model prompt.
 - Keep the shared concurrency, per-target deadline, cancellation and cleanup
   contracts. Do not terminate provider-owned or unrelated processes.
 - Use explicit response period metadata. The installed pager's monthly title
-  does not prove that every account has a monthly quota.
+  does not prove that every account has a monthly quota. Apply ARCH-17's
+  version-bound runtime applicability checks before interpreting such contracts.
 - Exclude on-demand spend from quota results. Do not turn a currency
   total, activity statistic or session token count into a subscription percentage.
+- Preserve the qualified pool's scope. A Cursor Models pool can cover more than
+  Grok; do not relabel it as Grok-only or add another source's view as independent
+  allowance. Do not add cross-provider merging/deduplication.
+- Test explicit Cursor dispatch and unknown-provider/missing-wiring no-launch
+  behavior; never fall through to the Codex querier.
 - Probe only the bounded, authorized metadata path. Login, account switching,
   upgrades, model work and provider configuration writes are excluded.
 
