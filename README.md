@@ -180,8 +180,9 @@ an error row. Names and paths must be unique within each provider, including
 existing symlink aliases, even when a trailing path component is missing. A
 blank or whitespace-only name, unknown YAML key, YAML merge key, null provider list, or empty
 configuration is an error. Providers omitted from the file (or listed as `[]`)
-are disabled; at least one account must remain. Rows appear in Codex,
-Grok, Claude, `agy`, Cursor order, then in each provider's list order.
+are disabled; at least one account must remain. Rows appear in the provider and
+account order written in `config.yaml` (with `agy` expanding to `gemini` then
+`claude/gpt` at its configured position).
 
 If the file is missing or invalid, gaebokchi exits 2 before starting a
 provider and prints the path plus a link to the configuration guide. `--help` and

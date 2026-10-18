@@ -86,8 +86,9 @@ claude:
     path: ~/.claude-personal
 ```
 
-At least one account is required. Rows appear in Codex, Grok, Claude, `agy`,
-Cursor order, then in each list's order. A missing CLI for a configured account
+At least one account is required. Rows appear in the provider and account order
+written in `config.yaml` (with `agy` expanding to `gemini` then `claude/gpt` at
+its configured position). A missing CLI for a configured account
 produces a `NOT INSTALLED` row; an omitted provider launches no CLI.
 
 ## Check the file

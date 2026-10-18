@@ -56,15 +56,83 @@ grok:
 		t.Fatalf("options = %+v, targets = %+v", o, targets)
 	}
 	for i, want := range []struct{ id, name string }{
-		{"codex:0", "One"}, {"codex:1", "Two"}, {"grok:0", "Grok Work"},
-		{"grok:1", "Grok Home"}, {"claude:0", "Claude Work"},
+		{"claude:0", "Claude Work"}, {"codex:0", "One"}, {"codex:1", "Two"},
+		{"grok:0", "Grok Work"}, {"grok:1", "Grok Home"},
 	} {
 		if targets[i].ID != want.id || targets[i].Index != i || targets[i].FallbackAccount != want.name {
 			t.Fatalf("target %d = %+v", i, targets[i])
 		}
 	}
-	if targets[0].Home != filepath.Join(os.Getenv("HOME"), ".codex-one") || targets[1].Home != "/tmp/codex-two" {
-		t.Fatalf("codex paths = %q, %q", targets[0].Home, targets[1].Home)
+	if targets[0].Home != filepath.Join(os.Getenv("HOME"), ".claude-work") ||
+		targets[1].Home != filepath.Join(os.Getenv("HOME"), ".codex-one") ||
+		targets[2].Home != "/tmp/codex-two" {
+		t.Fatalf("paths = %q, %q, %q", targets[0].Home, targets[1].Home, targets[2].Home)
+	}
+})
+
+var _ = ginkgo.It("preserves top-level provider key order across all providers and falls back to canonical order when unparsed", func() {
+	t := testT{ginkgo.GinkgoT()}
+	o := parseWithConfig(t, `cursor:
+  - name: cursor-main
+agy:
+  - name: default
+claude:
+  - name: claude-work
+    path: ~/.claude-work
+grok:
+  - name: grok-main
+    path: ~/.grok-main
+codex:
+  - name: codex-one
+    path: ~/.codex-one
+  - name: codex-two
+    path: ~/.codex-two
+`)
+	targets := o.Targets()
+	wantOrder := []struct{ id, name string }{
+		{"cursor:0", "cursor-main"},
+		{"agy:0", "gemini"},
+		{"agy:1", "claude/gpt"},
+		{"claude:0", "claude-work"},
+		{"grok:0", "grok-main"},
+		{"codex:0", "codex-one"},
+		{"codex:1", "codex-two"},
+	}
+	if len(targets) != len(wantOrder) {
+		t.Fatalf("targets = %+v, want %d targets", targets, len(wantOrder))
+	}
+	for i, want := range wantOrder {
+		if targets[i].ID != want.id || targets[i].Index != i || targets[i].FallbackAccount != want.name {
+			t.Fatalf("target %d = %+v, want id=%q index=%d name=%q", i, targets[i], want.id, i, want.name)
+		}
+	}
+
+	fallbackTargets := buildTargets(accountConfig{
+		Cursor: []cursorAccount{{Name: "cursor-main"}},
+		Agy:    []account{{Name: "default"}},
+		Claude: []account{{Name: "claude-work", Path: "/claude"}},
+		Grok:   []account{{Name: "grok-main", Path: "/grok"}},
+		Codex:  []account{{Name: "codex-one", Path: "/codex-1"}, {Name: "codex-two", Path: "/codex-2"}},
+	}, Options{
+		CodexBin: DefaultCodexBin, GrokBin: DefaultGrokBin, ClaudeBin: DefaultClaudeBin,
+		AgyBin: DefaultAgyBin, CursorBin: DefaultCursorBin,
+	})
+	wantFallback := []struct{ id, name string }{
+		{"codex:0", "codex-one"},
+		{"codex:1", "codex-two"},
+		{"grok:0", "grok-main"},
+		{"claude:0", "claude-work"},
+		{"agy:0", "gemini"},
+		{"agy:1", "claude/gpt"},
+		{"cursor:0", "cursor-main"},
+	}
+	if len(fallbackTargets) != len(wantFallback) {
+		t.Fatalf("fallbackTargets = %+v, want %d", fallbackTargets, len(wantFallback))
+	}
+	for i, want := range wantFallback {
+		if fallbackTargets[i].ID != want.id || fallbackTargets[i].Index != i || fallbackTargets[i].FallbackAccount != want.name {
+			t.Fatalf("fallback target %d = %+v, want id=%q index=%d name=%q", i, fallbackTargets[i], want.id, i, want.name)
+		}
 	}
 })
 

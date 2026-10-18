@@ -852,6 +852,81 @@ var _ = ginkgo.It("queries Cursor once and emits its weekly or monthly row in ta
 	}
 })
 
+var _ = ginkgo.It("preserves configured top-level provider key order across all providers in table and JSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	config := `cursor:
+  - name: cursor-main
+agy:
+  - name: default
+claude:
+  - name: claude-main
+    path: ~/claude
+grok:
+  - name: grok-main
+    path: ~/grok
+codex:
+  - name: e2e-a
+    path: ~/e2e-a
+  - name: e2e-b
+    path: ~/e2e-b
+`
+	jsonOut, jsonErr, jsonCode := runCLI(t, invocation{
+		config: config,
+		args:   []string{"--json"},
+		codex:  codexOK("account1@example.com", 37),
+		grok:   grokWeekly(28),
+	})
+	if jsonCode != 0 || jsonErr != "" {
+		t.Fatalf("json code=%d stderr=%q", jsonCode, jsonErr)
+	}
+	rows := decodeUsageJSON(t, jsonOut)
+	wantRows := []struct{ id, provider, account string }{
+		{"cursor:0", "cursor", "cursor-main"},
+		{"agy:0", "agy", "gemini"},
+		{"agy:1", "agy", "claude/gpt"},
+		{"claude:0", "claude", "claude-main"},
+		{"grok:0", "grok", "grok-main"},
+		{"codex:0", "codex", "e2e-a"},
+		{"codex:1", "codex", "e2e-b"},
+	}
+	if len(rows) != len(wantRows) {
+		t.Fatalf("rows = %+v, want %d rows", rows, len(wantRows))
+	}
+	for i, want := range wantRows {
+		if rows[i].TargetID != want.id || rows[i].Provider != want.provider || rows[i].Account != want.account || rows[i].Status != "ok" {
+			t.Fatalf("row %d = %+v, want %+v", i, rows[i], want)
+		}
+	}
+
+	tableOut, tableErr, tableCode := runCLI(t, invocation{
+		config: config,
+		codex:  codexOK("account1@example.com", 37),
+		grok:   grokWeekly(28),
+	})
+	if tableCode != 0 || tableErr != "" {
+		t.Fatalf("table code=%d stderr=%q", tableCode, tableErr)
+	}
+	lines := strings.Split(strings.TrimSuffix(tableOut, "\n"), "\n")
+	wantLines := []struct{ provider, account, pct string }{
+		{"Cursor", "cursor-main", "25%"},
+		{"agy", "gemini", "74.2%"},
+		{"agy", "claude/gpt", "12.8%"},
+		{"Claude", "claude-main", "43%"},
+		{"Grok", "grok-main", "28%"},
+		{"ChatGPT", "e2e-a", "37%"},
+		{"ChatGPT", "e2e-b", "37%"},
+	}
+	if len(lines) != len(wantLines)+1 {
+		t.Fatalf("table lines = %d, want %d:\n%s", len(lines), len(wantLines)+1, tableOut)
+	}
+	for i, want := range wantLines {
+		line := lines[i+1]
+		if !strings.HasPrefix(line, want.provider+" ") || !strings.Contains(line, want.account) || !strings.HasSuffix(line, want.pct) {
+			t.Fatalf("table line %d = %q, want %+v", i+1, line, want)
+		}
+	}
+})
+
 var _ = ginkgo.It("TestNoForbiddenProductionCapabilities", func() {
 	t := testT{ginkgo.GinkgoT()}
 	var failures []string

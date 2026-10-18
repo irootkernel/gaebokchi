@@ -27,11 +27,12 @@ type cursorAccount struct {
 }
 
 type accountConfig struct {
-	Codex  []account       `yaml:"codex"`
-	Grok   []account       `yaml:"grok"`
-	Claude []account       `yaml:"claude"`
-	Agy    []account       `yaml:"agy"`
-	Cursor []cursorAccount `yaml:"cursor"`
+	Codex  []account             `yaml:"codex"`
+	Grok   []account             `yaml:"grok"`
+	Claude []account             `yaml:"claude"`
+	Agy    []account             `yaml:"agy"`
+	Cursor []cursorAccount       `yaml:"cursor"`
+	order  []domain.ProviderKind `yaml:"-"`
 }
 
 func configf(path, format string, args ...any) error {
@@ -73,6 +74,7 @@ func loadConfig(path, home string) (accountConfig, error) {
 			if value.Tag == "!!null" {
 				return accountConfig{}, configf(path, "%s must be a list; omit it or use [] to disable", fields[i].Value)
 			}
+			cfg.order = append(cfg.order, domain.ProviderKind(fields[i].Value))
 		}
 	}
 	for _, group := range []struct {
@@ -268,37 +270,53 @@ func expandPath(raw, home string) (string, error) {
 	return raw, nil
 }
 
+var defaultProviderOrder = []domain.ProviderKind{
+	domain.ProviderCodex,
+	domain.ProviderGrok,
+	domain.ProviderClaude,
+	domain.ProviderAgy,
+	domain.ProviderCursor,
+}
+
 func buildTargets(cfg accountConfig, o Options) []domain.Target {
 	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy)+len(cfg.Cursor))
-	for _, group := range []struct {
-		kind     domain.ProviderKind
-		accounts []account
-		bin      string
-	}{
-		{domain.ProviderCodex, cfg.Codex, o.CodexBin},
-		{domain.ProviderGrok, cfg.Grok, o.GrokBin},
-		{domain.ProviderClaude, cfg.Claude, o.ClaudeBin},
-	} {
-		for i, a := range group.accounts {
+	order := cfg.order
+	if len(order) == 0 {
+		order = defaultProviderOrder
+	}
+	appendAccounts := func(kind domain.ProviderKind, accounts []account, bin string) {
+		for i, a := range accounts {
 			targets = append(targets, domain.Target{
-				ID: fmt.Sprintf("%s:%d", group.kind, i), Index: len(targets), Provider: group.kind,
-				Home: a.Path, FallbackAccount: a.Name, Bin: group.bin,
+				ID: fmt.Sprintf("%s:%d", kind, i), Index: len(targets), Provider: kind,
+				Home: a.Path, FallbackAccount: a.Name, Bin: bin,
 			})
 		}
 	}
-	if len(cfg.Agy) > 0 {
-		for i, pool := range []string{"gemini", "claude/gpt"} {
-			targets = append(targets, domain.Target{
-				ID: fmt.Sprintf("%s:%d", domain.ProviderAgy, i), Index: len(targets),
-				Provider: domain.ProviderAgy, FallbackAccount: pool, Bin: o.AgyBin,
-			})
+	for _, kind := range order {
+		switch kind {
+		case domain.ProviderCodex:
+			appendAccounts(domain.ProviderCodex, cfg.Codex, o.CodexBin)
+		case domain.ProviderGrok:
+			appendAccounts(domain.ProviderGrok, cfg.Grok, o.GrokBin)
+		case domain.ProviderClaude:
+			appendAccounts(domain.ProviderClaude, cfg.Claude, o.ClaudeBin)
+		case domain.ProviderAgy:
+			if len(cfg.Agy) > 0 {
+				for i, pool := range []string{"gemini", "claude/gpt"} {
+					targets = append(targets, domain.Target{
+						ID: fmt.Sprintf("%s:%d", domain.ProviderAgy, i), Index: len(targets),
+						Provider: domain.ProviderAgy, FallbackAccount: pool, Bin: o.AgyBin,
+					})
+				}
+			}
+		case domain.ProviderCursor:
+			for i, a := range cfg.Cursor {
+				targets = append(targets, domain.Target{
+					ID: fmt.Sprintf("%s:%d", domain.ProviderCursor, i), Index: len(targets),
+					Provider: domain.ProviderCursor, FallbackAccount: a.Name, Bin: o.CursorBin,
+				})
+			}
 		}
-	}
-	for i, a := range cfg.Cursor {
-		targets = append(targets, domain.Target{
-			ID: fmt.Sprintf("%s:%d", domain.ProviderCursor, i), Index: len(targets),
-			Provider: domain.ProviderCursor, FallbackAccount: a.Name, Bin: o.CursorBin,
-		})
 	}
 	return targets
 }

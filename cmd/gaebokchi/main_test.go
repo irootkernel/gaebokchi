@@ -641,6 +641,140 @@ var _ = ginkgo.It("TestCursorRowInTableAndJSON", func() {
 	}
 })
 
+var _ = ginkgo.It("TestConfiguredProviderOrderInTableTerminalAndJSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	setTestConfig(t, `cursor:
+  - name: cursor-main
+agy:
+  - name: default
+claude:
+  - name: claude-main
+    path: ~/claude
+grok:
+  - name: grok-main
+    path: ~/grok
+codex:
+  - name: first
+    path: ~/codex-a
+  - name: second
+    path: ~/codex-b
+`)
+	cx := &fakeProv{results: map[string]domain.Result{
+		"codex:0": {Status: domain.StatusOK, UsedPercent: ptr(37), Period: domain.PeriodWeekly},
+		"codex:1": {Status: domain.StatusOK, UsedPercent: ptr(15), Period: domain.PeriodWeekly},
+	}}
+	gk := &fakeProv{results: map[string]domain.Result{
+		"grok:0": {Status: domain.StatusOK, UsedPercent: ptr(28), Period: domain.PeriodWeekly},
+	}}
+	cl := &fakeProv{results: map[string]domain.Result{
+		"claude:0": {Status: domain.StatusOK, UsedPercent: ptr(43), Period: domain.PeriodWeekly},
+	}}
+	ag := &fakeProv{results: map[string]domain.Result{
+		"agy:0": {Status: domain.StatusOK, UsedPercent: ptr(74.2), Period: domain.PeriodWeekly},
+		"agy:1": {Status: domain.StatusOK, UsedPercent: ptr(12.8), Period: domain.PeriodWeekly},
+	}}
+	cu := &fakeProv{results: map[string]domain.Result{
+		"cursor:0": {Status: domain.StatusOK, UsedPercent: ptr(25), Period: domain.PeriodWeekly},
+	}}
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
+		return cx, gk, cl, ag, cu
+	}
+
+	var out, errBuf bytes.Buffer
+	if code := runWithIO(nil, &out, &errBuf, prov); code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("table run failed: code=%d stderr=%q", code, errBuf.String())
+	}
+	tableLines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	wantTable := []struct{ provider, account, pct string }{
+		{"Cursor", "cursor-main", "25%"},
+		{"agy", "gemini", "74.2%"},
+		{"agy", "claude/gpt", "12.8%"},
+		{"Claude", "claude-main", "43%"},
+		{"Grok", "grok-main", "28%"},
+		{"ChatGPT", "first", "37%"},
+		{"ChatGPT", "second", "15%"},
+	}
+	if len(tableLines) != len(wantTable)+1 {
+		t.Fatalf("table lines = %d, want %d:\n%s", len(tableLines), len(wantTable)+1, out.String())
+	}
+	for i, want := range wantTable {
+		line := tableLines[i+1]
+		if !strings.HasPrefix(line, want.provider+" ") || !strings.Contains(line, want.account) || !strings.HasSuffix(line, want.pct) {
+			t.Fatalf("table row %d = %q, want %+v", i, line, want)
+		}
+	}
+
+	termFile, err := os.CreateTemp(t.TempDir(), "terminal-order-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	termPath := termFile.Name()
+	errBuf.Reset()
+	code := executeWithTerminal(parse(t), termFile, &errBuf, prov,
+		func(*os.File) (int, int, error) { return 100, 30, nil },
+		func(key string) string {
+			if key == "TERM" {
+				return "xterm-256color"
+			}
+			if key == "NO_COLOR" {
+				return "1"
+			}
+			return ""
+		})
+	_ = termFile.Close()
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("terminal run failed: code=%d stderr=%q", code, errBuf.String())
+	}
+	termBytes, err := os.ReadFile(termPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frames := strings.Split(string(termBytes), "🐡")
+	finalFrame := frames[len(frames)-1]
+	lastPos := -1
+	for _, token := range []string{"cursor-main", "gemini", "claude/gpt", "claude-main", "grok-main", "first", "second"} {
+		pos := strings.Index(finalFrame, token)
+		if pos <= lastPos {
+			t.Fatalf("terminal final frame out of order at %q (pos=%d, lastPos=%d):\n%s", token, pos, lastPos, finalFrame)
+		}
+		lastPos = pos
+	}
+
+	out.Reset()
+	errBuf.Reset()
+	if code := runWithIO([]string{"--json"}, &out, &errBuf, prov); code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("json run failed: code=%d stderr=%q", code, errBuf.String())
+	}
+	var snapshot struct {
+		Results []struct {
+			TargetID string `json:"target_id"`
+			Provider string `json:"provider"`
+			Account  string `json:"account"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &snapshot); err != nil {
+		t.Fatalf("unmarshal json: %v", err)
+	}
+	wantJSON := []struct{ id, provider, account string }{
+		{"cursor:0", "cursor", "cursor-main"},
+		{"agy:0", "agy", "gemini"},
+		{"agy:1", "agy", "claude/gpt"},
+		{"claude:0", "claude", "claude-main"},
+		{"grok:0", "grok", "grok-main"},
+		{"codex:0", "codex", "first"},
+		{"codex:1", "codex", "second"},
+	}
+	if len(snapshot.Results) != len(wantJSON) {
+		t.Fatalf("json results = %+v, want %d", snapshot.Results, len(wantJSON))
+	}
+	for i, want := range wantJSON {
+		got := snapshot.Results[i]
+		if got.TargetID != want.id || got.Provider != want.provider || got.Account != want.account {
+			t.Fatalf("json row %d = %+v, want %+v", i, got, want)
+		}
+	}
+})
+
 func runSignalTestChild() {
 	slow := &fakeProv{delay: 30 * time.Second}
 	opts, err := options.Parse([]string{"--timeout", "20s"})
