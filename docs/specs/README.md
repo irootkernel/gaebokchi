@@ -13,8 +13,9 @@ A checked box means that the requirement's complete acceptance scope is verified
 The implemented baseline below remains weekly-only for Codex, Grok, Claude, and
 `agy` ([EPIC-012](../roadmap/README.md#epic-012), [REQ-060](#req-060) through
 [REQ-064](#req-064)). [Planned provider extensions](#planned-provider-extensions)
-also holds the unchecked requirements for [EPIC-013](../roadmap/README.md#epic-013)
-([REQ-065](#req-065) and [REQ-066](#req-066)).
+also holds the [EPIC-013](../roadmap/README.md#epic-013) Cursor requirements:
+[REQ-065](#req-065) (verified by [TASK-039](../roadmap/README.md#task-039)) and
+the remaining unchecked [REQ-066](#req-066).
 
 ## Product outcome
 
@@ -396,8 +397,8 @@ including no provider auto-upgrade and offline test isolation.
   - Changed 2026-10-17: scoped to a single default-login `agy` entry producing two weekly pool rows (`gemini` and `claude/gpt`) from one shared CLI invocation.
 
 <a id="req-065"></a>
-- [ ] **REQ-065: Qualified Cursor metadata interface.** Establish a real installed-CLI path (`<cursor-bin> status --format json` with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts`) for the single default Cursor login that invokes `cursor-agent`'s bundled `credentialManager` and `dashboardClient` (`getPlanInfo` and `getCurrentPeriodUsage`) in a single non-interactive subprocess without model turns, agent tools, session creation, interactive auth, direct credential/Keychain reads outside `cursor-agent`, or billing mutations. Omit PII (`email`, `userId`, `teamId`, tokens) from hook output and degrade to `StatusUnsupported` (`UNSUPPORTED`) if an incompatible CLI build does not trigger the hook. Multi-account Cursor management is out of scope.
-  - Architecture: [ARCH-19](../architecture/README.md#arch-19). Owner: [TASK-039](../roadmap/README.md#task-039). Verification: [V-CURSOR](../architecture/README.md#v-cursor). Evidence: [Cursor compatibility](../verification/cursor-compatibility.md).
+- [x] **REQ-065: Qualified Cursor metadata interface.** Establish a real installed-CLI path (`<cursor-bin> status --format json` with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts`) for the single default Cursor login that invokes `cursor-agent`'s bundled `credentialManager` and `dashboardClient` (`getPlanInfo` and `getCurrentPeriodUsage`) in a single non-interactive subprocess without model turns, agent tools, session creation, interactive auth, direct credential/Keychain reads outside `cursor-agent`, or billing mutations. Omit PII (`email`, `userId`, `teamId`, tokens) from hook output and degrade to `StatusUnsupported` (`UNSUPPORTED`) if an incompatible CLI build does not trigger the hook. Multi-account Cursor management is out of scope.
+  - Architecture: [ARCH-19](../architecture/README.md#arch-19), [ARCH-12](../architecture/README.md#arch-12), [ARCH-09](../architecture/README.md#arch-09). Owner: [TASK-039](../roadmap/README.md#task-039). Verification: [V-CURSOR](../architecture/README.md#v-cursor), [V-CONTRACT](../architecture/README.md#v-contract). Evidence: [Cursor compatibility](../verification/cursor-compatibility.md).
   - Changed 2026-10-18: retired the pure public-flag restriction for `cursor-agent` after verifying that `2026.10.16-e3cb207` sends `-p /usage` as a model prompt and omits quota data from plain `status`/`about`/`acp`; qualified the read-only `status --format json` preload hook live on `darwin/arm64` ([preflight record](../verification/provider-extension-preflight-2026-10-16.md)).
 
 <a id="req-066"></a>
@@ -412,8 +413,9 @@ including no provider auto-upgrade and offline test isolation.
 | TASK-037 / TASK-040 | Update REQ-002, REQ-006, REQ-007 and provider-specific sections; ARCH-02, ARCH-03, ARCH-09, ARCH-11 and the relevant new provider section. Remove the implicit Codex fallback in `Runner.querierFor` and update public guidance and test-stage mapping. |
 
 REQ-060 through REQ-064 are verified and closed by EPIC-012 ([TASK-034](../roadmap/README.md#task-034)
-through [TASK-038](../roadmap/README.md#task-038)). REQ-065 closes at TASK-039 and
-TASK-041 owns REQ-066. Preserve completed task/evidence bodies and the
+through [TASK-038](../roadmap/README.md#task-038)). REQ-065 is verified and closed by
+[TASK-039](../roadmap/README.md#task-039); [TASK-041](../roadmap/README.md#task-041)
+owns REQ-066. Preserve completed task/evidence bodies and the
 historical v0.1.0 release gate.
 
 <a id="completion-rules"></a>
@@ -469,7 +471,7 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-035](../roadmap/README.md#task-035) | [REQ-061](#req-061) |
 | [TASK-036](../roadmap/README.md#task-036) | [REQ-062](#req-062), [REQ-063](#req-063) |
 | [TASK-038](../roadmap/README.md#task-038) | [REQ-064](#req-064); TASK-037 supplies implementation coverage |
-| [TASK-039](../roadmap/README.md#task-039) | Planned: [REQ-065](#req-065) |
+| [TASK-039](../roadmap/README.md#task-039) | [REQ-065](#req-065) |
 | [TASK-041](../roadmap/README.md#task-041) | Planned: [REQ-066](#req-066); TASK-040 supplies implementation coverage |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).

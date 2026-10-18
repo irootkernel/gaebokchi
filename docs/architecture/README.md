@@ -747,9 +747,9 @@ The canonical offline gate is `make test`. `TESTING.md` maps its prepare, unit, 
 <a id="arch-12"></a>
 ## ARCH-12: Compatibility gate and evidence policy
 
-Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038).
+Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064), [REQ-065](../specs/README.md#req-065). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038), [TASK-039](../roadmap/README.md#task-039).
 
-Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), and the [agy compatibility record](../verification/agy-compatibility.md) hold the details and dates:
+Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), the [agy compatibility record](../verification/agy-compatibility.md), and the [Cursor compatibility record](../verification/cursor-compatibility.md) hold the details and dates:
 
 | Integration | Public evidence | Installed CLI qualification |
 |---|---|---|
@@ -762,6 +762,7 @@ Compatibility status; the [compatibility record](../verification/compatibility.m
 | Claude auth status and `/usage` local command | Claude Code command, CLI, and environment references ([S-14](#s-14) through [S-16](#s-16)) | Observed live with Claude Code 2.1.280 on darwin/arm64 |
 | Claude weekly reset text | Installed CLI formatter behavior | Observed live with Claude Code 2.1.283 on darwin/arm64 |
 | `agy` single-account `/usage` JSON weekly pools (`gemini-weekly`, `3p-weekly`) | Antigravity CLI headless, usage, and troubleshooting references ([S-17](#s-17) through [S-19](#s-19), [S-22](#s-22), [S-23](#s-23)) | QUALIFIED live with `agy 1.4.0` on darwin/arm64 (TASK-034, TASK-038) |
+| Cursor single-account `status --format json` + read-only `NODE_OPTIONS` preload hook (`Included` / `totalPercentUsed`, weekly vs monthly period) | Cursor CLI parameters, usage limits, ACP references ([S-20](#s-20), [S-21](#s-21), [S-24](#s-24)), and installed bundle inspection (`./src/commands/status.ts`, `./src/usage/usage-data.ts`) | QUALIFIED live with `cursor-agent 2026.10.16-e3cb207` on darwin/arm64 (TASK-039; final executable acceptance in TASK-041) |
 | macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); TASK-031 and TASK-032 reran the full gates on both; TASK-033 reran them on its corrected uncommitted candidate |
 
 Run small, bounded, developer-only metadata probes before production transport or provider work, as TASK-001 did for Codex and Grok. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.
@@ -1129,7 +1130,8 @@ document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm
   with a read-only `NODE_OPTIONS` preload hook:
   1. Write the embedded read-only `preload.cjs` into a private mode-`0700`
      temporary directory (`os.MkdirTemp("", "gaebokchi-cursor-")`, removed on
-     `defer`) and set `NODE_OPTIONS=--require=<preloadPath>`.
+     `defer` with any removal error folded into `Result.CleanupFailed`) and set
+     `NODE_OPTIONS=--require=<preloadPath>`.
   2. **Environment filter (`envfilter.Cursor()`):** Preserve `HOME` and platform
      keyring variables so `cursor-agent` accesses its default login. Strip all
      `CURSOR_*` variables (`CURSOR_API_KEY`, `CURSOR_AUTH_TOKEN`,
@@ -1148,20 +1150,44 @@ document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm
      `handleStatus`, the subprocess still returns standard `status --format json`
      output and `internal/provider/cursor` deterministically returns
      `StatusUnsupported` (`UNSUPPORTED`).
-  5. **Response normalization:**
-     - `!isAuthenticated || !hasAccessToken || !hasRefreshToken` ->
-       `StatusAuthRequired` (`AUTH REQUIRED`).
-     - `hasApiKey` -> `StatusNotApplicableAPIKey` (`N/A (API key)`).
-     - `planInfo.includedUsagePeriod == 1` (`MONTHLY`), or `0` (`UNSPECIFIED`)
-       with a 27–32 day `billingCycleEnd - billingCycleStart` window ->
-       `StatusNotApplicableMonthly` (`N/A (monthly)`, `Period: domain.PeriodMonthly`).
-     - `planInfo.includedUsagePeriod == 2` (`WEEKLY`), or `0` (`UNSPECIFIED`)
-       with a 6–8 day `billingCycleEnd - billingCycleStart` window ->
-       require `currentPeriodUsage.planUsage != nil`, extract `UsedPercent` from
-       `planUsage.totalPercentUsed` (or `includedSpend / limit * 100` when
-       `totalPercentUsed` is absent and `limit > 0`), extract `ResetAt` from
-       `planInfo.includedUsageResetsAtMs` (falling back to
-       `currentPeriodUsage.billingCycleEndMs`), and return `StatusOK` with
-       `Period: domain.PeriodWeekly`, `QuotaID: "cursor_included"`, and
-       `Source: domain.SourceCursorCLIUsage`. Exclude on-demand spend
-       (`spendLimitUsage`) from quota percentages.
+  5. **Response normalization (matching the 7 cases in [cursor-compatibility.md](../verification/cursor-compatibility.md)):**
+     - **Unhooked output (`StatusUnsupported` / `UNSUPPORTED`):** Valid JSON that
+       lacks the preload-hook discriminator fields (`status`, `hasAccessToken`,
+       `hasRefreshToken`, `hasApiKey`—such as plain `{"isAuthenticated": true, ...}`
+       output when the hook did not fire) -> `StatusUnsupported`.
+     - **Unauthenticated or partial credentials (`StatusAuthRequired` / `AUTH REQUIRED`):**
+       `!isAuthenticated || !hasAccessToken || !hasRefreshToken` ->
+       `StatusAuthRequired`.
+     - **API-key authentication (`StatusNotApplicableAPIKey` / `N/A (API key)`):**
+       `hasApiKey == true` -> `StatusNotApplicableAPIKey` (`ExitClean`).
+     - **ConnectRPC error (`StatusProviderError` / `ERROR`):** Non-null
+       `planError` or `usageError` -> `StatusProviderError` (or
+       `StatusAuthRequired` only when the structured RPC error `code` is
+       explicitly `"unauthenticated"`), without echoing raw provider error text.
+     - **Monthly plan (`StatusNotApplicableMonthly` / `N/A (monthly)`):**
+       `planInfo.includedUsagePeriod == 1` (`MONTHLY`), or `0` (`UNSPECIFIED`)
+       with a 27–32 day `billingCycleEndMs - billingCycleStartMs` window ->
+       `StatusNotApplicableMonthly` (`Period: domain.PeriodMonthly`,
+       `UsedPercent: nil`, `ResetAt: nil`, `ExitClean`).
+     - **Weekly plan (`StatusOK`):** `planInfo.includedUsagePeriod == 2`
+       (`WEEKLY`), or `0` (`UNSPECIFIED`) with a 6–8 day
+       `billingCycleEndMs - billingCycleStartMs` window -> require
+       `currentPeriodUsage.enabled == true` and `currentPeriodUsage.planUsage != nil`,
+       extract `UsedPercent` from `planUsage.totalPercentUsed` (or
+       `includedSpend / limit * 100` when `totalPercentUsed` is absent/null and
+       `limit > 0`), extract `ResetAt` from `planInfo.includedUsageResetsAtMs`
+       (falling back to `currentPeriodUsage.billingCycleEndMs`), and return
+       `StatusOK` with `Period: domain.PeriodWeekly`,
+       `QuotaID: "cursor_included"`, and `Source: domain.SourceCursorCLIUsage`
+       (`"cursor_cli_usage"`). Exclude on-demand spend (`spendLimitUsage`) from
+       quota percentages.
+     - **Malformed, out-of-range, oversized, or unavailable edge cases:**
+       Non-JSON stdout, stdout > 256 KiB, `totalPercentUsed < 0` or `> 100`, or
+       invalid spend/limit (`limit > 0` with `includedSpend < 0` or
+       `includedSpend > limit`) -> `StatusProtocolError` (`PROTOCOL ERROR`);
+       `planInfo == nil`, unknown `includedUsagePeriod` enum, or
+       `includedUsagePeriod == 0` without a 6–8 day or 27–32 day cycle window ->
+       `StatusUnavailablePeriod` (`N/A (period)`); weekly period where
+       `currentPeriodUsage == nil`, `currentPeriodUsage.enabled == false`,
+       `planUsage == nil`, or `totalPercentUsed == nil` with `limit <= 0` ->
+       `StatusUnavailableNoData` (`N/A (no data)`).

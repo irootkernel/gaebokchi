@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: v0.1.0 baseline with provider extensions\
-Status: EPIC-001 through EPIC-012 retain their recorded COMPLETE milestones; EPIC-013 is NOT STARTED. The exact-release gate remains separately recorded below.
+Status: EPIC-001 through EPIC-012 retain their recorded COMPLETE milestones; EPIC-013 is IN PROGRESS (TASK-039 COMPLETE). The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
@@ -57,7 +57,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
-| 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | NOT STARTED |
+| 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | IN PROGRESS (TASK-039 complete; TASK-040 next) |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -76,10 +76,11 @@ EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
 single-account `agy` weekly usage support with two weekly rows (`gemini` and
 `claude/gpt`) in the existing weekly output, verified in
 [agy-compatibility.md](../verification/agy-compatibility.md).
-EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) has its
+EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) completed
+[TASK-039](#task-039) on 2026-10-18, freezing the qualified
 `cursor-agent 2026.10.16-e3cb207` subprocess (`status --format json`) +
-read-only `NODE_OPTIONS` preload hook contract qualified as of 2026-10-18 and is
-ready for execution starting at TASK-039.
+read-only `NODE_OPTIONS` preload hook contract and fixture catalog for
+[TASK-040](#task-040).
 
 <a id="provider-discovery-preflight"></a>
 ### Independent provider discovery preflights
@@ -1661,7 +1662,7 @@ EPIC-013.
 <a id="epic-013"></a>
 ## EPIC-013: Cursor Agent usage support
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [ ] Epic complete. **Status: IN PROGRESS (TASK-039 COMPLETE).**
 
 **Goal:** Query the single default `cursor-agent` CLI login through `<cursor-bin> status --format json`
 with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and
@@ -1685,7 +1686,7 @@ compatibility limits. Installation and publication remain separate work.
 <a id="task-039"></a>
 ### TASK-039: Qualify Cursor usage metadata and period semantics
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Freeze the qualified `cursor-agent status --format json` +
 read-only `NODE_OPTIONS` preload hook contract before adapter implementation.
@@ -1719,7 +1720,8 @@ and monthly (`StatusNotApplicableMonthly`) plans.
 
 **Verification:** Reconcile [cursor-compatibility.md](../verification/cursor-compatibility.md),
 [REQ-065](../specs/README.md#req-065), and [ARCH-19](../architecture/README.md#arch-19),
-and run `go run scripts/check-docs.go`.
+and run `go run scripts/check-docs.go`. Evidence:
+[cursor-compatibility.md](../verification/cursor-compatibility.md).
 
 **Handoff:** TASK-040 receives the frozen `status --format json` preload-hook
 contract and sanitized fixtures.
