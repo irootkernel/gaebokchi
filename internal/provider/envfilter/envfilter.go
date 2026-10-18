@@ -63,6 +63,20 @@ func Agy() Rule {
 	}
 }
 
+// Cursor drops ambient CURSOR_* overrides and parent NODE_OPTIONS while
+// preserving HOME and platform keyring variables for the default Cursor login.
+// The caller injects NODE_OPTIONS=--require=<preloadPath>.
+func Cursor() Rule {
+	return Rule{
+		Drop: []string{
+			"NODE_OPTIONS",
+		},
+		DropPrefixes: []string{
+			"CURSOR_",
+		},
+	}
+}
+
 // Apply returns the child environment for parent. Later duplicate
 // entries for the same name win in the parent list; after Apply each
 // adjusted name appears exactly once, at its last position, and

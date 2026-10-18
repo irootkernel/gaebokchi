@@ -179,3 +179,29 @@ var _ = ginkgo.It("TestTableAgyTwoRows", func() {
 		t.Fatalf("agy two-row table mismatch:\n got:\n%s\nwant:\n%s", got, want)
 	}
 })
+
+var _ = ginkgo.It("TestTableCursorRow", func() {
+	t := testT{ginkgo.GinkgoT()}
+	results := []domain.Result{
+		{TargetID: "agy:0", Provider: domain.ProviderAgy, Account: "gemini", Status: domain.StatusOK, UsedPercent: pct(74.15718734264374)},
+		{TargetID: "agy:1", Provider: domain.ProviderAgy, Account: "claude/gpt", Status: domain.StatusOK, UsedPercent: pct(12.76919841766357)},
+		{TargetID: "cursor:0", Provider: domain.ProviderCursor, Account: "default", Status: domain.StatusOK, UsedPercent: pct(25)},
+	}
+	got := Table(results)
+	want := "AI PROVIDER  ACCOUNT     WEEKLY USAGE\n" +
+		"agy          gemini      74.2%\n" +
+		"agy          claude/gpt  12.8%\n" +
+		"Cursor       default     25%\n"
+	if got != want {
+		t.Fatalf("cursor row table mismatch:\n got:\n%s\nwant:\n%s", got, want)
+	}
+
+	monthly := Table([]domain.Result{
+		{TargetID: "cursor:0", Provider: domain.ProviderCursor, Account: "default", Status: domain.StatusNotApplicableMonthly},
+	})
+	wantMonthly := "AI PROVIDER  ACCOUNT  WEEKLY USAGE\n" +
+		"Cursor       default  N/A (monthly)\n"
+	if monthly != wantMonthly {
+		t.Fatalf("cursor monthly row table mismatch:\n got:\n%s\nwant:\n%s", monthly, wantMonthly)
+	}
+})

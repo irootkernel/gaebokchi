@@ -6,9 +6,10 @@ Project: **Gaebokchi (개복치)** · Ecosystem: Aquarium tool · Repository and
 
 The [requirements](../specs/README.md) define required behavior and acceptance. The [roadmap](../roadmap/README.md) owns work identity, execution order, status, and delivery history. This document describes the current implementation and its boundaries: components, data semantics, protocol and process rules, and verification design. Release archives carry these three documents, while links to verification records and other maintainer documents resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them. Decisions whose rationale should outlive a rewrite of this document are kept as [architecture decision records](../architecture-decision-records/README.md).
 
-ARCH-01 through ARCH-18 describe the implemented baseline. ARCH-19 specifies the
-planned EPIC-013 Cursor single-account adapter and read-only preload hook
-contract qualified against `cursor-agent 2026.10.16-e3cb207`.
+ARCH-01 through ARCH-19 describe the implemented baseline, including the
+EPIC-013 Cursor single-account adapter and read-only preload hook contract
+qualified against `cursor-agent 2026.10.16-e3cb207` (final live executable
+acceptance in TASK-041).
 
 | Section | Responsibility |
 |---|---|
@@ -30,14 +31,14 @@ contract qualified against `cursor-agent 2026.10.16-e3cb207`.
 | [ARCH-15](#arch-15) | Primary sources |
 | [ARCH-17](#arch-17) | Weekly model-pool rows and exact remaining-fraction conversion |
 | [ARCH-18](#arch-18) | agy single-account adapter and shared two-row query |
-| [ARCH-19](#arch-19) | Planned Cursor single-account adapter and read-only preload hook |
+| [ARCH-19](#arch-19) | Cursor single-account adapter and read-only preload hook |
 
 Section numbers are stable identifiers, not reading order: ARCH-16 was added after ARCH-15 and sits with the other provider adapters.
 
 <a id="arch-01"></a>
 ## ARCH-01: Scope and settled decisions
 
-Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req-004), [REQ-005](../specs/README.md#req-005), [REQ-056](../specs/README.md#req-056). Implemented across [EPIC-001](../roadmap/README.md#epic-001) through [EPIC-010](../roadmap/README.md#epic-010), plus the Claude extension recorded in [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md).
+Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req-004), [REQ-005](../specs/README.md#req-005), [REQ-056](../specs/README.md#req-056), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066). Implemented across [EPIC-001](../roadmap/README.md#epic-001) through [EPIC-013](../roadmap/README.md#epic-013), plus the Claude extension recorded in [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md).
 
 | Decision | Choice | Consequence |
 |---|---|---|
@@ -45,7 +46,7 @@ Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req
 | Ecosystem | Aquarium tool | Standalone; no Aquarium runtime or build dependency |
 | Repository and executable | `gaebokchi` | One consistent ASCII name for repository, binary and command directory |
 | Language | Go, standard library first | Small build and deployment surface |
-| Providers | Codex, Grok, Claude, and `agy`, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
+| Providers | Codex, Grok, Claude, `agy`, and Cursor, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
 | Authentication | Existing provider CLI login | No token parsing or account-linking workflow |
 | Account set | Required `~/.config/gaebokchi/config.yaml` | Only listed accounts are queried; omitted providers are disabled |
 | Metric | Provider-defined weekly allowance consumed | No cross-provider arithmetic or cost comparison |
@@ -78,6 +79,7 @@ cmd/gaebokchi   composition root: version dispatch, help, output mode, signals, 
  |                              +-> internal/provider/envfilter   child environment policy
  +-> internal/provider/claude ----> internal/process, internal/provider/envfilter (no RPC)
  +-> internal/provider/agy    ----> internal/process, internal/provider/envfilter (no RPC)
+ +-> internal/provider/cursor ----> internal/process, internal/provider/envfilter (no RPC)
 
 cmd/gaebokchi builds the providers and injects them into internal/app through the
 app.Querier interface; internal/app imports only internal/domain.
@@ -88,7 +90,7 @@ internal/testutil is an offline fake-process harness that only tests import.
 
 The application boundary is the small `app.Querier` interface, `Query(context.Context, domain.Target) domain.Result`. A provider returns exactly one terminal result for one target; it does not render, terminate the program, mutate the global environment, or coordinate other accounts. Expected provider failures belong in a typed result. Setup and argument failures before targets exist remain command-level errors.
 
-Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)); the `agy` adapter runs `--version` and `--print /usage --output-format json --print-timeout 15s` once per invocation and projects its two weekly pools (`gemini` and `claude/gpt`) onto `agy:0` and `agy:1` ([ARCH-18](#arch-18)).
+Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)); the `agy` adapter runs `--version` and `--print /usage --output-format json --print-timeout 15s` once per invocation and projects its two weekly pools (`gemini` and `claude/gpt`) onto `agy:0` and `agy:1` ([ARCH-18](#arch-18)); the Cursor adapter runs `<cursor-bin> status --format json` with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and normalizes the `Included` subscription quota onto `cursor:0` ([ARCH-19](#arch-19)).
 
 Repository layout (test suites are listed in `TESTING.md`):
 
@@ -106,6 +108,7 @@ internal/provider/grok/{provider,normalize}.go
 internal/provider/grok/testdata/             # sanitized captured fixtures
 internal/provider/claude/provider.go
 internal/provider/agy/provider.go
+internal/provider/cursor/{provider.go,preload.cjs}
 internal/provider/envfilter/envfilter.go
 internal/provider/home/home.go
 internal/render/{terminal,live,table,json}.go
@@ -121,13 +124,13 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064), [REQ-066](../specs/README.md#req-066).
 
-A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, and `agy` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
+A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, `agy`, and `cursor` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)); `cursor` accepts at most one entry (`- name: <alias>`) with no `path` field ([ARCH-19](#arch-19)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
 
-Targets are built in Codex, Grok, Claude, `agy` order, preserving list order within each provider. IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
+Targets are built in Codex, Grok, Claude, `agy`, Cursor order, preserving list order within each provider. IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), `cursor:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). An enabled `cursor` entry uses the CLI's single default login (`HOME` preserved) and emits one row (`cursor:0`) using the configured `name`. The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
-Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
+Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -145,10 +148,10 @@ type Result struct {
     Status        Status
     UsedPercent   *float64      // non-nil only for StatusOK
     Period        PeriodKind   // weekly, monthly, unknown
-    QuotaID       string        // e.g. codex or claude_all_models; not a cross-provider unit
+    QuotaID       string        // e.g. codex, claude_all_models, or cursor_included; not a cross-provider unit
     ResetAt       *time.Time
     ObservedAt    time.Time
-    Source        string        // codex_app_server, grok_acp_billing, or claude_cli_usage
+    Source        string        // codex_app_server, grok_acp_billing, claude_cli_usage, agy_cli_usage, or cursor_cli_usage
     Diagnostic    Diagnostic    // safe code + application-owned message
     CleanupFailed bool          // bounded cleanup did not complete (ARCH-05)
 }
@@ -436,7 +439,7 @@ The trust boundary is the user-selected, already installed provider executable. 
 | Persistence | No application telemetry or permanent runtime files |
 | Shared processes | Do not shut down/kill provider leaders or unrelated coding sessions |
 
-Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`, followed by per-target `GROK_HOME`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16), preserves `HOME`, and sets `CLAUDE_CONFIG_DIR` only for non-default homes. TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
+Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`, followed by per-target `GROK_HOME`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16), preserves `HOME`, and sets `CLAUDE_CONFIG_DIR` only for non-default homes. `agy` filtering removes the Antigravity/Jetski/Gemini overrides listed in [ARCH-18](#arch-18) and sets `AGY_CLI_DISABLE_AUTO_UPDATE=true`. Cursor filtering (`envfilter.Cursor()`) removes all `CURSOR_*` variables and ambient parent `NODE_OPTIONS` before setting the controlled `NODE_OPTIONS` preload hook path ([ARCH-19](#arch-19)). TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
 
 Shell aliases are not executables. Binary flags accept one program path/name, not arbitrary arguments. Do not bypass Go's `ErrDot` protection or run a binary accidentally found through an implicit current-directory PATH entry. A deliberately specified path containing spaces is passed as one executable value, not split into a command.
 
@@ -472,7 +475,7 @@ gaebokchi: grok:0: N/A (monthly): grok:0: grok account reports a monthly period,
 
 For usage `--json`, render one compact, newline-terminated object with a
 `results` array in target order. Each element has exactly `target_id` (the
-invocation-local ID), `provider` (`codex`, `grok`, `claude`), `account` (the
+invocation-local ID), `provider` (`codex`, `grok`, `claude`, `agy`, `cursor`), `account` (the
 normalized, disambiguated display label), `status` (the domain status string),
 `used_percent` (an unrounded JSON number for an OK measurement or the
 [REQ-034](../specs/README.md#req-034) Grok weekly omission fallback, otherwise
@@ -662,7 +665,7 @@ TASK-038 verifies positive weekly measurements for both `agy` rows through the
 final executable.
 
 <a id="v-cursor"></a>
-### V-CURSOR: Planned Cursor qualification and integration
+### V-CURSOR: Cursor qualification and integration
 
 TASK-039 owns the metadata-only subprocess + read-only `NODE_OPTIONS` preload
 hook interface (`<cursor-bin> status --format json` intercepting
@@ -713,7 +716,7 @@ Assert complete outbound method allowlists, false host capabilities, no raw secr
 <a id="v-e2e"></a>
 ### V-E2E: Executable-level offline acceptance
 
-Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, and `agy` executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
+Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, `agy`, and Cursor executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
 
 <a id="v-build"></a>
 ### V-BUILD: Reproducible local builds
@@ -1100,7 +1103,7 @@ documents the qualified `agy 1.4.0` contract on `darwin/arm64`.
      for `agy:1` from `command.data.groups[].buckets[]`.
 
 <a id="arch-19"></a>
-## ARCH-19: Planned Cursor single-account adapter and read-only preload hook
+## ARCH-19: Cursor single-account adapter and read-only preload hook
 
 **Delivery:** EPIC-013, TASK-039 through TASK-041. **Requirements:** REQ-065 and
 REQ-066. The [Cursor compatibility record](../verification/cursor-compatibility.md)

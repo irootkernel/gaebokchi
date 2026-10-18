@@ -1,5 +1,5 @@
 // Command gaebokchi renders a one-shot weekly-usage snapshot using the
-// installed Codex, Grok, Claude, and agy CLIs.
+// installed Codex, Grok, Claude, agy, and Cursor CLIs.
 package main
 
 import (
@@ -17,6 +17,7 @@ import (
 	"gaebokchi/internal/provider/agy"
 	"gaebokchi/internal/provider/claude"
 	"gaebokchi/internal/provider/codex"
+	"gaebokchi/internal/provider/cursor"
 	"gaebokchi/internal/provider/grok"
 	"gaebokchi/internal/render"
 )
@@ -28,8 +29,8 @@ const usage = `Usage:
   gaebokchi [flags]
   gaebokchi version [--json]
 
-Show weekly subscription usage for Codex (ChatGPT), Grok, Claude, and agy using
-the existing provider CLI logins. One snapshot, then exit.
+Show weekly subscription usage for Codex (ChatGPT), Grok, Claude, agy, and
+Cursor using the existing provider CLI logins. One snapshot, then exit.
 
 Commands:
   version               print version and exit; use --json for JSON
@@ -42,6 +43,7 @@ Flags:
   --grok-bin PATH       grok executable path or name (default "grok")
   --claude-bin PATH     claude executable path or name (default "claude")
   --agy-bin PATH        agy executable path or name (default "agy")
+  --cursor-bin PATH     cursor-agent executable path or name (default "cursor-agent")
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
   --json                emit one JSON usage snapshot instead of the terminal view or table
   -h, --help            show this help and exit
@@ -59,8 +61,8 @@ func main() {
 
 // run returns the process exit code for one invocation.
 func run(args []string) int {
-	return runWithIO(args, os.Stdout, os.Stderr, func() (app.Querier, app.Querier, app.Querier, app.Querier) {
-		return codex.New(), grok.New(), claude.New(), agy.New()
+	return runWithIO(args, os.Stdout, os.Stderr, func() (app.Querier, app.Querier, app.Querier, app.Querier, app.Querier) {
+		return codex.New(), grok.New(), claude.New(), agy.New(), cursor.New()
 	})
 }
 
@@ -86,12 +88,13 @@ func runWithIO(args []string, stdout, stderr io.Writer, newProviders providers) 
 }
 
 // providers is the seam through which tests inject fake providers.
-type providers func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier)
+type providers func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier)
 
 type codexQuerier = app.Querier
 type grokQuerier = app.Querier
 type claudeQuerier = app.Querier
 type agyQuerier = app.Querier
+type cursorQuerier = app.Querier
 
 // terminalSelection keeps the output-mode policy independent of the ioctl.
 func terminalSelection(jsonOutput bool, term string, file bool, columns, rows int, sizeOK bool) bool {
@@ -163,8 +166,8 @@ func executeWithTerminal(opts options.Options, stdout, stderr io.Writer, newProv
 	if terminalSelection(opts.JSON, getenv("TERM"), isFile, columns, rows, sizeOK) {
 		live = render.NewLiveRenderer(stdout, targets, columns, rows, getenv("NO_COLOR") == "")
 	}
-	cx, gk, cl, ag := newProviders()
-	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl, Agy: ag}
+	cx, gk, cl, ag, cu := newProviders()
+	runner := &app.Runner{Codex: cx, Grok: gk, Claude: cl, Agy: ag, Cursor: cu}
 	if live != nil {
 		runner.Observe = func(index int, result domain.Result) {
 			result.Account = targets[index].FallbackAccount

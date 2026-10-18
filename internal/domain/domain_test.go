@@ -114,6 +114,9 @@ var _ = ginkgo.It("TestProviderDisplayName", func() {
 	if ProviderAgy.DisplayName() != "agy" {
 		t.Fatalf("agy display name = %q", ProviderAgy.DisplayName())
 	}
+	if ProviderCursor.DisplayName() != "Cursor" {
+		t.Fatalf("cursor display name = %q", ProviderCursor.DisplayName())
+	}
 })
 
 var _ = ginkgo.Describe("TestRemainingFractionToUsedPercent", func() {

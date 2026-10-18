@@ -13,6 +13,7 @@ const (
 	ProviderGrok   ProviderKind = "grok"
 	ProviderClaude ProviderKind = "claude"
 	ProviderAgy    ProviderKind = "agy"
+	ProviderCursor ProviderKind = "cursor"
 )
 
 // DisplayName returns the AI PROVIDER column text for a provider kind.
@@ -26,6 +27,8 @@ func (p ProviderKind) DisplayName() string {
 		return "Claude"
 	case ProviderAgy:
 		return "agy"
+	case ProviderCursor:
+		return "Cursor"
 	default:
 		return string(p)
 	}

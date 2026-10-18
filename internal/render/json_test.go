@@ -41,4 +41,16 @@ var _ = ginkgo.It("TestJSONSnapshotContract", func() {
 	if gotAgy != wantAgy {
 		t.Fatalf("agy JSON mismatch:\n got: %s\nwant: %s", gotAgy, wantAgy)
 	}
+
+	cursorResults := []domain.Result{
+		{TargetID: "cursor:0", Provider: domain.ProviderCursor, Account: "default", Status: domain.StatusOK, UsedPercent: pct(25), Period: domain.PeriodWeekly, Source: domain.SourceCursorCLIUsage},
+	}
+	gotCursor, err := JSON(cursorResults)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantCursor := `{"results":[{"target_id":"cursor:0","provider":"cursor","account":"default","status":"ok","used_percent":25,"cleanup_failed":false}]}` + "\n"
+	if gotCursor != wantCursor {
+		t.Fatalf("cursor JSON mismatch:\n got: %s\nwant: %s", gotCursor, wantCursor)
+	}
 })

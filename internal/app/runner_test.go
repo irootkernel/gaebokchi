@@ -359,7 +359,7 @@ var _ = ginkgo.It("TestOptionsTargetsFeedRunner", func() {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("codex:\n  - name: a\n    path: ~/a\n  - name: b\n    path: ~/b\ngrok:\n  - name: g\n    path: ~/g\nclaude:\n  - name: c\n    path: ~/c\nagy:\n  - name: default\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("codex:\n  - name: a\n    path: ~/a\n  - name: b\n    path: ~/b\ngrok:\n  - name: g\n    path: ~/g\nclaude:\n  - name: c\n    path: ~/c\nagy:\n  - name: default\ncursor:\n  - name: default\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	o, err := options.Parse(nil)
@@ -367,14 +367,14 @@ var _ = ginkgo.It("TestOptionsTargetsFeedRunner", func() {
 		t.Fatal(err)
 	}
 	targets := o.Targets()
-	if len(targets) != 6 {
-		t.Fatalf("default targets = %d, want 6", len(targets))
+	if len(targets) != 7 {
+		t.Fatalf("default targets = %d, want 7", len(targets))
 	}
 	q := &fakeQuerier{}
-	r := &Runner{Codex: q, Grok: q, Claude: q, Agy: q}
+	r := &Runner{Codex: q, Grok: q, Claude: q, Agy: q, Cursor: q}
 	results := r.Run(context.Background(), targets, time.Second)
 	if results[0].TargetID != "codex:0" || results[2].TargetID != "grok:0" || results[3].TargetID != "claude:0" ||
-		results[4].TargetID != "agy:0" || results[5].TargetID != "agy:1" {
+		results[4].TargetID != "agy:0" || results[5].TargetID != "agy:1" || results[6].TargetID != "cursor:0" {
 		t.Fatalf("unexpected target order: %+v", targets)
 	}
 })
@@ -386,12 +386,13 @@ var _ = ginkgo.It("TestExplicitProviderDispatchRejectsUnknownWithoutFallback", f
 	targets := []domain.Target{
 		{ID: "unknown:0", Index: 0, Provider: domain.ProviderKind("unknown"), FallbackAccount: "default"},
 		{ID: "agy:0", Index: 1, Provider: domain.ProviderAgy, FallbackAccount: "gemini"},
+		{ID: "cursor:0", Index: 2, Provider: domain.ProviderCursor, FallbackAccount: "default"},
 	}
 	results := r.Run(context.Background(), targets, time.Second)
 	if codexQ.callCount() != 0 {
 		t.Fatalf("unknown or unwired provider fell back to Codex (%d calls)", codexQ.callCount())
 	}
-	if results[0].Status != domain.StatusUnsupported || results[1].Status != domain.StatusUnsupported {
+	if results[0].Status != domain.StatusUnsupported || results[1].Status != domain.StatusUnsupported || results[2].Status != domain.StatusUnsupported {
 		t.Fatalf("unexpected statuses for unwired providers: %+v", results)
 	}
 })

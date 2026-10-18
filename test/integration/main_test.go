@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 		isClaudeAuth := false
 		isAgyVersion := false
 		isAgyUsage := false
+		isCursorStatus := len(os.Args) == 4 && os.Args[1] == "status" && os.Args[2] == "--format" && os.Args[3] == "json"
 		for _, arg := range os.Args[1:] {
 			if arg == "--safe-mode" {
 				isClaude = true
@@ -104,6 +105,14 @@ func TestMain(m *testing.M) {
 		}
 		if isAgyUsage {
 			_, _ = os.Stdout.WriteString(`{"status":"SUCCESS","num_turns":0,"usage":{"total_tokens":0},"command":{"name":"usage","data":{"groups":[{"name":"Gemini Models","buckets":[{"id":"gemini-weekly","name":"Weekly Limit Remaining","window":"weekly","remaining_fraction":0.2584281265735626,"reset_time":"2026-10-21T15:42:40Z"},{"id":"gemini-5h","name":"Five Hour Limit Remaining","window":"5h","remaining_fraction":0.85,"reset_time":"2026-10-16T18:01:19Z"}]},{"name":"Claude and GPT models","buckets":[{"id":"3p-weekly","name":"Weekly Limit Remaining","window":"weekly","remaining_fraction":0.8723080158233643,"reset_time":"2026-10-23T15:13:44Z"},{"id":"3p-5h","name":"Five Hour Limit Remaining","window":"5h","remaining_fraction":0.74,"reset_time":"2026-10-16T20:13:44Z"}]}]}}}`)
+			os.Exit(0)
+		}
+		if isCursorStatus {
+			payload := os.Getenv("GAEBOKCHI_FAKE_CURSOR_PAYLOAD")
+			if payload == "" {
+				payload = `{"status":"authenticated","isAuthenticated":true,"hasAccessToken":true,"hasRefreshToken":true,"hasApiKey":false,"planInfo":{"planName":"Ultra","includedUsagePeriod":2,"includedUsageResetsAtMs":"1792591073284","billingCycleEndMs":"1794664361314"},"planError":null,"currentPeriodUsage":{"billingCycleStartMs":"1791986273284","billingCycleEndMs":"1792591073284","enabled":true,"planUsage":{"totalSpend":0,"includedSpend":0,"bonusSpend":0,"remaining":0,"limit":0,"autoPercentUsed":100,"apiPercentUsed":0,"totalPercentUsed":25}},"usageError":null}`
+			}
+			_, _ = os.Stdout.WriteString(payload + "\n")
 			os.Exit(0)
 		}
 		if isClaude {

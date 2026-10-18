@@ -1,8 +1,8 @@
 # Gaebokchi (개복치)
 
-See how much of your weekly Codex (ChatGPT), Grok, Claude, and `agy`
-(Google Antigravity CLI) subscription allowance you have used, in one command,
-using the logins your installed CLIs already manage.
+See how much of your weekly Codex (ChatGPT), Grok, Claude, `agy`
+(Google Antigravity CLI), and Cursor subscription allowance you have used, in
+one command, using the logins your installed CLIs already manage.
 
 ```text
 
@@ -20,6 +20,8 @@ using the logins your installed CLIs already manage.
     ↻ 4d 3h
            claude/gpt            ███░░░░░░░░░░░░░░░░░   12.8%
     ↻ 6d 3h
+  Cursor   default               █████░░░░░░░░░░░░░░░     25%
+    ↻ 3d 2h
 
 ```
 
@@ -39,7 +41,7 @@ Gaebokchi is a small, read-only tool in the Aquarium tool family.
 
 ## What it shows, and what it does not
 
-- One row per configured Codex, Grok, or Claude account in
+- One row per configured Codex, Grok, Claude, or Cursor account in
   `~/.config/gaebokchi/config.yaml`, plus two weekly model-pool rows (`gemini`
   and `claude/gpt`) when the single default `agy` account is enabled. Omit a
   provider to disable it; list multiple homes for Codex, Grok, or Claude.
@@ -63,7 +65,9 @@ Gaebokchi is a small, read-only tool in the Aquarium tool family.
   - `grok`, logged in separately for every configured `GROK_HOME`;
   - `claude` (Claude Code), logged in for each configured Claude home;
   - `agy` (Google Antigravity CLI `>= 1.2.15`), logged in with your main Google
-    account when `agy` is enabled.
+    account when `agy` is enabled;
+  - `cursor-agent` (Cursor CLI), logged in with your default Cursor account when
+    `cursor` is enabled.
 - Go 1.27 or newer, only if you build from source.
 
 A configured account whose CLI is missing gets a `NOT INSTALLED` row and makes
@@ -147,21 +151,26 @@ claude:
     path: ~/.claude-work
 agy:
   - name: default
+cursor:
+  - name: default
 ```
 
-Each `name` in `codex`, `grok`, and `claude` is a display alias, not a login
-selector or a verified email. Each `path` selects the CLI-managed account state
+Each `name` in `codex`, `grok`, `claude`, and `cursor` is a display alias, not a login
+selector or a verified email. Each `path` in `codex`, `grok`, and `claude` selects the CLI-managed account state
 for that row: `CODEX_HOME` for Codex, `GROK_HOME` for Grok, and
 `CLAUDE_CONFIG_DIR` for non-default Claude homes. The default Claude home
 (`~/.claude`) uses the CLI's implicit login state. `agy` supports at most one
 entry (the user's single default `agy` login, no `path` needed) and emits two
 weekly rows under provider `agy`: `gemini` (`agy:0`) and `claude/gpt` (`agy:1`)
-from a single shared `agy` query. Log in through the matching provider CLI
-before querying.
+from a single shared `agy` query. `cursor` supports at most one entry (`- name: <alias>`,
+with no `path` field allowed) for the single default `cursor-agent` login and
+emits one row (`cursor:0`) under provider `Cursor`. Log in through the matching
+provider CLI before querying.
 For example, `CODEX_HOME="$HOME/.codex-work" codex login` and
 `CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login` select those homes;
 use the Grok CLI's own login flow with `GROK_HOME="$HOME/.grok-personal"`, and
-log in once with `agy` for the default Antigravity account.
+log in once with `agy` and `cursor-agent login` for the default Antigravity and
+Cursor accounts.
 Gaebokchi never reads or creates provider credentials.
 
 Use an absolute path or a path beginning with `~/`; shell variables and
@@ -172,7 +181,7 @@ existing symlink aliases, even when a trailing path component is missing. A
 blank or whitespace-only name, unknown YAML key, YAML merge key, null provider list, or empty
 configuration is an error. Providers omitted from the file (or listed as `[]`)
 are disabled; at least one account must remain. Rows appear in Codex,
-Grok, Claude, `agy` order, then in each provider's list order.
+Grok, Claude, `agy`, Cursor order, then in each provider's list order.
 
 If the file is missing or invalid, gaebokchi exits 2 before starting a
 provider and prints the path plus a link to the configuration guide. `--help` and
@@ -186,6 +195,7 @@ gaebokchi --timeout 40s                              # longer query budget
 gaebokchi --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi --agy-bin /usr/local/bin/agy
+gaebokchi --cursor-bin ~/.local/bin/cursor-agent
 gaebokchi --json                                     # machine-readable snapshot
 NO_COLOR=1 gaebokchi                                 # terminal view without color
 gaebokchi version
@@ -200,6 +210,7 @@ gaebokchi version --json
 | `--grok-bin PATH` | `grok` | grok executable path or name |
 | `--claude-bin PATH` | `claude` | claude executable path or name |
 | `--agy-bin PATH` | `agy` | agy executable path or name |
+| `--cursor-bin PATH` | `cursor-agent` | cursor-agent executable path or name |
 | `--timeout DURATION` | `20s` | Per-target query budget, from 1s to 120s |
 | `--json` | off | Emit one JSON usage snapshot instead of the terminal view or table |
 | `-h`, `--help` | — | Print help and exit without launching providers |
@@ -251,6 +262,7 @@ Grok         personal              54%
 Claude       work                  43.2%
 agy          gemini                74.2%
 agy          claude/gpt            12.8%
+Cursor       default               25%
 ```
 
 ### JSON
@@ -266,7 +278,7 @@ result; real output includes every target, failures too:
 Each result has exactly these fields:
 
 - `target_id`;
-- `provider` (`codex`, `grok`, `claude`, or `agy`);
+- `provider` (`codex`, `grok`, `claude`, `agy`, or `cursor`);
 - `account`;
 - `status`;
 - `used_percent`, a number with the provider's precision, or `null` when no
@@ -325,6 +337,9 @@ the others. All account labels come from configuration and are not verified emai
     `GOOGLE_APPLICATION_CREDENTIALS`, and `GOOGLE_CLOUD_QUOTA_PROJECT` are
     removed, and `AGY_CLI_DISABLE_AUTO_UPDATE=true` is set while preserving
     `HOME` for the default login.
+  - For Cursor, `CURSOR_*` overrides and any ambient parent `NODE_OPTIONS` are
+    removed while preserving `HOME` for the default login, and a controlled
+    read-only `NODE_OPTIONS` preload hook is injected into `cursor-agent status --format json`.
   - Codex and Grok children get their configured `CODEX_HOME` or `GROK_HOME`.
     Claude children get `CLAUDE_CONFIG_DIR` for non-default homes; the default
     `~/.claude` home uses the CLI's implicit credential namespace. `HOME` and
@@ -350,12 +365,15 @@ Gaebokchi drives provider interfaces that are qualified per CLI version:
 | Grok | `grok 1.0.40` and `1.0.44`; plus a `1.0.41` metadata probe | The `grok --no-auto-update agent stdio` billing extension |
 | Claude | Claude Code 2.1.280 and 2.1.284; reset text on 2.1.283 | The prompt-free `auth status` read and the `/usage` local command |
 | `agy` | `agy 1.4.0` (`>= 1.2.15` required) | `agy --print /usage --output-format json --print-timeout 15s` |
+| Cursor | `cursor-agent 2026.10.16-e3cb207` | `cursor-agent status --format json` with read-only `NODE_OPTIONS` preload hook |
 
 The later positive-path qualification used the current configured-account binary
 with two Codex homes, one Grok home, and one Claude home on macOS/arm64;
 see [TASK-032](docs/verification/TASK-032.md). Single-account `agy` weekly
 model-pool qualification (`gemini` and `claude/gpt`) is recorded in
-[agy compatibility](docs/verification/agy-compatibility.md). Distinct real Grok
+[agy compatibility](docs/verification/agy-compatibility.md), and single-account
+Cursor qualification is recorded in
+[Cursor compatibility](docs/verification/cursor-compatibility.md). Distinct real Grok
 or Claude logins across multiple homes have not been qualified.
 
 - **Offline test suites.** The current code's suites ran natively on
@@ -371,12 +389,16 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
 - The Claude row depends on the human-readable `Current week (all models)` line
   of Claude Code's `/usage` output. If a CLI update changes that line, the row
   shows `UNSUPPORTED` until gaebokchi is qualified against the new version.
+- The Cursor row intercepts `./src/commands/status.ts` in `cursor-agent status --format json`
+  using a read-only `NODE_OPTIONS` preload hook. If a CLI update alters that
+  module boundary, the row shows `UNSUPPORTED` until gaebokchi is qualified
+  against the new version.
 - A Grok weekly response without a percentage is shown as `0%`, which is a
   display convention, not a measured zero.
 - Multi-account Grok and non-default Claude homes depend on the installed CLI
   honoring `GROK_HOME` and `CLAUDE_CONFIG_DIR` respectively. Different aliases alone
-  do not establish different logged-in identities. `agy` supports only the
-  single default login.
+  do not establish different logged-in identities. `agy` and `cursor` support
+  only the single default login.
 - Bars can misalign in terminals configured to draw East Asian Ambiguous
   characters at double width. Narrowing the window during a live redraw can
   leave reflowed lines above the final frame.
@@ -384,22 +406,23 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
   countdown can reach `now` up to a minute early. Reset text that does not name
   exactly one instant, such as a time repeated by a daylight-saving change,
   shows no countdown.
-- A monthly Grok allowance is reported as `N/A (monthly)`, never converted to
-  weekly usage.
+- A monthly Grok or Cursor allowance is reported as `N/A (monthly)`, never
+  converted to weekly usage.
 
 ## Troubleshooting
 
 - **`AUTH REQUIRED`**: log in with the provider CLI (`codex login`, `grok`,
-  `claude auth login`, or `agy`), then rerun.
+  `claude auth login`, `agy`, or `cursor-agent login`), then rerun.
 - **`NOT INSTALLED`**: install the CLI, or point `--codex-bin`, `--grok-bin`,
-  `--claude-bin`, or `--agy-bin` at it.
+  `--claude-bin`, `--agy-bin`, or `--cursor-bin` at it.
 - **`HOME NOT FOUND` / `HOME ERROR`**: check the path, or pass the homes you
   configured in `config.yaml`. Gaebokchi never creates a home directory.
 - **`UNSUPPORTED` / `PROTOCOL ERROR`**: gaebokchi does not accept the installed
   CLI's version, output, or login mode. Check the compatibility table above
   before upgrading or downgrading anything. For Claude, confirm that
   `claude auth status` reports a Claude subscription login. For `agy`, confirm
-  `agy --version` is at least `1.2.15`.
+  `agy --version` is at least `1.2.15`. For Cursor, confirm `cursor-agent --version`
+  matches the qualified release.
 - **`TIMEOUT`**: raise `--timeout`; quota reads go over the network and can be
   slow.
 - **`ERROR`**: the provider CLI failed in a way gaebokchi does not classify.

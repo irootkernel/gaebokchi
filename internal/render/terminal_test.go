@@ -88,6 +88,37 @@ var _ = ginkgo.It("renders two agy weekly rows with blanked second provider labe
 	if plain(frame) != want || lines != 6 {
 		t.Fatalf("agy frame = %q, lines = %d; want %q", plain(frame), lines, want)
 	}
+
+	cu := domain.Result{
+		TargetID:    "cursor:0",
+		Provider:    domain.ProviderCursor,
+		Account:     "default",
+		Status:      domain.StatusOK,
+		UsedPercent: pct(25),
+		Period:      domain.PeriodWeekly,
+		ResetAt:     ptrTime(fixedNow.Add(3*24*time.Hour + 2*time.Hour)),
+		Source:      domain.SourceCursorCLIUsage,
+	}
+	cuFrame, cuLines := TerminalFrame([]domain.Result{cu}, 100, fixedNow, false, false, "")
+	wantCu := "\n  🐡 gaebokchi · weekly usage\n\n" +
+		"  Cursor  default  █████░░░░░░░░░░░░░░░     25%  ↻ 3d 2h\n\n"
+	if plain(cuFrame) != wantCu || cuLines != 5 {
+		t.Fatalf("cursor frame = %q, lines = %d; want %q", plain(cuFrame), cuLines, wantCu)
+	}
+
+	cuMonthly := domain.Result{
+		TargetID: "cursor:0",
+		Provider: domain.ProviderCursor,
+		Account:  "default",
+		Status:   domain.StatusNotApplicableMonthly,
+		Period:   domain.PeriodMonthly,
+		ResetAt:  ptrTime(fixedNow.Add(15 * 24 * time.Hour)),
+		Source:   domain.SourceCursorCLIUsage,
+	}
+	cuMonthlyFrame, _ := TerminalFrame([]domain.Result{cuMonthly}, 100, fixedNow, false, false, "")
+	if !strings.Contains(plain(cuMonthlyFrame), "Cursor  default  N/A (monthly)") || strings.Contains(plain(cuMonthlyFrame), "↻") {
+		t.Fatalf("cursor monthly frame = %q", plain(cuMonthlyFrame))
+	}
 })
 
 func ptrTime(value time.Time) *time.Time { return &value }

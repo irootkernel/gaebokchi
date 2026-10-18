@@ -64,6 +64,7 @@ type invocation struct {
 	grok              []testutil.Step
 	grokUsageByHome   map[string]int
 	claudeUsageByHome map[string]int
+	cursorPayload     string
 	argLog            string
 	envLog            string
 }
@@ -96,7 +97,7 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	codexJSON, _ := json.Marshal(inv.codex)
 	grokJSON, _ := json.Marshal(inv.grok)
 
-	args := make([]string, 0, len(inv.args)+8)
+	args := make([]string, 0, len(inv.args)+10)
 	if !hasFlag(inv.args, "--timeout") {
 		args = append(args, "--timeout", "5s")
 	}
@@ -112,6 +113,9 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	if !hasFlag(inv.args, "--agy-bin") {
 		args = append(args, "--agy-bin", fake)
 	}
+	if !hasFlag(inv.args, "--cursor-bin") {
+		args = append(args, "--cursor-bin", fake)
+	}
 	args = append(args, inv.args...)
 
 	cmd := exec.Command(bin, args...)
@@ -124,6 +128,9 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	)
 	if inv.argLog != "" {
 		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_ARGLOG="+inv.argLog, "GAEBOKCHI_FAKE_ENVLOG="+inv.envLog)
+	}
+	if inv.cursorPayload != "" {
+		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_CURSOR_PAYLOAD="+inv.cursorPayload)
 	}
 	if len(inv.grokUsageByHome) > 0 {
 		byHome, err := json.Marshal(inv.grokUsageByHome)
@@ -782,6 +789,66 @@ var _ = ginkgo.It("queries agy once and emits gemini and claude/gpt weekly rows 
 		!strings.Contains(lines[1], "agy") || !strings.Contains(lines[1], "gemini") || !strings.Contains(lines[1], "74.2%") ||
 		!strings.Contains(lines[2], "agy") || !strings.Contains(lines[2], "claude/gpt") || !strings.Contains(lines[2], "12.8%") {
 		t.Fatalf("unexpected agy table:\n%s", tableOut)
+	}
+})
+
+var _ = ginkgo.It("queries Cursor once and emits its weekly or monthly row in table and JSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	argLog, envLog := filepath.Join(dir, "args.log"), filepath.Join(dir, "env.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "cursor:\n  - name: default\n",
+		args:   []string{"--json"},
+		argLog: argLog, envLog: envLog,
+		env: []string{
+			"CURSOR_API_KEY=secret-cursor-key",
+			"NODE_OPTIONS=--inspect=0.0.0.0:9229",
+		},
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 1 ||
+		rows[0].TargetID != "cursor:0" || rows[0].Provider != "cursor" || rows[0].Account != "default" ||
+		rows[0].Status != "ok" || rows[0].UsedPercent == nil || *rows[0].UsedPercent != 25 || rows[0].CleanupFailed {
+		t.Fatalf("cursor JSON rows = %+v", rows)
+	}
+	args, err := os.ReadFile(argLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(args)) != "argv: status --format json" {
+		t.Fatalf("unexpected cursor argv log: %q", args)
+	}
+	env, err := os.ReadFile(envLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(env), "CURSOR_API_KEY=") ||
+		strings.Contains(string(env), "--inspect=") ||
+		!strings.Contains(string(env), "\nNODE_OPTIONS=--require=") {
+		t.Fatalf("cursor child env was not filtered: %q", env)
+	}
+
+	tableOut, tableErr, tableCode := runCLI(t, invocation{
+		config: "cursor:\n  - name: default\n",
+	})
+	if tableCode != 0 || tableErr != "" {
+		t.Fatalf("table code=%d stderr=%q", tableCode, tableErr)
+	}
+	lines := strings.Split(strings.TrimSuffix(tableOut, "\n"), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[1], "Cursor") || !strings.Contains(lines[1], "default") || !strings.Contains(lines[1], "25%") {
+		t.Fatalf("unexpected cursor table:\n%s", tableOut)
+	}
+
+	monthlyPayload := `{"status":"authenticated","isAuthenticated":true,"hasAccessToken":true,"hasRefreshToken":true,"hasApiKey":false,"planInfo":{"planName":"Pro","includedUsagePeriod":1,"includedUsageResetsAtMs":"1794664361314","billingCycleEndMs":"1794664361314"},"planError":null,"currentPeriodUsage":{"billingCycleStartMs":"1791985961314","billingCycleEndMs":"1794664361314","enabled":true,"planUsage":{"totalSpend":1000,"includedSpend":1000,"bonusSpend":0,"remaining":1000,"limit":2000,"totalPercentUsed":50}},"usageError":null}`
+	monthlyOut, monthlyErr, monthlyCode := runCLI(t, invocation{
+		config:        "cursor:\n  - name: default\n",
+		cursorPayload: monthlyPayload,
+	})
+	if monthlyCode != 0 || !strings.Contains(monthlyOut, "N/A (monthly)") || !strings.Contains(monthlyErr, "cursor:0: N/A (monthly):") {
+		t.Fatalf("monthly cursor code=%d stdout=%q stderr=%q", monthlyCode, monthlyOut, monthlyErr)
 	}
 })
 

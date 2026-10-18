@@ -93,6 +93,30 @@ var _ = ginkgo.It("TestAgyRuleDropsPrefixesAndSetsAutoUpdateDisable", func() {
 	}
 })
 
+var _ = ginkgo.It("TestCursorRuleDropsPrefixesAndReplacesNodeOptions", func() {
+	t := testT{ginkgo.GinkgoT()}
+	parent := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"CURSOR_API_KEY=crsr-secret",
+		"CURSOR_AUTH_TOKEN=tok-secret",
+		"CURSOR_CONFIG_DIR=/tmp/cursor",
+		"CURSOR_STATSIG_OVERRIDES={}",
+		"NODE_OPTIONS=--inspect",
+	}
+	r := Cursor()
+	r.Set = map[string]string{"NODE_OPTIONS": "--require=/tmp/preload.cjs"}
+	got := Apply(parent, r)
+	want := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"NODE_OPTIONS=--require=/tmp/preload.cjs",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cursor env = %v, want %v", got, want)
+	}
+})
+
 func contains(list []string, want string) bool {
 	for _, v := range list {
 		if v == want {

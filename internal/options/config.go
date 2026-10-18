@@ -22,11 +22,16 @@ type account struct {
 	Path string `yaml:"path"`
 }
 
+type cursorAccount struct {
+	Name string `yaml:"name"`
+}
+
 type accountConfig struct {
-	Codex  []account `yaml:"codex"`
-	Grok   []account `yaml:"grok"`
-	Claude []account `yaml:"claude"`
-	Agy    []account `yaml:"agy"`
+	Codex  []account       `yaml:"codex"`
+	Grok   []account       `yaml:"grok"`
+	Claude []account       `yaml:"claude"`
+	Agy    []account       `yaml:"agy"`
+	Cursor []cursorAccount `yaml:"cursor"`
 }
 
 func configf(path, format string, args ...any) error {
@@ -119,7 +124,17 @@ func loadConfig(path, home string) (accountConfig, error) {
 			a.Path = expanded
 		}
 	}
-	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+len(cfg.Agy) == 0 {
+	if len(cfg.Cursor) > 1 {
+		return accountConfig{}, configf(path, "cursor supports at most one account")
+	}
+	for i := range cfg.Cursor {
+		a := &cfg.Cursor[i]
+		a.Name = domain.NormalizeLabel(a.Name)
+		if a.Name == "" {
+			return accountConfig{}, configf(path, "cursor account %d needs a visible name", i+1)
+		}
+	}
+	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+len(cfg.Agy)+len(cfg.Cursor) == 0 {
 		return accountConfig{}, configf(path, "configuration needs at least one account")
 	}
 	return cfg, nil
@@ -254,7 +269,7 @@ func expandPath(raw, home string) (string, error) {
 }
 
 func buildTargets(cfg accountConfig, o Options) []domain.Target {
-	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy))
+	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy)+len(cfg.Cursor))
 	for _, group := range []struct {
 		kind     domain.ProviderKind
 		accounts []account
@@ -278,6 +293,12 @@ func buildTargets(cfg accountConfig, o Options) []domain.Target {
 				Provider: domain.ProviderAgy, FallbackAccount: pool, Bin: o.AgyBin,
 			})
 		}
+	}
+	for i, a := range cfg.Cursor {
+		targets = append(targets, domain.Target{
+			ID: fmt.Sprintf("%s:%d", domain.ProviderCursor, i), Index: len(targets),
+			Provider: domain.ProviderCursor, FallbackAccount: a.Name, Bin: o.CursorBin,
+		})
 	}
 	return targets
 }

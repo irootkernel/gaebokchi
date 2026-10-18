@@ -358,3 +358,54 @@ and defines the exact normalization contract for `internal/provider/cursor` in
 - **Compatibility/platform limitations:** Live qualification was performed on `darwin/arm64` with `cursor-agent 2026.10.16-e3cb207` against an active weekly (`Ultra`) subscription; monthly (`includedUsagePeriod == 1`), `includedSpend / limit` fallback, API-key, unauthenticated, RPC error, and unhooked fallback branches are qualified via source inspection and synthetic fixtures for `TASK-040`. Multi-account Cursor selection is out of scope because `cursor-agent` uses a global OS Keychain service name regardless of `CURSOR_CONFIG_DIR`.
 - **Task commit subject:** `[DOC] Qualify Cursor usage metadata and period semantics` (with trailers `Aquarium-Workflow: aquarium:task-commit`, `Aquarium-Epic: EPIC-013`, `Aquarium-Task: TASK-039`).
 - **Handoff to next task:** [TASK-040](../roadmap/README.md#task-040) receives the frozen `cursor-agent status --format json` + `NODE_OPTIONS` preload hook contract, environment filter rules, and sanitized fixture catalog (Cases 1a–7) to implement `internal/provider/cursor`, config/CLI wiring, and offline fake-process tests.
+
+## TASK-040 verification evidence
+
+- **Task:** [TASK-040](../roadmap/README.md#task-040) (`Integrate the Cursor default-login provider`)
+- **Status:** `COMPLETE`
+- **Goal and implementation scope:** Integrate the single-account Cursor provider (`domain.ProviderCursor`, `DisplayName() == "Cursor"`, `SourceCursorCLIUsage == "cursor_cli_usage"`) into `gaebokchi`'s configuration (`cursor:` list with at most one `- name: <alias>` entry and no `path` field, target ID `cursor:0` after `agy`), CLI flag (`--cursor-bin`, default `cursor-agent`), environment filter (`envfilter.Cursor()`, stripping `CURSOR_*` and ambient parent `NODE_OPTIONS` while injecting `NODE_OPTIONS=--require=<preloadPath>`), explicit runner dispatch (`Runner.querierFor(domain.ProviderCursor)`), and adapter (`internal/provider/cursor` with embedded read-only `preload.cjs`). Normalize weekly plans (`PeriodWeekly`, `QuotaID: "cursor_included"`, `UsedPercent` from `planUsage.totalPercentUsed` or `includedSpend / limit * 100` fallback, `ResetAt` from `planInfo.includedUsageResetsAtMs` or `currentPeriodUsage.billingCycleEndMs` fallback), monthly plans (`StatusNotApplicableMonthly`, `N/A (monthly)`), API-key logins (`StatusNotApplicableAPIKey`), unauthenticated/partial credentials (`StatusAuthRequired`), ConnectRPC errors (`StatusProviderError`, or `StatusAuthRequired` on structured `"unauthenticated"` code), unhooked `status --format json` fallback (`StatusUnsupported`), and malformed/oversized/unavailable edge cases (`StatusProtocolError`, `StatusUnavailablePeriod`, `StatusUnavailableNoData`) while excluding on-demand spend (`spendLimitUsage`).
+- **Requirements and architecture sections covered:** [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-066](../specs/README.md#req-066) (implementation and offline verification; final live executable acceptance in [TASK-041](../roadmap/README.md#task-041)); [ARCH-01](../architecture/README.md#arch-01) through [ARCH-04](../architecture/README.md#arch-04), [ARCH-09](../architecture/README.md#arch-09) through [ARCH-11](../architecture/README.md#arch-11), [ARCH-19](../architecture/README.md#arch-19).
+- **Changed files:**
+  - `internal/domain/target.go`
+  - `internal/domain/result.go`
+  - `internal/domain/domain_test.go`
+  - `internal/provider/envfilter/envfilter.go`
+  - `internal/provider/envfilter/envfilter_test.go`
+  - `internal/options/config.go`
+  - `internal/options/options.go`
+  - `internal/options/options_test.go`
+  - `internal/provider/cursor/preload.cjs`
+  - `internal/provider/cursor/provider.go`
+  - `internal/provider/cursor/cursor_suite_test.go`
+  - `internal/provider/cursor/provider_test.go`
+  - `internal/app/runner.go`
+  - `internal/app/runner_test.go`
+  - `cmd/gaebokchi/main.go`
+  - `cmd/gaebokchi/main_test.go`
+  - `internal/render/table_test.go`
+  - `internal/render/terminal_test.go`
+  - `internal/render/json_test.go`
+  - `test/integration/main_test.go`
+  - `test/integration/e2e_test.go`
+  - `Makefile`
+  - `README.md`
+  - `configuration/README.md`
+  - `TESTING.md`
+  - `docs/specs/README.md`
+  - `docs/architecture/README.md`
+  - `docs/roadmap/README.md`
+  - `docs/verification/cursor-compatibility.md`
+- **Verification:**
+  - `V-OPTIONS`, `V-CURSOR`, `V-QUOTA`, `V-RUNNER`, `V-OUTPUT`, `V-EXIT`, `V-SAFETY`, `V-E2E`:
+    - `go test ./internal/domain ./internal/provider/envfilter ./internal/options ./internal/provider/cursor ./internal/app ./internal/render ./cmd/gaebokchi ./test/integration -count=1` -> PASS (`darwin/arm64`, Go `1.27.0`).
+    - `go test ./... -count=1` -> PASS across all 13 packages (`cmd/gaebokchi`, `internal/app`, `internal/domain`, `internal/options`, `internal/process`, `internal/provider/agy`, `internal/provider/claude`, `internal/provider/codex`, `internal/provider/cursor`, `internal/provider/envfilter`, `internal/provider/grok`, `internal/provider/home`, `internal/render`, `internal/rpc`, `internal/testutil`, `test/integration`).
+    - `make test` -> PASS (`prepare`, `test-unit`, `test-int` including `./internal/provider/cursor` with `-race`, and `test-e2e` including `./test/integration` with `-race` and `archivecheck.go`).
+  - `V-AUDIT`, `V-DOCS`: `go run scripts/check-docs.go` -> `check-docs: 60 markdown files, links and identifiers OK`.
+  - **Explicitly NOT RUN / SKIPPED:** Live `cursor-agent` account query through the compiled `gaebokchi` binary was not run in `TASK-040`; [TASK-041](../roadmap/README.md#task-041) owns final live executable acceptance and closes [REQ-066](../specs/README.md#req-066) and [EPIC-013](../roadmap/README.md#epic-013).
+- **Fixtures:**
+  - Offline fake-process tests in `internal/provider/cursor/provider_test.go`, `cmd/gaebokchi/main_test.go`, and `test/integration/e2e_test.go` exercise all 7 fixture classes from `docs/verification/cursor-compatibility.md` (Case 1a `captured` weekly `totalPercentUsed`, Case 1b `synthetic` weekly `includedSpend / limit * 100` fallback and `spendLimitUsage` exclusion, Case 2 `synthetic` monthly `StatusNotApplicableMonthly`, Case 3 `synthetic` unauthenticated `StatusAuthRequired`, Case 4 `synthetic` API-key `StatusNotApplicableAPIKey`, Case 5 `synthetic` ConnectRPC error `StatusProviderError` and structured `"unauthenticated"` -> `StatusAuthRequired`, Case 6 `synthetic` unhooked plain `status --format json` -> `StatusUnsupported`, and Case 7 `synthetic` malformed/oversized/out-of-range/unavailable edge cases), plus real Node execution of `preload.cjs` verifying synchronous JSON output and PII/token omission.
+- **Findings and bounded remediation:** None blocking. `WriteDiagnostics` emits one bounded stderr line (`gaebokchi: cursor:0: N/A (monthly): cursor:0: cursor account reports a monthly period, not weekly`) for `StatusNotApplicableMonthly` while exiting `0`, matching Grok's monthly non-applicability behavior across `cmd/gaebokchi` and `test/integration`.
+- **Compatibility/platform limitations:** Offline fake-process and race-enabled integration/E2E gates verified on `darwin/arm64` (`Go 1.27.0`). Live final-executable acceptance against the installed `cursor-agent` login is deferred to `TASK-041`.
+- **Task commit subject:** `[IMPL] Integrate the Cursor default-login provider` (with trailers `Aquarium-Workflow: aquarium:task-commit`, `Aquarium-Epic: EPIC-013`, `Aquarium-Task: TASK-040`).
+- **Handoff to next task:** [TASK-041](../roadmap/README.md#task-041) receives the integrated, offline-tested Cursor candidate to run the final live executable query and complete `EPIC-013`.
+

@@ -25,6 +25,8 @@ claude:
     path: ~/.claude-personal
 agy:
   - name: default
+cursor:
+  - name: default
 ```
 
 Save that YAML as `~/.config/gaebokchi/config.yaml`. The example names and paths
@@ -38,7 +40,10 @@ the label shown in the table and JSON output. It does not select or verify a
 provider login. `path` selects the CLI-managed account state for that row.
 `agy` accepts at most one entry (such as `- name: default`, with no `path`
 required) and queries the single default `agy` login once to display two weekly
-model-pool rows (`gemini` and `claude/gpt`):
+model-pool rows (`gemini` and `claude/gpt`). `cursor` accepts at most one entry
+(such as `- name: default`, with no `path` field allowed) and queries the single
+default `cursor-agent` login once to display its weekly `Included` subscription
+usage row:
 
 | List | Child environment variable | Login state |
 |---|---|---|
@@ -46,6 +51,7 @@ model-pool rows (`gemini` and `claude/gpt`):
 | `grok` | `GROK_HOME` | Grok CLI home |
 | `claude` | `CLAUDE_CONFIG_DIR` for other homes | Claude Code configuration directory |
 | `agy` | Preserves `HOME` (`AGY_CLI_DISABLE_AUTO_UPDATE=true`) | Single default Google Antigravity CLI login (`gemini` and `claude/gpt` weekly pools) |
+| `cursor` | Preserves `HOME` (controlled `NODE_OPTIONS` preload hook) | Single default Cursor CLI login (`cursor-agent`) |
 
 Log in separately through each provider CLI with the matching variable. For
 example:
@@ -56,12 +62,15 @@ CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
 ```
 
 For Grok, set `GROK_HOME` to the configured path while using the installed
-Grok CLI's login flow. For `agy`, log in once through the installed `agy` CLI.
+Grok CLI's login flow. For `agy` and `cursor`, log in once through the installed
+`agy` or `cursor-agent` CLI.
 Gaebokchi does not create provider homes, read credentials, or perform logins.
 For Claude, it removes an inherited `CLAUDE_CODE_OAUTH_TOKEN` from the child
 environment so the configured login state is used. The default `~/.claude` home
 uses the CLI's implicit credential namespace; other Claude homes set
-`CLAUDE_CONFIG_DIR` and need their own login.
+`CLAUDE_CONFIG_DIR` and need their own login. For Cursor, it removes inherited
+`CURSOR_*` overrides and any ambient `NODE_OPTIONS` so the default stored login
+is used.
 
 ## Choose which providers run
 
@@ -77,8 +86,8 @@ claude:
     path: ~/.claude-personal
 ```
 
-At least one account is required. Rows appear in Codex, Grok, Claude, `agy`
-order, then in each list's order. A missing CLI for a configured account
+At least one account is required. Rows appear in Codex, Grok, Claude, `agy`,
+Cursor order, then in each list's order. A missing CLI for a configured account
 produces a `NOT INSTALLED` row; an omitted provider launches no CLI.
 
 ## Check the file

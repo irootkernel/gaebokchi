@@ -26,6 +26,7 @@ type Runner struct {
 	Grok   Querier
 	Claude Querier
 	Agy    Querier
+	Cursor Querier
 	// Observe receives a stored terminal result once for each target. Calls
 	// can arrive concurrently; the observer must not mutate the result.
 	Observe func(index int, result domain.Result)
@@ -57,6 +58,8 @@ func (r *Runner) querierFor(p domain.ProviderKind) Querier {
 		return r.Claude
 	case domain.ProviderAgy:
 		return r.Agy
+	case domain.ProviderCursor:
+		return r.Cursor
 	default:
 		return nil
 	}
