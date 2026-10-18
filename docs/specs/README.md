@@ -12,13 +12,13 @@ A checked box means that the requirement's complete acceptance scope is verified
 
 The implemented baseline below remains weekly-only for Codex, Grok, Claude,
 `agy` ([EPIC-012](../roadmap/README.md#epic-012), [REQ-060](#req-060) through
-[REQ-064](#req-064)), and Cursor ([EPIC-013](../roadmap/README.md#epic-013)).
-[Planned provider extensions](#planned-provider-extensions) holds the
-[EPIC-013](../roadmap/README.md#epic-013) Cursor requirements:
-[REQ-065](#req-065) (verified by [TASK-039](../roadmap/README.md#task-039)) and
-the remaining unchecked [REQ-066](#req-066) ([TASK-040](../roadmap/README.md#task-040)
-implementation complete; [TASK-041](../roadmap/README.md#task-041) final live
-acceptance pending).
+[REQ-064](#req-064)), and Cursor ([EPIC-013](../roadmap/README.md#epic-013),
+[REQ-065](#req-065) and [REQ-066](#req-066)).
+[Planned provider extensions](#planned-provider-extensions) holds the verified
+and closed [EPIC-012](../roadmap/README.md#epic-012) `agy` requirements
+([REQ-060](#req-060) through [REQ-064](#req-064)) and
+[EPIC-013](../roadmap/README.md#epic-013) Cursor requirements
+([REQ-065](#req-065) and [REQ-066](#req-066)).
 
 ## Product outcome
 
@@ -59,7 +59,7 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
   - Changed 2026-09-23 (Claude extension, historical): the default set gained the Claude target, so that release queried four targets. The then-current CLI tests asserted the ordered four-row default; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
   - Re-qualified 2026-09-29: [TASK-032](../verification/TASK-032.md) covers current YAML selection, no-launch configuration errors, ordered rows and partial failure; the live run returned four configured rows.
   - Changed 2026-10-17 (agy extension): added optional single-entry `agy` configuration after Claude, expanding into two ordered weekly rows (`gemini` and `claude/gpt`); verified in [agy compatibility](../verification/agy-compatibility.md) ([REQ-064](#req-064)).
-  - Changed 2026-10-18 (Cursor extension): added optional single-entry `cursor` configuration after `agy` (`cursor:0`); offline implementation verified in [Cursor compatibility](../verification/cursor-compatibility.md) ([TASK-040](../roadmap/README.md#task-040); final live acceptance in [TASK-041](../roadmap/README.md#task-041) for [REQ-066](#req-066)).
+  - Changed 2026-10-18 (Cursor extension): added optional single-entry `cursor` configuration after `agy` (`cursor:0`); verified in [Cursor compatibility](../verification/cursor-compatibility.md) ([REQ-066](#req-066)).
 
 <a id="req-003"></a>
 - [x] **REQ-003: Meaning of weekly usage.** Display the percentage already consumed in a provider-reported weekly subscription quota, with the Grok omission fallback in REQ-034 explicitly documented as a display convention rather than a measured zero. Do not present remaining quota, local token totals, API spending, or an inferred calendar-week calculation as this value. `ChatGPT` identifies the Codex-backed row, not an aggregation of every ChatGPT feature.
@@ -82,7 +82,7 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
   - Changed 2026-09-23 (Claude extension) and 2026-09-25 (EPIC-009): the surface also includes `--claude-bin` ([REQ-056](#req-056)) and `--json` ([REQ-052](#req-052)).
   - Re-qualified 2026-09-29: [TASK-032](../verification/TASK-032.md) covers the YAML-era command and error matrix, relative executable overrides, alias validation, and no-launch help/version paths.
   - Changed 2026-10-17 (agy extension): added `--agy-bin` ([REQ-064](#req-064)); verified in [agy compatibility](../verification/agy-compatibility.md).
-  - Changed 2026-10-18 (Cursor extension): added `--cursor-bin` (default `cursor-agent`, [REQ-066](#req-066)); offline verification in [Cursor compatibility](../verification/cursor-compatibility.md) ([TASK-040](../roadmap/README.md#task-040)).
+  - Changed 2026-10-18 (Cursor extension): added `--cursor-bin` (default `cursor-agent`, [REQ-066](#req-066)); verified in [Cursor compatibility](../verification/cursor-compatibility.md) ([REQ-066](#req-066)).
 
 <a id="req-007"></a>
 - [x] **REQ-007: Configured provider homes.** Each configured Codex, Grok, or Claude account has a required `name` and `path`. Set `CODEX_HOME` or `GROK_HOME` on that target's child process. For a non-default Claude home, set `CLAUDE_CONFIG_DIR`; for the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the single default CLI login (`HOME` preserved) and does not require `path` ([REQ-064](#req-064)); an enabled `cursor` entry uses the single default `cursor-agent` login (`HOME` preserved) and rejects `path` ([REQ-066](#req-066)). Never discover accounts implicitly or let ambient values select an account. Account names are display aliases, not login selectors or verified identities.
@@ -91,7 +91,7 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
   - Changed 2026-09-29 (default Claude home): keep the CLI's implicit credential namespace when `path` is the current user's `~/.claude`; custom Claude homes still set `CLAUDE_CONFIG_DIR`.
   - Re-qualified 2026-09-29: [TASK-032](../verification/TASK-032.md) covers target-home environment isolation and the default Claude namespace. Distinct live Grok and non-default Claude logins remain an explicit compatibility limit.
   - Changed 2026-10-17 (agy extension): `agy` queries the single default CLI login (`HOME` preserved) with `path` optional and not used as a credential selector; verified in [agy compatibility](../verification/agy-compatibility.md).
-  - Changed 2026-10-18 (Cursor extension): `cursor` queries the single default `cursor-agent` login (`HOME` preserved) and rejects `path` in configuration; offline verification in [Cursor compatibility](../verification/cursor-compatibility.md) ([TASK-040](../roadmap/README.md#task-040)).
+  - Changed 2026-10-18 (Cursor extension): `cursor` queries the single default `cursor-agent` login (`HOME` preserved) and rejects `path` in configuration; verified in [Cursor compatibility](../verification/cursor-compatibility.md) ([REQ-066](#req-066)).
 
 <a id="req-008"></a>
 - [x] **REQ-008: Safe path handling.** Accept absolute account paths and current-user `~/` paths; expand `~/` before use without collapsing `.` or `..` ahead of filesystem traversal. Reject relative paths, empty paths, and duplicate paths within a provider, including aliases through existing symlink ancestors of missing paths. For missing paths with the same deepest existing parent, reject suffixes equal after Unicode canonical decomposition and case folding on every platform; distinct existing directories retain their filesystem identities. Do not create missing provider directories; report them on their rows. Reject duplicate normalized names, unknown configuration keys, YAML merge keys, and null provider lists.
@@ -408,8 +408,8 @@ including no provider auto-upgrade and offline test isolation.
   - Changed 2026-10-18: retired the pure public-flag restriction for `cursor-agent` after verifying that `2026.10.16-e3cb207` sends `-p /usage` as a model prompt and omits quota data from plain `status`/`about`/`acp`; qualified the read-only `status --format json` preload hook live on `darwin/arm64` ([preflight record](../verification/provider-extension-preflight-2026-10-16.md)).
 
 <a id="req-066"></a>
-- [ ] **REQ-066: Positive Cursor default-login support.** Add an optional `cursor` list in `~/.config/gaebokchi/config.yaml` accepting at most one entry (`- name: <alias>`, with no `path` field; target ID `cursor:0`) and `--cursor-bin` with default `cursor-agent`. Omission or `[]` disables Cursor. Present one weekly row (`Provider: Cursor`, `QuotaID: "cursor_included"`, `Source: "cursor_cli_usage"`) using `planUsage.totalPercentUsed` (or `includedSpend / limit * 100` when `totalPercentUsed` is absent and `limit > 0`) and `includedUsageResetsAt` (falling back to `currentPeriodUsage.billingCycleEnd`) when the plan period is weekly (`INCLUDED_USAGE_PERIOD_WEEKLY` or a 7-day cycle window), and report `N/A (monthly)` (`StatusNotApplicableMonthly`) when the plan period is monthly (`INCLUDED_USAGE_PERIOD_MONTHLY` or a monthly cycle window). Strip ambient `CURSOR_*` and parent `NODE_OPTIONS` environment variables while injecting the controlled `NODE_OPTIONS` preload path, exclude on-demand spend from quota percentages, preserve sibling outcomes, and verify the complete offline gate and a positive prompt-free final-executable live query.
-  - Architecture: [ARCH-19](../architecture/README.md#arch-19). Implementation: [TASK-040](../roadmap/README.md#task-040). Acceptance owner: [TASK-041](../roadmap/README.md#task-041). Verification: [V-CURSOR](../architecture/README.md#v-cursor), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety). Evidence (offline implementation, [TASK-040](../roadmap/README.md#task-040)): [Cursor compatibility](../verification/cursor-compatibility.md).
+- [x] **REQ-066: Positive Cursor default-login support.** Add an optional `cursor` list in `~/.config/gaebokchi/config.yaml` accepting at most one entry (`- name: <alias>`, with no `path` field; target ID `cursor:0`) and `--cursor-bin` with default `cursor-agent`. Omission or `[]` disables Cursor. Present one weekly row (`Provider: Cursor`, `QuotaID: "cursor_included"`, `Source: "cursor_cli_usage"`) using `planUsage.totalPercentUsed` (or `includedSpend / limit * 100` when `totalPercentUsed` is absent and `limit > 0`) and `includedUsageResetsAt` (falling back to `currentPeriodUsage.billingCycleEnd`) when the plan period is weekly (`INCLUDED_USAGE_PERIOD_WEEKLY` or a 7-day cycle window), and report `N/A (monthly)` (`StatusNotApplicableMonthly`) when the plan period is monthly (`INCLUDED_USAGE_PERIOD_MONTHLY` or a monthly cycle window). Strip ambient `CURSOR_*` and parent `NODE_OPTIONS` environment variables while injecting the controlled `NODE_OPTIONS` preload path, exclude on-demand spend from quota percentages, preserve sibling outcomes, and verify the complete offline gate and a positive prompt-free final-executable live query.
+  - Architecture: [ARCH-19](../architecture/README.md#arch-19). Implementation: [TASK-040](../roadmap/README.md#task-040). Acceptance owner: [TASK-041](../roadmap/README.md#task-041). Verification: [V-CURSOR](../architecture/README.md#v-cursor), [V-LIFECYCLE](../architecture/README.md#v-lifecycle), [V-SAFETY](../architecture/README.md#v-safety). Evidence: [Cursor compatibility](../verification/cursor-compatibility.md).
   - Changed 2026-10-18: locked in the single-row `Included` (`totalPercentUsed`) weekly representation and `N/A (monthly)` classification using the `cursor-agent status --format json` preload hook contract ([ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)).
 
 | Delivery | Required reconciliation |
@@ -419,10 +419,9 @@ including no provider auto-upgrade and offline test isolation.
 | TASK-037 / TASK-040 | Update REQ-002, REQ-006, REQ-007 and provider-specific sections; ARCH-02, ARCH-03, ARCH-09, ARCH-11 and the relevant new provider section. Remove the implicit Codex fallback in `Runner.querierFor` and update public guidance and test-stage mapping. |
 
 REQ-060 through REQ-064 are verified and closed by EPIC-012 ([TASK-034](../roadmap/README.md#task-034)
-through [TASK-038](../roadmap/README.md#task-038)). REQ-065 is verified and closed by
-[TASK-039](../roadmap/README.md#task-039); [TASK-041](../roadmap/README.md#task-041)
-owns REQ-066. Preserve completed task/evidence bodies and the
-historical v0.1.0 release gate.
+through [TASK-038](../roadmap/README.md#task-038)). REQ-065 and REQ-066 are verified and closed by
+EPIC-013 ([TASK-039](../roadmap/README.md#task-039) through [TASK-041](../roadmap/README.md#task-041)).
+Preserve completed task/evidence bodies and the historical v0.1.0 release gate.
 
 <a id="completion-rules"></a>
 ## Completion rules
@@ -478,7 +477,7 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-036](../roadmap/README.md#task-036) | [REQ-062](#req-062), [REQ-063](#req-063) |
 | [TASK-038](../roadmap/README.md#task-038) | [REQ-064](#req-064); TASK-037 supplies implementation coverage |
 | [TASK-039](../roadmap/README.md#task-039) | [REQ-065](#req-065) |
-| [TASK-041](../roadmap/README.md#task-041) | Planned: [REQ-066](#req-066); TASK-040 supplies implementation coverage |
+| [TASK-041](../roadmap/README.md#task-041) | [REQ-066](#req-066); TASK-040 supplies implementation coverage |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).
 

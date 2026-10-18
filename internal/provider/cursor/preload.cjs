@@ -22,6 +22,24 @@ function toMsString(val) {
   return String(val);
 }
 
+function writeStdoutSync(str) {
+  const buf = Buffer.from(str, "utf8");
+  let off = 0;
+  while (off < buf.length) {
+    try {
+      const n = fs.writeSync(1, buf, off, buf.length - off);
+      if (n > 0) {
+        off += n;
+      }
+    } catch (err) {
+      if (err && (err.code === "EAGAIN" || err.code === "EWOULDBLOCK")) {
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function wrapHandleStatus(origFn) {
   const wrapped = async function (credentialManager, dashboardClient, options) {
     if (options && options.format && options.format !== "json") {
@@ -43,8 +61,7 @@ function wrapHandleStatus(origFn) {
     const isAuthenticated = Boolean(accessToken || apiKey);
 
     if (hasApiKey) {
-      fs.writeSync(
-        1,
+      writeStdoutSync(
         JSON.stringify({
           status: "api_key",
           isAuthenticated: true,
@@ -53,12 +70,11 @@ function wrapHandleStatus(origFn) {
           hasApiKey: true,
         }) + "\n"
       );
-      return 0;
+      process.exit(0);
     }
 
     if (!isAuthenticated || !hasAccessToken || !hasRefreshToken) {
-      fs.writeSync(
-        1,
+      writeStdoutSync(
         JSON.stringify({
           status: "unauthenticated",
           isAuthenticated: isAuthenticated,
@@ -67,7 +83,7 @@ function wrapHandleStatus(origFn) {
           hasApiKey: false,
         }) + "\n"
       );
-      return 0;
+      process.exit(0);
     }
 
     const [planRes, usageRes] = await Promise.allSettled([
@@ -120,8 +136,7 @@ function wrapHandleStatus(origFn) {
       usageError = serializeError(usageRes.reason);
     }
 
-    fs.writeSync(
-      1,
+    writeStdoutSync(
       JSON.stringify({
         status: "authenticated",
         isAuthenticated: true,
@@ -134,7 +149,7 @@ function wrapHandleStatus(origFn) {
         usageError: usageError,
       }) + "\n"
     );
-    return 0;
+    process.exit(0);
   };
   wrapped.__gaebokchiWrapped = true;
   return wrapped;

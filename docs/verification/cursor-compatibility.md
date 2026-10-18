@@ -69,7 +69,7 @@ Use the unambiguous default executable `cursor-agent`; an executable named
 - **Public source / reference:** [S-20](../architecture/README.md#s-20), [S-21](../architecture/README.md#s-21), [S-24](../architecture/README.md#s-24), and static inspection of the installed `2026.10.16-e3cb207` bundle (`index.js`, `684.index.js`, `5233.index.js`, `5300.index.js`, `7956.index.js`)
 - **Invocation and preload hook contract:** `<cursor-bin> status --format json` (default `cursor-agent`) with stdin closed (`os.DevNull`), a private mode-`0700` temporary working directory (`internal/process`), and `NODE_OPTIONS=--require=<preloadPath>` pointing to a read-only `preload.cjs` written inside a private mode-`0700` temporary directory (`os.MkdirTemp("", "gaebokchi-cursor-")`) that is removed on `defer` (folding any removal error into `Result.CleanupFailed`).
 - **Child environment policy (`envfilter.Cursor()`):** Preserve `HOME` and platform keyring variables so `cursor-agent` accesses its default stored login; strip all `CURSOR_*` variables (`CURSOR_API_KEY`, `CURSOR_AUTH_TOKEN`, `CURSOR_CONFIG_DIR`, `CURSOR_STATSIG_OVERRIDES`) and any ambient parent `NODE_OPTIONS`, then set `NODE_OPTIONS=--require=<preloadPath>`.
-- **Direct-child lifecycle and synchronous output:** `cursor-agent status --format json` runs as a single short-lived direct child with no shared background daemon or leader process. Because `./src/commands/status.ts` (`handleStatus`) calls `process.exit(exitCode)` inside its `finally` block, `preload.cjs` writes one compact newline-terminated JSON line synchronously via `fs.writeSync(1, JSON.stringify(payload) + "\n")` before returning `0`.
+- **Direct-child lifecycle and synchronous output:** `cursor-agent status --format json` runs as a single short-lived direct child with no shared background daemon or leader process. Because `./src/commands/status.ts` (`handleStatus`) calls `process.exit(exitCode)` inside its `finally` block while `index.js` retains open HTTP/2 and timer handles, `preload.cjs` writes one compact newline-terminated JSON line synchronously via a `fs.writeSync(1, ...)` loop (`writeStdoutSync`, handling partial pipe writes above 512 bytes) before calling `process.exit(0)`.
 - **Read-only and privacy boundary (`ARCH-09`):** Zero model turns, zero agent sessions, zero tool calls, no login/logout or billing mutation, and no direct Keychain or credential-file reads by `gaebokchi` outside `cursor-agent`'s own `credentialManager`. All PII (`email`, `userId`, `firstName`, `lastName`, `teamId`, `teamName`) and raw secrets (`accessToken`, `refreshToken`, `apiKey`) are excluded inside `preload.cjs` before serialization.
 
 With owner authorization, a single read-only probe ran
@@ -133,10 +133,12 @@ Key verified contract points:
    `./src/usage/usage-data.ts`: use `planUsage.totalPercentUsed` when present,
    or `includedSpend / limit * 100` when `totalPercentUsed` is absent and
    `limit > 0`.
-4. **Synchronous stdout flush:** Because `cursor-agent` exits inside
-   `handleStatus`'s `finally { process.exit(exitCode) }` block, the preload hook
-   must write compact JSON synchronously via `fs.writeSync(1, ...)` rather than
-   buffered console helpers.
+4. **Synchronous stdout flush and process exit:** Because `./src/commands/status.ts`
+   (`handleStatus`) owns the `finally { process.exit(exitCode) }` termination in
+   `cursor-agent` while `index.js` keeps open HTTP/2 and timer handles, the
+   preload hook must loop `fs.writeSync(1, ...)` to completion across partial
+   pipe writes (`> 512` bytes on macOS) and call `process.exit(0)` rather than
+   relying on buffered console helpers or natural event-loop drain.
 
 ## Sanitized fixture catalog for `TASK-040` offline tests
 
@@ -332,8 +334,10 @@ and defines the exact normalization contract for `internal/provider/cursor` in
   (`cursor:0`), `--cursor-bin` (default `cursor-agent`), explicit
   `Runner.querierFor(domain.ProviderCursor)` dispatch, and offline fake-process
   unit/integration tests.
-- **[TASK-041](../roadmap/README.md#task-041):** Runs the complete offline and
-  race gates plus final-executable verification and closes
+- **[TASK-041](../roadmap/README.md#task-041):** Completed the full offline and
+  race verification gates (`make test` and `go test -race ./... -count=1`) plus
+  bounded prompt-free live final-executable acceptance (`table` and `--json`)
+  against `cursor-agent 2026.10.16-e3cb207` on `darwin/arm64`, closing
   [REQ-066](../specs/README.md#req-066) and [EPIC-013](../roadmap/README.md#epic-013).
 
 ## TASK-039 verification evidence
@@ -406,6 +410,48 @@ and defines the exact normalization contract for `internal/provider/cursor` in
   - Offline fake-process tests in `internal/provider/cursor/provider_test.go`, `cmd/gaebokchi/main_test.go`, and `test/integration/e2e_test.go` exercise all 7 fixture classes from `docs/verification/cursor-compatibility.md` (Case 1a `captured` weekly `totalPercentUsed`, Case 1b `synthetic` weekly `includedSpend / limit * 100` fallback and `spendLimitUsage` exclusion, Case 2 `synthetic` monthly `StatusNotApplicableMonthly`, Case 3 `synthetic` unauthenticated `StatusAuthRequired`, Case 4 `synthetic` API-key `StatusNotApplicableAPIKey`, Case 5 `synthetic` ConnectRPC error `StatusProviderError` and structured `"unauthenticated"` -> `StatusAuthRequired`, Case 6 `synthetic` unhooked plain `status --format json` -> `StatusUnsupported`, and Case 7 `synthetic` malformed/oversized/out-of-range/unavailable edge cases), plus real Node execution of `preload.cjs` verifying synchronous JSON output and PII/token omission.
 - **Findings and bounded remediation:** None blocking. `WriteDiagnostics` emits one bounded stderr line (`gaebokchi: cursor:0: N/A (monthly): cursor:0: cursor account reports a monthly period, not weekly`) for `StatusNotApplicableMonthly` while exiting `0`, matching Grok's monthly non-applicability behavior across `cmd/gaebokchi` and `test/integration`.
 - **Compatibility/platform limitations:** Offline fake-process and race-enabled integration/E2E gates verified on `darwin/arm64` (`Go 1.27.0`). Live final-executable acceptance against the installed `cursor-agent` login is deferred to `TASK-041`.
-- **Task commit subject:** `[IMPL] Integrate the Cursor default-login provider` (with trailers `Aquarium-Workflow: aquarium:task-commit`, `Aquarium-Epic: EPIC-013`, `Aquarium-Task: TASK-040`).
+- **Task commit subject:** `[FEAT] Integrate the Cursor default-login provider` (with trailers `Aquarium-Workflow: aquarium:task-commit`, `Aquarium-Epic: EPIC-013`, `Aquarium-Task: TASK-040`).
 - **Handoff to next task:** [TASK-041](../roadmap/README.md#task-041) receives the integrated, offline-tested Cursor candidate to run the final live executable query and complete `EPIC-013`.
+
+## TASK-041 verification evidence
+
+- **Task:** [TASK-041](../roadmap/README.md#task-041) (`Accept Cursor support and provider regressions`)
+- **Status:** `COMPLETE`
+- **Goal and implementation scope:** Run the complete offline and race verification gates (`make test` and `go test -race ./... -count=1`), verify a bounded prompt-free live Cursor usage query through the final compiled `gaebokchi` executable (`table` and `--json` modes) against the default `cursor-agent 2026.10.16-e3cb207` login on `darwin/arm64`, remediate partial non-blocking pipe writes and child event-loop exit in `internal/provider/cursor/preload.cjs`, and reconcile canonical and supporting documentation to close [REQ-066](../specs/README.md#req-066), [TASK-041](../roadmap/README.md#task-041), and [EPIC-013](../roadmap/README.md#epic-013).
+- **Requirements and architecture sections covered:** [REQ-066](../specs/README.md#req-066), [REQ-065](../specs/README.md#req-065), [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006), [REQ-007](../specs/README.md#req-007), [REQ-050](../specs/README.md#req-050); [ARCH-11](../architecture/README.md#arch-11), [ARCH-12](../architecture/README.md#arch-12), [ARCH-14](../architecture/README.md#arch-14), [ARCH-19](../architecture/README.md#arch-19).
+- **Changed files:**
+  - `internal/provider/cursor/preload.cjs`
+  - `internal/provider/cursor/provider_test.go`
+  - `docs/verification/cursor-compatibility.md`
+  - `docs/specs/README.md`
+  - `docs/architecture/README.md`
+  - `docs/roadmap/README.md`
+  - `docs/todo/TODO-CURSOR-AGENT-SUPPORT.md`
+  - `docs/todo/README.md`
+  - `docs/README.md`
+  - `docs/verification/README.md`
+- **Verification:**
+  - `V-CURSOR`, `V-OPTIONS`, `V-QUOTA`, `V-RUNNER`, `V-OUTPUT`, `V-EXIT`, `V-LIFECYCLE`, `V-SAFETY`, `V-E2E`:
+    - `make test` (`test-prepare`, `test-unit`, `test-int`, `test-e2e`) -> **PASS** (`darwin/arm64`, Go `1.27.0`, `golangci-lint` `v2.13.2`; 4 unit suites, 10 integration suites including `Cursor Suite - 8/8 specs`, and `Integration Suite - 34/34 specs` passed with `-race`).
+    - `go test -race ./... -count=1` -> **PASS** across all tested packages (`cmd/gaebokchi`, `internal/app`, `internal/domain`, `internal/options`, `internal/process`, `internal/provider/agy`, `internal/provider/claude`, `internal/provider/codex`, `internal/provider/cursor`, `internal/provider/envfilter`, `internal/provider/grok`, `internal/render`, `internal/rpc`, `scripts`, `test/integration`).
+  - `V-CURSOR`, `V-LIVE`, `V-SAFETY` (bounded prompt-free live final-executable acceptance on `darwin/arm64`, 2026-10-18):
+    - Built the candidate binary (`go build -o "$TMP_DIR/gaebokchi" ./cmd/gaebokchi`) and executed both plain-table and `--json` modes against `~/.local/bin/cursor-agent` (`2026.10.16-e3cb207`) using an isolated temporary `HOME` (`$TMP_DIR/home/.config/gaebokchi/config.yaml` containing `cursor:\n  - name: default\n`, with `$TMP_DIR/home/Library` symlinked to `$HOME/Library` so macOS Keychain resolved the default login without touching `~/.config/gaebokchi/config.yaml`, then removed `$TMP_DIR`).
+    - Plain table (`HOME="$TMP_DIR/home" "$TMP_DIR/gaebokchi" --cursor-bin "$HOME/.local/bin/cursor-agent"`): exited `0` with `0` stderr bytes:
+      ```text
+      AI PROVIDER  ACCOUNT  WEEKLY USAGE
+      Cursor       default  100%
+      ```
+    - JSON (`HOME="$TMP_DIR/home" "$TMP_DIR/gaebokchi" --cursor-bin "$HOME/.local/bin/cursor-agent" --json`): exited `0` with `0` stderr bytes:
+      ```json
+      {"results":[{"target_id":"cursor:0","provider":"cursor","account":"default","status":"ok","used_percent":100,"cleanup_failed":false}]}
+      ```
+    - Confirmed zero model turns, zero agent sessions, zero tool calls, no direct Keychain/credential reads outside `cursor-agent`, zero PII/secrets in stdout or stderr, and complete removal of `$TMP_DIR` and `gaebokchi-cursor-*` preload temporary directories.
+  - `V-AUDIT`, `V-DOCS`: `go run scripts/check-docs.go` -> `check-docs: 60 markdown files, links and identifiers OK`.
+  - **Explicitly NOT RUN / SKIPPED:** Native Linux execution of the `EPIC-013` test suite was not run on this macOS (`darwin/arm64`) host; live monthly (`StatusNotApplicableMonthly`) and live API-key (`StatusNotApplicableAPIKey`) Cursor accounts were not available on the host (those branches are verified via source inspection and offline fake-process tests in `internal/provider/cursor/provider_test.go` and `test/integration/e2e_test.go`).
+- **Fixtures:**
+  - Retained the 7 fixture classes (Case 1a `captured` and Cases 1b–7 `synthetic`) in `internal/provider/cursor/provider_test.go` and `test/integration/e2e_test.go`; updated `TestPreloadScriptExecutesAndStripsPIIInNode` so the Node harness keeps an active event-loop timer (`setInterval`) and relies on `preload.cjs` calling `process.exit(0)` after `writeStdoutSync`.
+- **Findings and bounded remediation:** During the live final-executable run against `cursor-agent 2026.10.16-e3cb207` over an `os.Pipe()` stdout on `darwin/arm64`, two runtime behaviors were identified and fixed in `internal/provider/cursor/preload.cjs`: (1) `./src/commands/status.ts` (`handleStatus`) owns the `finally { process.exit(c) }` call while `index.js` keeps active ConnectRPC HTTP/2 and timer handles open, so `wrapHandleStatus` must call `process.exit(0)` after writing its JSON payload; and (2) `cursor-agent` places fd 1 in non-blocking mode, causing a single `fs.writeSync(1, str)` of a 544-byte JSON payload (`totalPercentUsed: 100`) to write only the first 512 bytes (`PIPE_BUF`). Adding `writeStdoutSync(str)` (looping `fs.writeSync(1, buf, off, buf.length - off)` across partial writes and `EAGAIN`/`EWOULDBLOCK` before `process.exit(0)`) resolved both issues cleanly.
+- **Compatibility/platform limitations:** Live positive final-executable acceptance was verified on `darwin/arm64` against `cursor-agent 2026.10.16-e3cb207` with an active weekly (`Ultra`) subscription. If a future `cursor-agent` release alters the `./src/commands/status.ts` module boundary so the preload hook does not intercept `handleStatus`, `gaebokchi` degrades deterministically to `StatusUnsupported` (`UNSUPPORTED`). Multi-account Cursor selection remains out of scope because `cursor-agent` uses a single global OS Keychain credential namespace.
+- **Task commit subject:** `[FIX] Accept Cursor support and provider regressions` (with trailers `Aquarium-Workflow: aquarium:task-commit`, `Aquarium-Epic: EPIC-013`, `Aquarium-Task: TASK-041`).
+- **Handoff to next task/epic:** [EPIC-013](../roadmap/README.md#epic-013) (`TASK-039` through `TASK-041`) is `COMPLETE`. All planned provider extensions (`EPIC-012` `agy` and `EPIC-013` `Cursor`) are verified and closed.
 

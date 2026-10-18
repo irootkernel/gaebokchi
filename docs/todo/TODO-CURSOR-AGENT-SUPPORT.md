@@ -89,10 +89,15 @@ The canonical Cursor metadata mechanism is therefore **subprocess
 
 ## Acceptance and downstream handoff
 
-The epic requires `TASK-039` contract qualification ([REQ-065](../specs/README.md#req-065)),
-`TASK-040` adapter and configuration integration with offline fake-process tests
+Completed on 2026-10-18 ([cursor compatibility](../verification/cursor-compatibility.md)):
+`TASK-039` qualified the `cursor-agent 2026.10.16-e3cb207` subprocess +
+read-only `NODE_OPTIONS` preload hook contract ([REQ-065](../specs/README.md#req-065)),
+`TASK-040` integrated `internal/provider/cursor` with offline fake-process tests
 covering weekly, monthly, `includedSpend/limit` fallback, API-key, auth-required,
 hook-fallback `StatusUnsupported`, timeout, cancellation, and cleanup failure,
-and `TASK-041` complete offline/race and live final-executable acceptance
-([REQ-066](../specs/README.md#req-066)). Delivery does not include installation
-or publication.
+and `TASK-041` passed the complete offline and race gates plus bounded
+prompt-free live final-executable acceptance (`Cursor default 100%` and `--json`
+`cursor:0` `status: "ok"`, `used_percent: 100`, `cleanup_failed: false`)
+([REQ-066](../specs/README.md#req-066)). Delivery does not include installation,
+release staging, tagging, or publication.
+

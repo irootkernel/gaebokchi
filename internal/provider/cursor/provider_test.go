@@ -470,7 +470,8 @@ const dashClient = {
     }
   })
 };
-exp.handleStatus(credMgr, dashClient, { format: "json" }).then((code) => process.exit(code));
+setInterval(() => {}, 60000);
+exp.handleStatus(credMgr, dashClient, { format: "json" });
 `
 	if err := os.WriteFile(driverPath, []byte(driverCode), 0o600); err != nil {
 		t.Fatal(err)

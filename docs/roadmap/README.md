@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: v0.1.0 baseline with provider extensions\
-Status: EPIC-001 through EPIC-012 retain their recorded COMPLETE milestones; EPIC-013 is IN PROGRESS (TASK-039 and TASK-040 COMPLETE; TASK-041 next). The exact-release gate remains separately recorded below.
+Status: EPIC-001 through EPIC-013 retain their recorded COMPLETE milestones. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
@@ -13,8 +13,8 @@ The Claude, `agy`, and Cursor extensions and YAML account configuration are
 described in the [current requirements](../specs/README.md) and
 [architecture](../architecture/README.md). Historical task records below retain
 the meaning they had when completed; the [current release gate](#current-release-gate)
-governs v0.1.0 publication. Cursor adapter integration is complete in TASK-040,
-with final live executable acceptance pending TASK-041.
+governs v0.1.0 publication. Cursor adapter integration and live executable
+acceptance are complete in EPIC-013 (TASK-039 through TASK-041).
 
 ## How to use this plan
 
@@ -57,7 +57,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 10 | [EPIC-010: Interactive terminal view](#epic-010) | [TASK-030](#task-030) | [EPIC-009](#epic-009) complete | COMPLETE (implementation milestone) |
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
-| 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; TASK-039 must qualify Cursor before its adapter | IN PROGRESS (TASK-039 and TASK-040 complete; TASK-041 next) |
+| 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; `cursor-agent 2026.10.16-e3cb207` preload-hook contract qualified on 2026-10-18 | COMPLETE (implementation and live acceptance milestone) |
 
 Historical note: every epic began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -76,13 +76,11 @@ EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
 single-account `agy` weekly usage support with two weekly rows (`gemini` and
 `claude/gpt`) in the existing weekly output, verified in
 [agy-compatibility.md](../verification/agy-compatibility.md).
-EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) completed
-[TASK-039](#task-039) and [TASK-040](#task-040) on 2026-10-18, qualifying the
-`cursor-agent 2026.10.16-e3cb207` subprocess (`status --format json`) +
-read-only `NODE_OPTIONS` preload hook contract and integrating
-`internal/provider/cursor`, `envfilter.Cursor()`, single-entry `cursor`
-configuration (`cursor:0`), `--cursor-bin`, and offline fake-process verification
-ahead of [TASK-041](#task-041).
+EPIC-013 (`TASK-039` through `TASK-041`) completed on 2026-10-18, delivering
+single-account Cursor weekly usage support (`cursor:0`) via
+`<cursor-bin> status --format json` with the read-only `NODE_OPTIONS` preload
+hook, verified in
+[cursor-compatibility.md](../verification/cursor-compatibility.md).
 
 <a id="provider-discovery-preflight"></a>
 ### Independent provider discovery preflights
@@ -1664,7 +1662,7 @@ EPIC-013.
 <a id="epic-013"></a>
 ## EPIC-013: Cursor Agent usage support
 
-- [ ] Epic complete. **Status: IN PROGRESS (TASK-039 and TASK-040 COMPLETE; TASK-041 next).**
+- [x] Epic complete. **Status: COMPLETE.**
 
 **Goal:** Query the single default `cursor-agent` CLI login through `<cursor-bin> status --format json`
 with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and
@@ -1775,7 +1773,7 @@ cleanup failure. Evidence:
 <a id="task-041"></a>
 ### TASK-041: Accept Cursor support and provider regressions
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Assess the complete EPIC-013 outcome on the final candidate.
 
@@ -1796,6 +1794,7 @@ providers (`ChatGPT`, `Grok`, `Claude`, `agy`) retain their qualified behavior.
 
 **Verification:** `make test`, `go test -race ./... -count=1`, and
 final-executable prompt-free acceptance. No install or publication is included.
+Evidence: [cursor-compatibility.md](../verification/cursor-compatibility.md).
 
 **Handoff:** Canonical Cursor outcomes and exact compatibility limits recorded;
 EPIC-013 marked complete.
@@ -1803,7 +1802,7 @@ EPIC-013 marked complete.
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate
 
-This gate covers the v0.1.0 baseline, REQ-001 through REQ-059. Planned REQ-060
+This gate covers the v0.1.0 baseline, REQ-001 through REQ-059. REQ-060
 through REQ-066 have their own EPIC-012 and EPIC-013 acceptance gates and do not
 change this historical release scope.
 

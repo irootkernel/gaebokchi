@@ -50,9 +50,10 @@ verified in [agy-compatibility.md](verification/agy-compatibility.md) and the
 [preflight record](verification/provider-extension-preflight-2026-10-16.md).
 
 [EPIC-013](roadmap/README.md#epic-013) (`TASK-039` through `TASK-041`, `REQ-065`,
-`REQ-066`, and `ARCH-19`) adopts planned Cursor default-login usage support
-using `<cursor-bin> status --format json` with a read-only `NODE_OPTIONS`
-preload hook, qualified against `cursor-agent 2026.10.16-e3cb207` in
+`REQ-066`, and `ARCH-19`) is **COMPLETE**: `gaebokchi` supports single-account
+Cursor default-login weekly usage (`cursor:0`) using `<cursor-bin> status --format json`
+with a read-only `NODE_OPTIONS` preload hook, qualified and verified against
+`cursor-agent 2026.10.16-e3cb207` in
 [cursor-compatibility.md](verification/cursor-compatibility.md) and the
 [preflight record](verification/provider-extension-preflight-2026-10-16.md).
 Each extension has a linked [execution dossier](todo/README.md). The roadmap

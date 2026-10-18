@@ -8,8 +8,8 @@ The [requirements](../specs/README.md) define required behavior and acceptance. 
 
 ARCH-01 through ARCH-19 describe the implemented baseline, including the
 EPIC-013 Cursor single-account adapter and read-only preload hook contract
-qualified against `cursor-agent 2026.10.16-e3cb207` (final live executable
-acceptance in TASK-041).
+qualified against `cursor-agent 2026.10.16-e3cb207` (TASK-039 through
+TASK-041).
 
 | Section | Responsibility |
 |---|---|
@@ -750,7 +750,7 @@ The canonical offline gate is `make test`. `TESTING.md` maps its prepare, unit, 
 <a id="arch-12"></a>
 ## ARCH-12: Compatibility gate and evidence policy
 
-Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064), [REQ-065](../specs/README.md#req-065). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038), [TASK-039](../roadmap/README.md#task-039).
+Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038), [TASK-039](../roadmap/README.md#task-039), [TASK-041](../roadmap/README.md#task-041).
 
 Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), the [agy compatibility record](../verification/agy-compatibility.md), and the [Cursor compatibility record](../verification/cursor-compatibility.md) hold the details and dates:
 
@@ -765,7 +765,7 @@ Compatibility status; the [compatibility record](../verification/compatibility.m
 | Claude auth status and `/usage` local command | Claude Code command, CLI, and environment references ([S-14](#s-14) through [S-16](#s-16)) | Observed live with Claude Code 2.1.280 on darwin/arm64 |
 | Claude weekly reset text | Installed CLI formatter behavior | Observed live with Claude Code 2.1.283 on darwin/arm64 |
 | `agy` single-account `/usage` JSON weekly pools (`gemini-weekly`, `3p-weekly`) | Antigravity CLI headless, usage, and troubleshooting references ([S-17](#s-17) through [S-19](#s-19), [S-22](#s-22), [S-23](#s-23)) | QUALIFIED live with `agy 1.4.0` on darwin/arm64 (TASK-034, TASK-038) |
-| Cursor single-account `status --format json` + read-only `NODE_OPTIONS` preload hook (`Included` / `totalPercentUsed`, weekly vs monthly period) | Cursor CLI parameters, usage limits, ACP references ([S-20](#s-20), [S-21](#s-21), [S-24](#s-24)), and installed bundle inspection (`./src/commands/status.ts`, `./src/usage/usage-data.ts`) | QUALIFIED live with `cursor-agent 2026.10.16-e3cb207` on darwin/arm64 (TASK-039; final executable acceptance in TASK-041) |
+| Cursor single-account `status --format json` + read-only `NODE_OPTIONS` preload hook (`Included` / `totalPercentUsed`, weekly vs monthly period) | Cursor CLI parameters, usage limits, ACP references ([S-20](#s-20), [S-21](#s-21), [S-24](#s-24)), and installed bundle inspection (`./src/commands/status.ts`, `./src/usage/usage-data.ts`) | QUALIFIED live with `cursor-agent 2026.10.16-e3cb207` on darwin/arm64 (TASK-039, TASK-041) |
 | macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); TASK-031 and TASK-032 reran the full gates on both; TASK-033 reran them on its corrected uncommitted candidate |
 
 Run small, bounded, developer-only metadata probes before production transport or provider work, as TASK-001 did for Codex and Grok. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.
@@ -1145,9 +1145,12 @@ document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm
      checks `getAccessToken()`, `getRefreshToken()`, and `getApiKey()`, and—when
      authenticated without an API key—calls `dashboardClient.getPlanInfo` and
      `dashboardClient.getCurrentPeriodUsage` concurrently. It writes a single
-     compact JSON line synchronously to stdout (`fs.writeSync(1, ...)`) with all
+     compact JSON line synchronously to stdout (`fs.writeSync(1, ...)` in a loop
+     handling non-blocking pipe partial writes and `EAGAIN`/`EWOULDBLOCK`) with all
      PII (`email`, `userId`, `firstName`, `lastName`, `teamId`, `teamName`,
-     tokens, and keys) omitted.
+     tokens, and keys) omitted, and then calls `process.exit(0)` (matching
+     `./src/commands/status.ts`'s `finally { process.exit(c) }` behavior so open
+     ConnectRPC HTTP/2 and timer handles do not block exit).
   4. **Graceful fallback:** If a future `cursor-agent` release alters
      `./src/commands/status.ts` so the preload hook does not intercept
      `handleStatus`, the subprocess still returns standard `status --format json`

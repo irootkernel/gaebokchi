@@ -16,8 +16,9 @@ current merely because a later tree retains the record.
 - [cursor-compatibility.md](cursor-compatibility.md) records the qualified
   `cursor-agent 2026.10.16-e3cb207` subprocess (`status --format json`) +
   read-only `NODE_OPTIONS` preload hook contract, weekly/monthly period
-  semantics, `CURSOR_*` environment filter, and sanitized live fixture for
-  `EPIC-013` (`TASK-039` through `TASK-041`).
+  semantics, `CURSOR_*` environment filter, sanitized live fixture, and the
+  completed `EPIC-013` (`TASK-039` through `TASK-041`) offline and live
+  acceptance evidence.
 - [provider-extension-preflight-2026-10-16.md](provider-extension-preflight-2026-10-16.md)
   records the 2026-10-16 discovery pass, the 2026-10-17 live `agy 1.4.0`
   metadata qualification, and the 2026-10-18 live `cursor-agent
