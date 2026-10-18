@@ -6,9 +6,9 @@ Project: **Gaebokchi (개복치)** · Ecosystem: Aquarium tool · Repository and
 
 The [requirements](../specs/README.md) define required behavior and acceptance. The [roadmap](../roadmap/README.md) owns work identity, execution order, status, and delivery history. This document describes the current implementation and its boundaries: components, data semantics, protocol and process rules, and verification design. Release archives carry these three documents, while links to verification records and other maintainer documents resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them. Decisions whose rationale should outlive a rewrite of this document are kept as [architecture decision records](../architecture-decision-records/README.md).
 
-ARCH-01 through ARCH-18 describe the implemented baseline. ARCH-19 is an
-explicitly planned extension for EPIC-013; its interface and positive provider
-support are not yet implemented or qualified.
+ARCH-01 through ARCH-18 describe the implemented baseline. ARCH-19 specifies the
+planned EPIC-013 Cursor single-account adapter and read-only preload hook
+contract qualified against `cursor-agent 2026.10.16-e3cb207`.
 
 | Section | Responsibility |
 |---|---|
@@ -30,7 +30,7 @@ support are not yet implemented or qualified.
 | [ARCH-15](#arch-15) | Primary sources |
 | [ARCH-17](#arch-17) | Weekly model-pool rows and exact remaining-fraction conversion |
 | [ARCH-18](#arch-18) | agy single-account adapter and shared two-row query |
-| [ARCH-19](#arch-19) | Planned Cursor default-login adapter gate |
+| [ARCH-19](#arch-19) | Planned Cursor single-account adapter and read-only preload hook |
 
 Section numbers are stable identifiers, not reading order: ARCH-16 was added after ARCH-15 and sits with the other provider adapters.
 
@@ -664,12 +664,21 @@ final executable.
 <a id="v-cursor"></a>
 ### V-CURSOR: Planned Cursor qualification and integration
 
-TASK-039 owns the actual metadata-only interface, native periods, default-login
-selection, ambient overrides and platform credential boundaries. TASK-040 owns
-fake-process coverage for that contract, weekly/monthly and missing-data cases,
-spend exclusion, auth/errors, secrets and child cleanup. TASK-041 owns positive
-final-executable known-period usage and existing-provider regressions. These
-are planned checks; fixture-only periods and platforms remain labelled as such.
+TASK-039 owns the metadata-only subprocess + read-only `NODE_OPTIONS` preload
+hook interface (`<cursor-bin> status --format json` intercepting
+`./src/commands/status.ts` to read `dashboardClient.getPlanInfo` and
+`dashboardClient.getCurrentPeriodUsage`), native weekly/monthly period
+classification (`INCLUDED_USAGE_PERIOD_WEEKLY` / 7-day cycle vs
+`INCLUDED_USAGE_PERIOD_MONTHLY` / monthly cycle), single-row `Included`
+(`totalPercentUsed`, `QuotaID: "cursor_included"`) mapping, `CURSOR_*`
+environment filtering, PII omission, and graceful `StatusUnsupported` fallback
+when the hook does not fire. TASK-040 owns fake-process coverage for that
+contract, weekly (`StatusOK`) and monthly (`StatusNotApplicableMonthly`)
+fixtures, `includedSpend/limit` fallback, API-key non-applicability
+(`StatusNotApplicableAPIKey`), unauthenticated/partial auth
+(`StatusAuthRequired`), missing-data/unsupported cases, spend exclusion,
+secrets, and child cleanup. TASK-041 owns positive final-executable weekly usage
+verification and existing-provider regressions.
 
 <a id="v-identity"></a>
 ### V-IDENTITY: Display identity
@@ -1090,53 +1099,69 @@ documents the qualified `agy 1.4.0` contract on `darwin/arm64`.
      for `agy:1` from `command.data.groups[].buckets[]`.
 
 <a id="arch-19"></a>
-## ARCH-19: Planned Cursor default-login adapter
+## ARCH-19: Planned Cursor single-account adapter and read-only preload hook
 
 **Delivery:** EPIC-013, TASK-039 through TASK-041. **Requirements:** REQ-065 and
-REQ-066. EPIC-012 must complete first. The
-[Cursor compatibility note](../verification/cursor-compatibility.md) records
-the current metadata-interface gap.
+REQ-066. The [Cursor compatibility record](../verification/cursor-compatibility.md)
+and [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)
+document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm64`.
 
-Use one optional named default-login target, represented by a `cursor` list
-with one `name` entry and no account-home selector. Omission or `[]` disables
-Cursor; more than one entry is invalid. Retain the common alias validation and
-require at least one enabled account overall. The binary override is
-`--cursor-bin`, default `cursor-agent`. These are planned options, not current
-configuration or flags. In particular, do not add a misleading `path` account
-selector for a globally selected default credential namespace.
-The provider value is `cursor`, the sole target ID is `cursor:0` and the display
-name is `Cursor`.
+### Configuration and target construction
 
-TASK-039 must qualify the actual installed noninteractive usage interface,
-default-login selection, period and pool schema, absent-login behavior and
-process lifecycle under the shared [qualification and runtime guards](#provider-extension-qualification).
-An independent earlier discovery preflight is allowed by the roadmap, but does
-not begin this epic's adapter work or close TASK-039. S-24's ACP transport is a
-discovery route only if an actual session-free metadata method can be established;
-`session/new`, `session/load` and `session/prompt` remain prohibited. The current interactive usage modules and `status`/`about`
-identity JSON are discovery inputs, not positive qualification. Direct Dashboard
-RPC calls or wrappers around private packaged modules exceed the chosen boundary.
-Also freeze automatic-update suppression and credential selection on each
-claimed platform. Record macOS/Linux differences and unqualified platforms;
-cross-build or fake-process success is not live credential qualification.
+- `~/.config/gaebokchi/config.yaml` accepts an optional `cursor` list with at most
+  one entry (`- name: <alias>`; no `path` field is accepted because `cursor-agent`
+  uses a global default credential store). More than one entry in `cursor` is a
+  configuration error (exit 2). Omission or `[]` disables Cursor.
+- The binary flag is `--cursor-bin` with default `cursor-agent`.
+- Provider order is Codex, Grok, Claude, `agy`, then Cursor.
+- When `cursor` is enabled, `buildTargets` emits one target:
+  `Target{ID: "cursor:0", Provider: domain.ProviderCursor, FallbackAccount: entry.Name, AccountSource: domain.AccountSourceConfiguredAlias, Bin: o.CursorBin}`.
 
-After qualification, use `app.Querier` and the existing child lifecycle, budget
-and environment-filter construction. Freeze conflicting authentication and
-routing variables from evidence instead of dumping or indiscriminately clearing
-the environment. Keep credentials and refresh inside Cursor. On-demand spend is
-not a subscription quota percentage. `cursor` identifies the query source, not a
-promise that the reported pool measures only Grok. Retain the qualified provider
-pool label and scope: several models or products can share one allowance. Do not
-synthesize a Grok-only percentage, add Cursor and Grok rows as independent
-allowances, or infer cross-provider identity from matching aliases. Preserve
-source-specific rows without introducing automatic cross-provider merging or
-deduplication. Ambient API keys, credential or routing selectors must not
-silently substitute another login. TASK-039 proves which variables can do so,
-including whether `CURSOR_CONFIG_DIR` affects identity on each platform; TASK-040
-filters those overrides only in the child. Keep ordinary platform context, and
-do not invent an explicit credential selector for the default-login target.
-Exclude on-demand spend from quota results entirely.
+### Subprocess preload-hook execution and environment policy
 
-TASK-041 requires a positive final-executable metadata query plus complete
-offline and earlier-provider regressions. A missing method or unsupported row
-does not close the epic, and Cursor multi-account support is not claimed.
+- For `cursor-agent`, the former "pure public CLI flags only" restriction is
+  retired because `cursor-agent -p /usage` sends `"/usage"` as an LLM prompt and
+  plain `status`/`about`/`acp` omit quota data, whereas `cursor-agent status --format json`
+  already initializes `cursor-agent`'s own `credentialManager` and
+  `dashboardClient` (`aiserver.v1.DashboardService`) and passes both into
+  `./src/commands/status.ts` (`handleStatus`).
+- The `internal/provider/cursor` adapter executes `<cursor-bin> status --format json`
+  with a read-only `NODE_OPTIONS` preload hook:
+  1. Write the embedded read-only `preload.cjs` into a private mode-`0700`
+     temporary directory (`os.MkdirTemp("", "gaebokchi-cursor-")`, removed on
+     `defer`) and set `NODE_OPTIONS=--require=<preloadPath>`.
+  2. **Environment filter (`envfilter.Cursor()`):** Preserve `HOME` and platform
+     keyring variables so `cursor-agent` accesses its default login. Strip all
+     `CURSOR_*` variables (`CURSOR_API_KEY`, `CURSOR_AUTH_TOKEN`,
+     `CURSOR_CONFIG_DIR`, `CURSOR_STATSIG_OVERRIDES`) and any ambient parent
+     `NODE_OPTIONS`, then apply the controlled `NODE_OPTIONS` preload path.
+  3. **Read-only hook behavior:** When `cursor-agent status --format json` loads
+     `./src/commands/status.ts`, `preload.cjs` wraps `handleStatus(credentialManager, dashboardClient)`,
+     checks `getAccessToken()`, `getRefreshToken()`, and `getApiKey()`, and—when
+     authenticated without an API key—calls `dashboardClient.getPlanInfo` and
+     `dashboardClient.getCurrentPeriodUsage` concurrently. It writes a single
+     compact JSON line synchronously to stdout (`fs.writeSync(1, ...)`) with all
+     PII (`email`, `userId`, `firstName`, `lastName`, `teamId`, `teamName`,
+     tokens, and keys) omitted.
+  4. **Graceful fallback:** If a future `cursor-agent` release alters
+     `./src/commands/status.ts` so the preload hook does not intercept
+     `handleStatus`, the subprocess still returns standard `status --format json`
+     output and `internal/provider/cursor` deterministically returns
+     `StatusUnsupported` (`UNSUPPORTED`).
+  5. **Response normalization:**
+     - `!isAuthenticated || !hasAccessToken || !hasRefreshToken` ->
+       `StatusAuthRequired` (`AUTH REQUIRED`).
+     - `hasApiKey` -> `StatusNotApplicableAPIKey` (`N/A (API key)`).
+     - `planInfo.includedUsagePeriod == 1` (`MONTHLY`), or `0` (`UNSPECIFIED`)
+       with a 27–32 day `billingCycleEnd - billingCycleStart` window ->
+       `StatusNotApplicableMonthly` (`N/A (monthly)`, `Period: domain.PeriodMonthly`).
+     - `planInfo.includedUsagePeriod == 2` (`WEEKLY`), or `0` (`UNSPECIFIED`)
+       with a 6–8 day `billingCycleEnd - billingCycleStart` window ->
+       require `currentPeriodUsage.planUsage != nil`, extract `UsedPercent` from
+       `planUsage.totalPercentUsed` (or `includedSpend / limit * 100` when
+       `totalPercentUsed` is absent and `limit > 0`), extract `ResetAt` from
+       `planInfo.includedUsageResetsAtMs` (falling back to
+       `currentPeriodUsage.billingCycleEndMs`), and return `StatusOK` with
+       `Period: domain.PeriodWeekly`, `QuotaID: "cursor_included"`, and
+       `Source: domain.SourceCursorCLIUsage`. Exclude on-demand spend
+       (`spendLimitUsage`) from quota percentages.

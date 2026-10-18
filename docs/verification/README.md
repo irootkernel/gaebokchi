@@ -13,12 +13,15 @@ current merely because a later tree retains the record.
   child environment filter, absent-login fast-fail behavior, sanitized captured
   fixture for the `gemini` and `claude/gpt` weekly pools, and the completed
   `EPIC-012` (`TASK-034` through `TASK-038`) offline and live acceptance evidence.
-- [cursor-compatibility.md](cursor-compatibility.md) records static capability
-  findings and the noninteractive usage-interface prerequisite for TASK-039.
-  It contains no positive live qualification.
+- [cursor-compatibility.md](cursor-compatibility.md) records the qualified
+  `cursor-agent 2026.10.16-e3cb207` subprocess (`status --format json`) +
+  read-only `NODE_OPTIONS` preload hook contract, weekly/monthly period
+  semantics, `CURSOR_*` environment filter, and sanitized live fixture for
+  `EPIC-013` (`TASK-039` through `TASK-041`).
 - [provider-extension-preflight-2026-10-16.md](provider-extension-preflight-2026-10-16.md)
-  records the 2026-10-16 discovery pass and the 2026-10-17 live `agy 1.4.0`
-  metadata qualification and single-account weekly two-row scope alignment.
+  records the 2026-10-16 discovery pass, the 2026-10-17 live `agy 1.4.0`
+  metadata qualification, and the 2026-10-18 live `cursor-agent
+  2026.10.16-e3cb207` preload-hook qualification and scope alignment.
 - [live-acceptance.md](live-acceptance.md) records the owner-account campaign and
   its explicit corrected-candidate limitation.
 - `TASK-001.md` through `TASK-028.md` record historical task-scoped checks,

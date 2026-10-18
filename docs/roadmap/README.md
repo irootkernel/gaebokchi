@@ -76,19 +76,23 @@ EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
 single-account `agy` weekly usage support with two weekly rows (`gemini` and
 `claude/gpt`) in the existing weekly output, verified in
 [agy-compatibility.md](../verification/agy-compatibility.md).
-EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) remains adopted
-future work and is unqualified until TASK-039.
+EPIC-013 ([Cursor](../verification/cursor-compatibility.md)) has its
+`cursor-agent 2026.10.16-e3cb207` subprocess (`status --format json`) +
+read-only `NODE_OPTIONS` preload hook contract qualified as of 2026-10-18 and is
+ready for execution starting at TASK-039.
 
 <a id="provider-discovery-preflight"></a>
 ### Independent provider discovery preflights
 
-Planning clarification adopted on 2026-10-16 and updated on 2026-10-17: before
-either adapter is built, allow a bounded discovery pass for each new provider
-independently. Store findings in the provider compatibility records and the
-dated [preflight record](../verification/provider-extension-preflight-2026-10-16.md).
+Planning clarification adopted on 2026-10-16 and updated on 2026-10-17 and
+2026-10-18: before either adapter is built, allow a bounded discovery pass for
+each new provider independently. Store findings in the provider compatibility
+records and the dated [preflight record](../verification/provider-extension-preflight-2026-10-16.md).
 Do not mark TASK-034 or TASK-039 complete from a planning pass alone; those
 tasks still own their task-scoped delivery in the recorded order. Reuse the
-qualified 2026-10-17 `agy 1.4.0` evidence when TASK-034 executes.
+qualified 2026-10-17 `agy 1.4.0` evidence when TASK-034 executes, and reuse the
+qualified 2026-10-18 `cursor-agent 2026.10.16-e3cb207` subprocess + read-only
+preload hook evidence when TASK-039 executes.
 
 <a id="plan-evidence"></a>
 ## Evidence and commit contract
@@ -1659,9 +1663,10 @@ EPIC-013.
 
 - [ ] Epic complete. **Status: NOT STARTED.**
 
-**Goal:** Query the default Cursor Agent CLI login through a qualified
-metadata-only interface and show its weekly subscription usage in `gaebokchi`'s
-output and JSON snapshot.
+**Goal:** Query the single default `cursor-agent` CLI login through `<cursor-bin> status --format json`
+with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and
+show its weekly `Included` subscription usage (`totalPercentUsed`) as a single
+row (`cursor:0`) in `gaebokchi`'s output and JSON snapshot.
 
 **Entry:** EPIC-012 complete. Cursor multi-account management is excluded.
 
@@ -1670,9 +1675,9 @@ output and JSON snapshot.
 **Task sequence:** [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041).
 
 **Local epic acceptance:** REQ-065 and REQ-066 are fully verified, the final
-candidate completes a positive prompt-free Cursor query, and the full offline
-gate and existing-provider regressions pass. A source handler or failure row
-does not establish runtime support.
+candidate completes a positive prompt-free Cursor query using the read-only
+`status --format json` preload hook, and the full offline gate and
+existing-provider regressions pass.
 
 **Handoff:** Canonical Cursor configuration, adapter contract, user guidance and
 compatibility limits. Installation and publication remain separate work.
@@ -1682,71 +1687,83 @@ compatibility limits. Installation and publication remain separate work.
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Establish an actual noninteractive CLI usage interface before its adapter.
+**Purpose:** Freeze the qualified `cursor-agent status --format json` +
+read-only `NODE_OPTIONS` preload hook contract before adapter implementation.
 
-**Dependency:** EPIC-012 complete; bounded live qualification separately authorized.
+**Dependency:** EPIC-012 complete.
 
 **Owners:** REQ-065; ARCH-19 and ARCH-09.
 
-**Scope and deliverables:** Reuse the Cursor static assessment and qualify the
-installed executable, invocation, default credential selection, structured quota
-response, periods, pool identities, reset timestamps, errors and lifecycle.
-Freeze a compatibility contract and sanitized fixtures. Reuse any independent
-discovery preflight and recheck only evidence affected by changed versions or
-contracts. Apply ARCH-17's shared qualification and runtime guards, including the
-runtime applicability check for version-bound periods or local-command safety.
-An interactive pager, identity JSON, bundled private RPC function or `-p /usage`
-spelling is insufficient. ACP support is only a transport lead; require an actual
-session-free metadata method rather than using `session/new` or a prompt.
-Include update suppression, ambient auth/routing overrides and the credential
-selection boundary on each claimed platform. Record unqualified Linux/macOS
-variants explicitly rather than infer them from a configuration directory.
+**Scope and deliverables:** Reuse the 2026-10-18 `cursor-agent 2026.10.16-e3cb207`
+static and bounded live qualification recorded in
+[cursor-compatibility.md](../verification/cursor-compatibility.md) and the
+[preflight record](../verification/provider-extension-preflight-2026-10-16.md).
+The former "pure public CLI flags only" restriction is retired for Cursor
+because `cursor-agent -p /usage` sends `"/usage"` as an LLM prompt and plain
+`status`/`about`/`acp` omit quota data. Freeze the `<cursor-bin> status --format json` +
+read-only `NODE_OPTIONS=--require=<preloadPath>` hook contract on
+`./src/commands/status.ts` (`handleStatus(credentialManager, dashboardClient)`),
+including `dashboardClient.getPlanInfo` and `dashboardClient.getCurrentPeriodUsage`
+response fields, weekly (`INCLUDED_USAGE_PERIOD_WEEKLY` / 7-day cycle) vs
+monthly (`INCLUDED_USAGE_PERIOD_MONTHLY` / monthly cycle) classification,
+single-row `Included` (`totalPercentUsed`, `QuotaID: "cursor_included"`)
+mapping, `CURSOR_*` environment stripping, PII omission (`email`, `userId`,
+`teamId`, tokens), and graceful `StatusUnsupported` degradation if a future CLI
+build does not trigger the hook.
 
-**Acceptance:** The actual CLI returns subscription usage with no model turns,
-agent tools, sessions, login or billing mutations. Explicit period metadata
-supports every accepted weekly/monthly interpretation. Missing capabilities
-block the task and epic before TASK-040; a blocker record is not a passing gate.
+**Acceptance:** REQ-065 is verified against the qualified `cursor-agent
+2026.10.16-e3cb207` preload-hook contract with no model turns, agent tools,
+sessions, direct Keychain/auth file reads outside `cursor-agent`, or billing
+mutations, and explicit period metadata distinguishes weekly (`PeriodWeekly`)
+and monthly (`StatusNotApplicableMonthly`) plans.
 
-**Verification:** Authorized metadata-only probes, absent-login and child cleanup
-checks, fixture parsing and redaction review. Do not create a direct provider
-API client, extract credentials, or wrap bundled private modules.
+**Verification:** Reconcile [cursor-compatibility.md](../verification/cursor-compatibility.md),
+[REQ-065](../specs/README.md#req-065), and [ARCH-19](../architecture/README.md#arch-19),
+and run `go run scripts/check-docs.go`.
 
-**Handoff:** TASK-040 receives the frozen installed CLI contract and its limitations.
+**Handoff:** TASK-040 receives the frozen `status --format json` preload-hook
+contract and sanitized fixtures.
 
 <a id="task-040"></a>
 ### TASK-040: Integrate the Cursor default-login provider
 
 - [ ] Task complete. **Status: NOT STARTED.**
 
-**Purpose:** Add Cursor to the common account query and output path.
+**Purpose:** Add Cursor (`internal/provider/cursor`) to the common account query
+and output path.
 
 **Dependency:** TASK-039 complete and its qualified contract still applies.
 
 **Owners:** REQ-066 implementation; ARCH-19. TASK-041 owns final positive acceptance.
 
-**Scope and deliverables:** Add the named single default-login configuration,
-`--cursor-bin` with default `cursor-agent`, explicit runner dispatch, environment
-filtering and adapter. Normalize qualified native periods and pools into the
-shared model. Add its offline suite to the test stages and update public usage
-and configuration guidance.
-Mark final live acceptance pending until TASK-041 and revalidate the existing
-E2E waiver when adding the fake provider. Exclude spend from quota results.
-Preserve shared-pool scope instead of labeling every Cursor meter as Grok-only;
-add shared-weekly and separate-monthly synthetic cases without inventing native
-IDs. Do not add cross-provider totals or account deduplication. Test exact Cursor
-dispatch, no Codex fallback, unknown-provider/missing-wiring no-launch behavior,
-and version-dependent guards within the single target budget.
+**Scope and deliverables:** Add the single-entry `cursor` configuration in
+`~/.config/gaebokchi/config.yaml` (`- name: <alias>`, no `path` field, target ID
+`cursor:0`), `--cursor-bin` with default `cursor-agent`, explicit runner
+dispatch in `Runner.querierFor(domain.ProviderCursor)`, `envfilter.Cursor()`
+(stripping `CURSOR_*` and ambient parent `NODE_OPTIONS` while injecting the
+controlled `NODE_OPTIONS` preload path), `SourceCursorCLIUsage`, and the
+`internal/provider/cursor` adapter with its embedded read-only `preload.cjs`.
+Normalize weekly plans (`PeriodWeekly`, `QuotaID: "cursor_included"`,
+`UsedPercent` from `planUsage.totalPercentUsed` or `includedSpend / limit * 100`
+fallback, `ResetAt` from `includedUsageResetsAtMs` or
+`currentPeriodUsage.billingCycleEndMs`) and monthly plans
+(`StatusNotApplicableMonthly`, `N/A (monthly)`). Exclude on-demand spend
+(`spendLimitUsage`) from quota results. Add the offline fake-process suite to
+the Makefile test stages and `TESTING.md`, and update public usage and
+configuration guidance.
 
-**Acceptance:** Omission disables Cursor; enabled configuration selects the
-existing CLI default login without treating a config directory as a credential
-namespace. Preserve explicit usage percentages and missing fields, separate
-subscription pools, exclude on-demand spend from quota results, and retain
-sibling results on failure. Ambient credential/routing overrides must not
-silently change the default-login identity.
+**Acceptance:** Omission or `[]` disables Cursor; more than one entry or a
+`path` field is rejected (exit 2). Enabled configuration queries the default
+CLI login via `<cursor-bin> status --format json` with the read-only preload
+hook, maps weekly and monthly plans accurately, degrades to `StatusUnsupported`
+when hook fields are absent, strips ambient `CURSOR_*` overrides, and preserves
+sibling results on failure.
 
 **Verification:** Fake-process and executable checks for configuration, command
-and environment policy, weekly/monthly fixtures, missing data, unsupported CLI,
-auth-required, timeout, cancellation, secret markers and cleanup failure.
+and environment policy, weekly/monthly fixtures, `includedSpend/limit` fallback,
+API-key auth (`StatusNotApplicableAPIKey`), auth-required (`StatusAuthRequired`),
+hook-fallback `StatusUnsupported`, timeout, cancellation, secret markers, and
+cleanup failure.
 
 **Handoff:** TASK-041 receives the integrated, offline-tested Cursor candidate.
 
@@ -1762,20 +1779,21 @@ auth-required, timeout, cancellation, secret markers and cleanup failure.
 **Owners:** REQ-066 final acceptance and complete EPIC-013 requirement coverage.
 
 **Scope and deliverables:** Run full offline and existing-provider regression
-checks, qualify a positive final-candidate Cursor query, and reconcile canonical
-and user documentation with observed periods and failure behavior.
+checks (`make test` and race suite), verify a positive prompt-free Cursor query
+through the final `gaebokchi` executable, and reconcile canonical and user
+documentation (`README.md`, `configuration/README.md`, `TESTING.md`,
+`docs/specs/README.md`, `docs/roadmap/README.md`, `docs/todo/TODO-CURSOR-AGENT-SUPPORT.md`,
+`docs/verification/cursor-compatibility.md`) with the verified outcome.
 
-**Acceptance:** REQ-065 and REQ-066 have complete evidence, the live CLI returns
-native-period subscription usage without model work or cleanup failure, and
-earlier providers retain their qualified behavior. Complete all child gates and
-the epic acceptance before proposing closeout.
+**Acceptance:** REQ-065 and REQ-066 have complete evidence, the final executable
+returns weekly Cursor usage without model work or cleanup failure, and earlier
+providers (`ChatGPT`, `Grok`, `Claude`, `agy`) retain their qualified behavior.
 
-**Verification:** `make test`, final-executable prompt-free acceptance and focused
-failure/isolation checks. Distinguish live plan variants from fixture coverage;
-do not infer another platform or plan passed. No install or publication is included.
+**Verification:** `make test`, `go test -race ./... -count=1`, and
+final-executable prompt-free acceptance. No install or publication is included.
 
-**Handoff:** Canonical Cursor outcomes and exact remaining compatibility limits;
-closeout replaces this epic's Detailed SOT only after acceptance.
+**Handoff:** Canonical Cursor outcomes and exact compatibility limits recorded;
+EPIC-013 marked complete.
 
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate

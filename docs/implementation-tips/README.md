@@ -56,33 +56,42 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 ## Planned provider and output work
 
 The adopted [agy](../todo/TODO-AGY-MULTI-ACCOUNT-SUPPORT.md) and
-[Cursor](../todo/TODO-CURSOR-AGENT-SUPPORT.md) dossiers map the future work to
-requirements and architecture. On 2026-10-17, the owner scoped `EPIC-012` to the
-single default `agy` login with two weekly rows (`gemini` and `claude/gpt`) in
-`gaebokchi`'s existing weekly-only output, and the `agy 1.4.0` metadata contract
-was qualified in [agy-compatibility.md](../verification/agy-compatibility.md)
-and the [preflight record](../verification/provider-extension-preflight-2026-10-16.md).
-TASK-039 must still qualify the Cursor CLI metadata contract before TASK-040.
+[Cursor](../todo/TODO-CURSOR-AGENT-SUPPORT.md) dossiers map the provider
+extensions to requirements and architecture. `EPIC-012` (`agy`) is complete.
+On 2026-10-18, the owner retired the former "pure public CLI flags only"
+restriction for `cursor-agent` and locked in the `EPIC-013` contract in
+[ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md),
+[cursor-compatibility.md](../verification/cursor-compatibility.md), and the
+[preflight record](../verification/provider-extension-preflight-2026-10-16.md).
 
-Use ARCH-17 and ARCH-18's runtime guards for `agy`: verify `<agy-bin> --version`
-(`>= 1.2.15`) within the target timeout budget before running
-`agy --print /usage --output-format json --print-timeout 15s`, inject
-`AGY_CLI_DISABLE_AUTO_UPDATE=true`, strip `ANTIGRAVITY_*`, `JETSKI_*`, `AGY_*`,
-and API-key/ADC overrides while preserving `HOME`, and terminate the child
-immediately if `Authentication required` appears on stderr. Convert
-`remaining_fraction` $r \in [0, 1]$ using bounded exact decimal token math
-(`100 * (1 - r)`) in TASK-035 and ignore `window: "5h"` entries.
-
-In TASK-036 and TASK-037, keep the existing 3-column plain table, interactive
-terminal view, and `--json` `results` schema unchanged. Expand an enabled `agy`
-entry in `config.yaml` into two weekly targets (`agy:0` with label `gemini` and
-`agy:1` with label `claude/gpt`) populated by a single shared `agy` subprocess
-invocation (`sync.Once`). Add each new provider's fake-process suite to the
-explicit Makefile stage lists and the root `TESTING.md` mapping, and replace the
-implicit Codex fallback in `Runner.querierFor` with explicit provider dispatch.
-Never allow the offline E2E harness (`test/integration/main_test.go`) to fall
-through to a real `agy` or `cursor-agent` executable or misroute `agy` argv to
-Grok. Release staging and publication remain outside these epics.
+For `EPIC-013` ([ARCH-19](../architecture/README.md#arch-19),
+[REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066)):
+- Reuse the qualified `cursor-agent 2026.10.16-e3cb207` evidence in TASK-039:
+  `<cursor-bin> status --format json` (default `cursor-agent`) executed with a
+  read-only `NODE_OPTIONS=--require=<preloadPath>` hook on
+  `./src/commands/status.ts` that calls `cursor-agent`'s bundled
+  `dashboardClient.getPlanInfo` and `dashboardClient.getCurrentPeriodUsage` and
+  writes one compact JSON line synchronously (`fs.writeSync(1, ...)`) with all
+  PII omitted.
+- In TASK-040, add optional single-entry `cursor` configuration in
+  `~/.config/gaebokchi/config.yaml` (`- name: <alias>`, no `path` field, target
+  ID `cursor:0`), `--cursor-bin` (default `cursor-agent`), `envfilter.Cursor()`
+  (stripping `CURSOR_*` and ambient parent `NODE_OPTIONS` while setting the
+  controlled `NODE_OPTIONS` preload path), and `internal/provider/cursor`.
+- Render one weekly row (`QuotaID: "cursor_included"`,
+  `Source: domain.SourceCursorCLIUsage`) using `planUsage.totalPercentUsed` (or
+  `includedSpend / limit * 100` when `totalPercentUsed` is absent and
+  `limit > 0`) and `includedUsageResetsAtMs` (falling back to
+  `currentPeriodUsage.billingCycleEndMs`) when `includedUsagePeriod` is weekly
+  (`2` / `INCLUDED_USAGE_PERIOD_WEEKLY` or a 7-day cycle window), and return
+  `StatusNotApplicableMonthly` (`N/A (monthly)`) when monthly (`1` /
+  `INCLUDED_USAGE_PERIOD_MONTHLY` or a monthly cycle window). Degrade cleanly to
+  `StatusUnsupported` if a future CLI build does not trigger the hook.
+- Add `internal/provider/cursor` to the explicit Makefile stage lists and root
+  `TESTING.md` mapping, wire `Runner.querierFor(domain.ProviderCursor)`, and
+  never allow the offline E2E harness (`test/integration/main_test.go`) to fall
+  through to a real `agy` or `cursor-agent` executable. Release staging and
+  publication remain outside these epics.
 
 ## Release procedure
 

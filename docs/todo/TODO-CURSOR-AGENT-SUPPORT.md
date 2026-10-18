@@ -5,78 +5,94 @@ The [roadmap](../roadmap/README.md) owns its task membership, order and status.
 
 ## Outcome and authority
 
-Read the installed Cursor Agent CLI's subscription quotas for one named default
-login and present its weekly usage in `gaebokchi`'s output and JSON snapshot.
-Cursor multi-account management is outside this epic.
+Query the single default `cursor-agent` CLI login through `<cursor-bin> status --format json`
+with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and
+present its weekly `Included` allowance (`totalPercentUsed`) as a single row in
+`gaebokchi`'s output and JSON snapshot (`cursor:0`). Cursor multi-account
+management is outside this epic.
 
 | Decision | Canonical owner |
 |---|---|
-| Required metadata interface and qualification | [REQ-065](../specs/README.md#req-065), [ARCH-19](../architecture/README.md#arch-19) |
+| Qualified subprocess + preload-hook metadata interface | [REQ-065](../specs/README.md#req-065), [ARCH-19](../architecture/README.md#arch-19), [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md) |
 | Configuration, adapter and positive support | [REQ-066](../specs/README.md#req-066), [ARCH-19](../architecture/README.md#arch-19) |
 | Shared display, JSON and dispatch contracts | [REQ-061](../specs/README.md#req-061) through [REQ-063](../specs/README.md#req-063), [ARCH-17](../architecture/README.md#arch-17), [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md) |
-| Qualification gaps | [Cursor compatibility](../verification/cursor-compatibility.md) |
+| Qualification evidence | [Cursor compatibility](../verification/cursor-compatibility.md), [preflight record](../verification/provider-extension-preflight-2026-10-16.md) |
 
 ## Work map
 
 | Work unit | Input and required handoff |
 |---|---|
-| [TASK-039](../roadmap/README.md#task-039) | Inspect the installed CLI and qualify a prompt-free metadata entry point, response periods, quota pools and default-login behavior. Freeze the actual contract and fixtures. |
-| [TASK-040](../roadmap/README.md#task-040) | Add configuration, executable selection, the provider adapter and focused fake-process tests against that contract. |
-| [TASK-041](../roadmap/README.md#task-041) | Verify the real executable, native period display, failures and regressions; assess the complete epic acceptance. |
+| [TASK-039](../roadmap/README.md#task-039) | Reuse the qualified `cursor-agent 2026.10.16-e3cb207` subprocess + read-only `NODE_OPTIONS` preload hook evidence ([cursor-compatibility.md](../verification/cursor-compatibility.md)), freeze the `status --format json` hook schema (`planInfo` and `currentPeriodUsage`), weekly/monthly classification, single-row `cursor_included` mapping, and `CURSOR_*` environment filter, and close [REQ-065](../specs/README.md#req-065). |
+| [TASK-040](../roadmap/README.md#task-040) | Implement `internal/provider/cursor` (with embedded `preload.cjs`), `envfilter.Cursor()`, `SourceCursorCLIUsage`, single-entry `cursor` configuration (`cursor:0`, `name` only, no `path`), `--cursor-bin` (default `cursor-agent`), explicit `Runner.querierFor(domain.ProviderCursor)` dispatch, and offline fake-process unit/integration tests. |
+| [TASK-041](../roadmap/README.md#task-041) | Run the complete offline and race gates plus a positive prompt-free final-executable query, update user/developer documentation, and close [REQ-066](../specs/README.md#req-066) and [EPIC-013](../roadmap/README.md#epic-013). |
 
-## Entry gate and stop conditions
+## Entry gate and locked architectural direction
 
-EPIC-012 must be complete before TASK-039's formal delivery begins. The repository
-runs one production epic at a time. Under the 2026-10-16
-[discovery exception](../roadmap/README.md#provider-discovery-preflight), a bounded
-evidence-only Cursor preflight may proceed independently while agy is blocked.
-It does not close TASK-039 or start the Cursor adapter. A different production
-order still requires an explicit roadmap decision.
+EPIC-012 is complete. On 2026-10-18, the owner retired the former "pure public
+CLI flags only" restriction for `cursor-agent` after verifying on
+`2026.10.16-e3cb207` that `-p /usage` sends `"/usage"` as an LLM prompt and plain
+`status`/`about`/`acp` omit quota data, while `cursor-agent status --format json`
+already initializes `credentialManager` and `dashboardClient`
+(`aiserver.v1.DashboardService`) and passes both into `./src/commands/status.ts`
+(`handleStatus`).
 
-Cursor Agent 2026.10.14-0f9edde has interactive usage code, but its inspected
-command surface does not expose that data through a qualified noninteractive
-JSON command. `status` and `about` JSON do not supply quota data.
-TASK-039 must qualify an actual installed metadata path before TASK-040 starts.
-If it cannot, mark the task and epic blocked; do not substitute a direct API
-client, a package-internals wrapper, or a model prompt. Reuse the
-[dated preflight](../verification/provider-extension-preflight-2026-10-16.md)
-where still applicable. Public ACP documentation establishes transport, not
-a session-free quota method; an execution-tool denial is not an upstream failure.
+The canonical Cursor metadata mechanism is therefore **subprocess
+(`<cursor-bin> status --format json`) + read-only `NODE_OPTIONS` preload hook**
+([ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)):
+- `internal/provider/cursor` writes an embedded read-only `preload.cjs` into a
+  private `0700` temporary directory (`os.MkdirTemp("", "gaebokchi-cursor-")`,
+  removed on `defer`) and sets `NODE_OPTIONS=--require=<preloadPath>`.
+- `preload.cjs` wraps `handleStatus(credentialManager, dashboardClient)`, checks
+  `getAccessToken()`, `getRefreshToken()`, and `getApiKey()`, and—when
+  authenticated without an API key—calls `dashboardClient.getPlanInfo` and
+  `dashboardClient.getCurrentPeriodUsage` concurrently, writing one compact JSON
+  line via `fs.writeSync(1, ...)` with all PII omitted.
+- If a future `cursor-agent` build changes `./src/commands/status.ts` so the
+  hook does not intercept `handleStatus`, the subprocess still returns standard
+  `status --format json` output and `gaebokchi` degrades deterministically to
+  `StatusUnsupported` (`UNSUPPORTED`).
 
 ## Implementation boundaries
 
-- Use `cursor-agent` as the default executable; `agent` can name another tool.
-- Query only the existing default CLI login. `CURSOR_CONFIG_DIR` selects
-  configuration and does not establish a separate macOS credential namespace.
-  TASK-039 freezes ambient override filtering, update suppression and the
-  credential boundary on each claimed platform under ARCH-19.
-- Keep authentication and refresh inside the CLI. Do not read its auth files,
-  Keychain entries or tokens, or accept account tokens as configuration.
+- Use `cursor-agent` as the default executable (`--cursor-bin`); `agent` can
+  name another tool.
+- Query only the existing default CLI login (`cursor:0`, at most one entry in
+  `config.yaml` with `name` only and no `path` field). `CURSOR_CONFIG_DIR`
+  selects configuration files only and does not create a separate macOS Keychain
+  credential namespace.
+- Strip all `CURSOR_*` variables (`CURSOR_API_KEY`, `CURSOR_AUTH_TOKEN`,
+  `CURSOR_CONFIG_DIR`, `CURSOR_STATSIG_OVERRIDES`) and ambient parent
+  `NODE_OPTIONS` in `envfilter.Cursor()`, then inject only the controlled
+  `NODE_OPTIONS` preload path.
+- Keep authentication and token refresh inside `cursor-agent`'s own
+  `credentialManager` and `dashboardClient`. Do not read Keychain entries or
+  auth files from Go, and do not build a direct HTTP/ConnectRPC client in Go.
 - Keep the shared concurrency, per-target deadline, cancellation and cleanup
   contracts. Do not terminate provider-owned or unrelated processes.
-- Use explicit response period metadata. The installed pager's monthly title
-  does not prove that every account has a monthly quota. Apply ARCH-17's
-  version-bound runtime applicability checks before interpreting such contracts.
-- Exclude on-demand spend from quota results. Do not turn a currency
-  total, activity statistic or session token count into a subscription percentage.
-- Preserve the qualified pool's scope. A Cursor Models pool can cover more than
-  Grok; do not relabel it as Grok-only or add another source's view as independent
-  allowance. Do not add cross-provider merging/deduplication.
-- Test explicit Cursor dispatch and unknown-provider/missing-wiring no-launch
-  behavior; never fall through to the Codex querier.
-- Probe only the bounded, authorized metadata path. Login, account switching,
-  upgrades, model work and provider configuration writes are excluded.
+- Classify periods explicitly from `planInfo.includedUsagePeriod` and
+  `currentPeriodUsage`:
+  - `WEEKLY` (`2` or `"INCLUDED_USAGE_PERIOD_WEEKLY"`, or `0`/`UNSPECIFIED` with
+    a 6–8 day `billingCycleEnd - billingCycleStart` window) -> `StatusOK`,
+    `Period: domain.PeriodWeekly`, `QuotaID: "cursor_included"`,
+    `Source: domain.SourceCursorCLIUsage`, `UsedPercent` from
+    `planUsage.totalPercentUsed` (or `includedSpend / limit * 100` when
+    `totalPercentUsed` is absent and `limit > 0`), and `ResetAt` from
+    `planInfo.includedUsageResetsAtMs` (falling back to
+    `currentPeriodUsage.billingCycleEndMs`).
+  - `MONTHLY` (`1` or `"INCLUDED_USAGE_PERIOD_MONTHLY"`, or `0`/`UNSPECIFIED`
+    with a 27–32 day cycle window) -> `StatusNotApplicableMonthly`
+    (`N/A (monthly)`, `Period: domain.PeriodMonthly`).
+- Exclude on-demand spend (`spendLimitUsage`) from quota percentages.
+- Test explicit Cursor dispatch in `Runner.querierFor(domain.ProviderCursor)` and
+  unknown-provider/missing-wiring no-launch behavior; never fall through to
+  Codex or allow offline E2E tests to invoke a real `cursor-agent` binary.
 
 ## Acceptance and downstream handoff
 
-The epic needs a qualified CLI contract, a positive prompt-free final-candidate
-query, complete offline checks and existing-provider regression coverage.
-Test weekly and monthly fixtures, absent period metadata, missing percentages,
-auth-required, unsupported CLI, timeout, cancellation and cleanup failure.
-Do not claim a live period or plan variant exercised only by synthetic fixtures.
-
-Update user-facing usage and configuration documentation when the implementation
-lands, marked final live acceptance pending until TASK-041. Delivery does not
-include installation or publication.
-At closeout, replace this epic's `Detailed SOT` with canonical outcome links and
-inventory references before proposing removal of the dossier and index entry.
+The epic requires `TASK-039` contract qualification ([REQ-065](../specs/README.md#req-065)),
+`TASK-040` adapter and configuration integration with offline fake-process tests
+covering weekly, monthly, `includedSpend/limit` fallback, API-key, auth-required,
+hook-fallback `StatusUnsupported`, timeout, cancellation, and cleanup failure,
+and `TASK-041` complete offline/race and live final-executable acceptance
+([REQ-066](../specs/README.md#req-066)). Delivery does not include installation
+or publication.

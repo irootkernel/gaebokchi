@@ -1,93 +1,145 @@
-# Cursor Agent compatibility and qualification prerequisites
+# Cursor Agent compatibility and qualification record
 
 ## Current finding
 
-The 2026-10-15 inspection identified Cursor Agent 2026.10.14-0f9edde and found
-usage code in its package, but no qualified metadata-only noninteractive quota
-command. On 2026-10-16 the installation symlink still selected that package;
-this pass did not rerun its version command or inspect its implementation.
-Positive runtime support remains unqualified under
-[TASK-039](../roadmap/README.md#task-039).
+On 2026-10-18, `cursor-agent 2026.10.16-e3cb207` (`darwin/arm64`) was qualified
+through static bundle analysis and a bounded, owner-authorized read-only live
+probe. Because `cursor-agent` still lacks a standalone public usage flag
+(`cursor-agent -p /usage` sends `"/usage"` as an LLM prompt, `acp` exposes only
+`cursor/list_available_models`, and plain `status`/`about` JSON omit quota
+fields), the owner retired the former "pure public CLI flags only" restriction
+for Cursor and approved the **subprocess (`<cursor-bin> status --format json`) +
+read-only `NODE_OPTIONS` preload hook** contract ([ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md),
+[REQ-065](../specs/README.md#req-065), [ARCH-19](../architecture/README.md#arch-19)).
 
-The command help lists `status` and `about` with JSON output, but their inspected
-implementations return identity, tier or system information rather than quota
-data. Use the unambiguous executable `cursor-agent`; an executable named
+Use the unambiguous default executable `cursor-agent`; an executable named
 `agent` can belong to a different provider.
 
-## Inspected package behavior
+## Static package inspection (`2026.10.16-e3cb207`)
 
-In the installed version's `9627.index.js`, the bundled modules
-`src/usage/usage-command.ts`, `src/usage/usage-data.ts` and
-`src/components/usage-pager.tsx` implement the interactive `/usage` path.
-The data loader calls `getCurrentPeriodUsage`, with supporting plan and
-spend-limit reads, and opens a pager. This does not expose a standalone quota
-JSON command.
+- **Wrapper and runtime:** `~/.local/bin/cursor-agent` resolves to
+  `~/.local/share/cursor-agent/versions/2026.10.16-e3cb207/cursor-agent`, which
+  executes `$SCRIPT_DIR/node --use-system-ca "$SCRIPT_DIR/index.js" "$@"`.
+- **Headless print mode (`7956.index.js` -> `./src/headless.ts`):** Passing
+  `-p /usage --output-format json` does not intercept `/usage` as a local slash
+  command; it wraps `"/usage"` in `UserMessageAction` and submits a normal model
+  turn. `cursor-agent -p /usage` must never be invoked by `gaebokchi`.
+- **ACP mode (`5300.index.js` -> `./src/acp/cursor-acp-agent.ts`):** `extMethod`
+  supports only `cursor/list_available_models`; all other extension methods
+  return `RequestError.methodNotFound`.
+- **Plain `status` and `about` commands (`684.index.js` and `5233.index.js`):**
+  - `cursor-agent status --format json` initializes `credentialManager` and
+    `dashboardClient` (`aiserver.v1.DashboardService` ConnectRPC client) in
+    `index.js` and passes both to `./src/commands/status.ts` (`handleStatus`),
+    but the default handler calls only `dashboardClient.getMe({})`.
+  - `cursor-agent about --format json` calls `dashboardClient.getMe({})` and
+    `dashboardClient.getPlanInfo({})`, but outputs only `subscriptionTier:
+    planInfo?.planName ?? null` and discards period, reset, and usage fields.
+- **Internal `/usage` data loader (`7956.index.js` -> `./src/usage/usage-data.ts`):**
+  Calls `dashboardClient.getCurrentPeriodUsage(new GetCurrentPeriodUsageRequest({}))`
+  and `dashboardClient.getPlanInfo(new GetPlanInfoRequest({}))`:
+  - `GetPlanInfoResponse.PlanInfo` (`WS` in `index.js`):
+    - `planName` (`string`, e.g., `"Pro"`, `"Ultra"`)
+    - `includedUsagePeriod` (`IncludedUsagePeriod` enum: `0 = UNSPECIFIED`,
+      `1 = MONTHLY`, `2 = WEEKLY`)
+    - `includedUsageResetsAt` (optional int64 epoch ms)
+    - `billingCycleEnd` (optional int64 epoch ms)
+  - `GetCurrentPeriodUsageResponse` (`bO3` in `index.js`):
+    - `billingCycleStart`, `billingCycleEnd` (int64 epoch ms)
+    - `enabled` (`bool`)
+    - `planUsage` (`PlanUsage` / `jA`): `totalSpend`, `includedSpend`,
+      `bonusSpend`, `remaining`, `limit` (int32 cents), `autoPercentUsed`,
+      `apiPercentUsed`, `totalPercentUsed` (optional double)
+    - `spendLimitUsage` (`SpendLimitUsage` / `DA` — on-demand spend, excluded
+      from subscription quota percentages)
+- **Credential boundary (`index.js` -> `./src/utils/credential-store.ts` and
+  `./src/api-key-auth.ts`):** `CURSOR_CONFIG_DIR` selects configuration files
+  only; on macOS, credentials are stored in Keychain under the default Cursor
+  service names regardless of `CURSOR_CONFIG_DIR`. Ambient `CURSOR_API_KEY` and
+  `CURSOR_AUTH_TOKEN` can override or replace stored authentication, and
+  `credentialManager.getApiKey()` reports whether the stored authentication
+  used an API key.
 
-The package includes current-period usage percentages and billing-cycle fields;
-its plan metadata can distinguish weekly and monthly periods. The inspected
-pager uses a monthly title and does not establish a safe period interpretation
-for every plan. Its percentage defaults and display clamping are not the
-Gaebokchi normalization contract. The
-[official usage guide](https://cursor.com/help/models-and-usage/usage-limits)
-also distinguishes weekly plans from legacy monthly plans.
+## 2026-10-18 bounded live qualification (`darwin/arm64`)
 
-The installed `index.js` configuration-path module honors `CURSOR_CONFIG_DIR`.
-Its credential module uses the Cursor credential domain and, on macOS by
-default, Keychain entries independent of that configuration directory.
-Changing the configuration path is not proof of a different authenticated
-account. This epic uses one existing default CLI login.
+With owner authorization, a single read-only probe ran
+`cursor-agent status --format json` with `NODE_OPTIONS=--require=<preload.cjs>`
+intercepting `./src/commands/status.ts` (`handleStatus`). The hook checked
+`credentialManager.getAccessToken()`, `getRefreshToken()`, and `getApiKey()`,
+called `dashboardClient.getPlanInfo` and `dashboardClient.getCurrentPeriodUsage`,
+omitted all PII (`email`, `userId`, `firstName`, `lastName`, `teamId`,
+`teamName`, tokens, and keys), and wrote a single compact JSON line via
+`fs.writeSync(1, ...)`.
 
-## 2026-10-16 public-interface supplement
+Sanitized captured response (`cursor-agent 2026.10.16-e3cb207`, `darwin/arm64`):
 
-The [ACP guide](https://cursor.com/docs/cli/acp) documents a stdio JSON-RPC
-transport and an ordinary flow that creates a session and sends a model prompt.
-It does not establish a session-free quota method. ACP is therefore a discovery
-lead, not a qualified billing endpoint; its session/prompt example must not be
-used as a metadata probe. The CLI parameters guide also describes print mode
-as tool-capable. Identity JSON does not establish a quota path.
+```json
+{
+  "status": "authenticated",
+  "isAuthenticated": true,
+  "hasAccessToken": true,
+  "hasRefreshToken": true,
+  "hasApiKey": false,
+  "planInfo": {
+    "planName": "Ultra",
+    "includedUsagePeriod": 2,
+    "includedUsageResetsAtMs": "1792591073284",
+    "billingCycleEndMs": "1794664361314"
+  },
+  "planError": null,
+  "currentPeriodUsage": {
+    "billingCycleStartMs": "1791986273284",
+    "billingCycleEndMs": "1792591073284",
+    "enabled": true,
+    "planUsage": {
+      "totalSpend": 0,
+      "includedSpend": 0,
+      "bonusSpend": 0,
+      "remaining": 0,
+      "limit": 0,
+      "autoPercentUsed": 100,
+      "apiPercentUsed": 0,
+      "totalPercentUsed": 25
+    }
+  },
+  "usageError": null
+}
+```
 
-The newer [official usage page](https://prod.cursor.com/help/models-and-usage/usage-limits)
-distinguishes shared weekly usage from legacy monthly pools and includes multiple
-models in the Cursor Models pool. An older cached version of the main usage URL
-retrieved in the same pass described monthly pools only. These descriptions
-explain why plan names, a pager title or a cached web page cannot classify a
-live response. The owner's plan was not queried.
+Key verified contract points:
+1. **Explicit weekly period:** `planInfo.includedUsagePeriod` is `2`
+   (`INCLUDED_USAGE_PERIOD_WEEKLY`), and
+   `currentPeriodUsage.billingCycleEndMs - currentPeriodUsage.billingCycleStartMs`
+   is `1792591073284 - 1791986273284 = 604,800,000 ms` (exactly 7 days).
+2. **Weekly reset timestamp:** `planInfo.includedUsageResetsAtMs`
+   (`1792591073284`) matches `currentPeriodUsage.billingCycleEndMs`
+   (`1792591073284`), whereas `planInfo.billingCycleEndMs` (`1794664361314`) is
+   the subscription renewal timestamp. Weekly `ResetAt` must use
+   `includedUsageResetsAtMs` when positive, falling back to
+   `currentPeriodUsage.billingCycleEndMs`.
+3. **Single-row `Included` usage percentage:** Weekly plans report percentage
+   consumption directly in `planUsage.totalPercentUsed` (labeled `Included` in
+   Cursor's `/usage` view) while `includedSpend` and `limit` remain `0`. Match
+   `./src/usage/usage-data.ts`: use `planUsage.totalPercentUsed` when present,
+   or `includedSpend / limit * 100` when `totalPercentUsed` is absent and
+   `limit > 0`.
+4. **Synchronous stdout flush:** Because `cursor-agent` exits inside
+   `handleStatus`'s `finally { process.exit(exitCode) }` block, the preload hook
+   must write compact JSON synchronously via `fs.writeSync(1, ...)` rather than
+   buffered console helpers.
 
-Treat `cursor` as the query source, not a Grok-only meter. Preserve the qualified
-native pool's label and scope, including shared allowances; do not sum it with
-a Grok-source view as another independent allowance. Cross-provider identity
-matching and deduplication remain out of scope.
+## Frozen EPIC-013 implementation contract (`TASK-039` -> `TASK-041`)
 
-Independent discovery can proceed before agy delivery under the
-[roadmap exception](../roadmap/README.md#provider-discovery-preflight). It does not
-close TASK-039 or authorize its adapter early. The
-[dated preflight](provider-extension-preflight-2026-10-16.md) contains no new
-Cursor live evidence.
-
-## Required next qualification
-
-TASK-039 must qualify an actual installed CLI entry point that returns usage
-without model turns, agent tools, session creation, login or billing changes.
-Freeze its response fields, explicit period, model/pool semantics, auth failures,
-missing-data behavior, reset timestamps and process lifecycle before production
-implementation. The [CLI parameters reference](https://cursor.com/docs/cli/reference/parameters)
-is a discovery source, not proof that a particular binary supports an interface.
-Freeze automatic-update suppression, identity-affecting ambient overrides and
-credential selection on every claimed platform. Apply the
-[shared runtime guards](../architecture/README.md#provider-extension-qualification):
-identify version-dependent safety/period assumptions and define their applicability
-check before production use. An unknown version must not reach a potentially
-model-capable fallback, and all checks share the one target deadline. Investigate `CURSOR_CONFIG_DIR`
-without treating the macOS observation as Linux qualification. Mark untested
-platforms explicitly. [S-20](../architecture/README.md#s-20) and
-[S-21](../architecture/README.md#s-21) and [S-24](../architecture/README.md#s-24)
-are discovery sources only.
-
-`cursor-agent -p /usage` was not executed and is not a qualified local-command
-path. Neither a wrapper around bundled private modules nor a direct Dashboard
-API client meets the retained CLI boundary.
-
-No live usage query, login or account-switch experiment was performed for this
-note. Weekly/monthly source declarations are not live plan acceptance.
-The [planned architecture](../architecture/README.md#arch-19) and
-[execution dossier](../todo/TODO-CURSOR-AGENT-SUPPORT.md) define the next work.
+- **[TASK-039](../roadmap/README.md#task-039):** Reuses this qualified
+  `2026.10.16-e3cb207` evidence to close [REQ-065](../specs/README.md#req-065)
+  and hand the frozen contract and fixtures to `TASK-040`.
+- **[TASK-040](../roadmap/README.md#task-040):** Implements
+  `internal/provider/cursor`, `envfilter.Cursor()` (stripping `CURSOR_*` and
+  ambient `NODE_OPTIONS` while setting `NODE_OPTIONS=--require=<preloadPath>`),
+  single-entry `cursor` configuration in `~/.config/gaebokchi/config.yaml`
+  (`cursor:0`), `--cursor-bin` (default `cursor-agent`), explicit
+  `Runner.querierFor(domain.ProviderCursor)` dispatch, and offline fake-process
+  unit/integration tests.
+- **[TASK-041](../roadmap/README.md#task-041):** Runs the complete offline and
+  race gates plus final-executable verification and closes
+  [REQ-066](../specs/README.md#req-066) and [EPIC-013](../roadmap/README.md#epic-013).
