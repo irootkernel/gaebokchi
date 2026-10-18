@@ -58,6 +58,7 @@ func TestMain(m *testing.M) {
 		isAgyVersion := false
 		isAgyUsage := false
 		isCursorStatus := len(os.Args) == 4 && os.Args[1] == "status" && os.Args[2] == "--format" && os.Args[3] == "json"
+		isZCodeDoctor := len(os.Args) == 3 && os.Args[1] == "doctor" && os.Args[2] == "--json"
 		for _, arg := range os.Args[1:] {
 			if arg == "--safe-mode" {
 				isClaude = true
@@ -111,6 +112,14 @@ func TestMain(m *testing.M) {
 			payload := os.Getenv("GAEBOKCHI_FAKE_CURSOR_PAYLOAD")
 			if payload == "" {
 				payload = `{"status":"authenticated","isAuthenticated":true,"hasAccessToken":true,"hasRefreshToken":true,"hasApiKey":false,"planInfo":{"planName":"Ultra","includedUsagePeriod":2,"includedUsageResetsAtMs":"1792591073284","billingCycleEndMs":"1794664361314"},"planError":null,"currentPeriodUsage":{"billingCycleStartMs":"1791986273284","billingCycleEndMs":"1792591073284","enabled":true,"planUsage":{"totalSpend":0,"includedSpend":0,"bonusSpend":0,"remaining":0,"limit":0,"autoPercentUsed":100,"apiPercentUsed":0,"totalPercentUsed":25}},"usageError":null}`
+			}
+			_, _ = os.Stdout.WriteString(payload + "\n")
+			os.Exit(0)
+		}
+		if isZCodeDoctor {
+			payload := os.Getenv("GAEBOKCHI_FAKE_ZCODE_PAYLOAD")
+			if payload == "" {
+				payload = `{"status":"authenticated","isAuthenticated":true,"family":"zai","quota":{"httpStatus":200,"code":200,"success":true,"limits":[{"type":"TOKENS_LIMIT","unit":3,"number":5,"percentage":18,"nextResetTime":"1792341502263"},{"type":"TIME_LIMIT","unit":5,"number":1,"percentage":2,"nextResetTime":"1794927968098"}]}}`
 			}
 			_, _ = os.Stdout.WriteString(payload + "\n")
 			os.Exit(0)

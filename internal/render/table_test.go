@@ -205,3 +205,27 @@ var _ = ginkgo.It("TestTableCursorRow", func() {
 		t.Fatalf("cursor monthly row table mismatch:\n got:\n%s\nwant:\n%s", monthly, wantMonthly)
 	}
 })
+
+var _ = ginkgo.It("TestTableZCodeFiveHourSection", func() {
+	t := testT{ginkgo.GinkgoT()}
+	both := Table([]domain.Result{
+		{TargetID: "cursor:0", Provider: domain.ProviderCursor, Account: "default", Status: domain.StatusOK, UsedPercent: pct(25)},
+		{TargetID: "zcode:0", Provider: domain.ProviderZCode, Account: "default", Status: domain.StatusOK, UsedPercent: pct(42)},
+	})
+	wantBoth := "AI PROVIDER  ACCOUNT  WEEKLY USAGE\n" +
+		"Cursor       default  25%\n\n" +
+		"AI PROVIDER  ACCOUNT  5H USAGE\n" +
+		"ZCode        default  42%\n"
+	if both != wantBoth {
+		t.Fatalf("weekly+5h table mismatch:\n got:\n%s\nwant:\n%s", both, wantBoth)
+	}
+
+	onlyFiveHour := Table([]domain.Result{
+		{TargetID: "zcode:0", Provider: domain.ProviderZCode, Account: "default", Status: domain.StatusOK, UsedPercent: pct(42)},
+	})
+	wantOnlyFiveHour := "AI PROVIDER  ACCOUNT  5H USAGE\n" +
+		"ZCode        default  42%\n"
+	if onlyFiveHour != wantOnlyFiveHour {
+		t.Fatalf("5h-only table mismatch:\n got:\n%s\nwant:\n%s", onlyFiveHour, wantOnlyFiveHour)
+	}
+})

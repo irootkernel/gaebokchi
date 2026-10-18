@@ -6,10 +6,10 @@ Project: **Gaebokchi (개복치)** · Ecosystem: Aquarium tool · Repository and
 
 The [requirements](../specs/README.md) define required behavior and acceptance. The [roadmap](../roadmap/README.md) owns work identity, execution order, status, and delivery history. This document describes the current implementation and its boundaries: components, data semantics, protocol and process rules, and verification design. Release archives carry these three documents, while links to verification records and other maintainer documents resolve only in a source checkout. **External interface facts** have sources in [ARCH-15](#arch-15); **project decisions** are normative design choices, not claims that providers guarantee them. Decisions whose rationale should outlive a rewrite of this document are kept as [architecture decision records](../architecture-decision-records/README.md).
 
-ARCH-01 through ARCH-19 describe the implemented baseline, including the
-EPIC-013 Cursor single-account adapter and read-only preload hook contract
-qualified against `cursor-agent 2026.10.16-e3cb207` (TASK-039 through
-TASK-041).
+ARCH-01 through ARCH-20 describe the implemented baseline, including the
+EPIC-013 Cursor single-account adapter (`cursor-agent 2026.10.16-e3cb207`,
+TASK-039 through TASK-041) and the ZCode (`zcode 0.16.9`) 5-hour single-account
+adapter and two-section presentation ([ARCH-20](#arch-20)).
 
 | Section | Responsibility |
 |---|---|
@@ -32,13 +32,14 @@ TASK-041).
 | [ARCH-17](#arch-17) | Weekly model-pool rows and exact remaining-fraction conversion |
 | [ARCH-18](#arch-18) | agy single-account adapter and shared two-row query |
 | [ARCH-19](#arch-19) | Cursor single-account adapter and read-only preload hook |
+| [ARCH-20](#arch-20) | ZCode single-account 5h adapter and two-section presentation |
 
 Section numbers are stable identifiers, not reading order: ARCH-16 was added after ARCH-15 and sits with the other provider adapters.
 
 <a id="arch-01"></a>
 ## ARCH-01: Scope and settled decisions
 
-Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req-004), [REQ-005](../specs/README.md#req-005), [REQ-056](../specs/README.md#req-056), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066). Implemented across [EPIC-001](../roadmap/README.md#epic-001) through [EPIC-013](../roadmap/README.md#epic-013), plus the Claude extension recorded in [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md).
+Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req-004), [REQ-005](../specs/README.md#req-005), [REQ-056](../specs/README.md#req-056), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066), [REQ-067](../specs/README.md#req-067), [REQ-068](../specs/README.md#req-068). Implemented across [EPIC-001](../roadmap/README.md#epic-001) through [EPIC-013](../roadmap/README.md#epic-013), the Claude extension recorded in [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md), and the ZCode 5h extension ([ARCH-20](#arch-20)).
 
 | Decision | Choice | Consequence |
 |---|---|---|
@@ -46,14 +47,14 @@ Related: [REQ-003](../specs/README.md#req-003), [REQ-004](../specs/README.md#req
 | Ecosystem | Aquarium tool | Standalone; no Aquarium runtime or build dependency |
 | Repository and executable | `gaebokchi` | One consistent ASCII name for repository, binary and command directory |
 | Language | Go, standard library first | Small build and deployment surface |
-| Providers | Codex, Grok, Claude, `agy`, and Cursor, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
+| Providers | Codex, Grok, Claude, `agy`, Cursor, and ZCode, each through its installed CLI | No PTY, UI scraping, or application-owned provider API client |
 | Authentication | Existing provider CLI login | No token parsing or account-linking workflow |
 | Account set | Required `~/.config/gaebokchi/config.yaml` | Only listed accounts are queried; omitted providers are disabled |
-| Metric | Provider-defined weekly allowance consumed | No cross-provider arithmetic or cost comparison |
+| Metric | Provider-defined weekly allowance consumed (and 5h Coding Plan allowance for ZCode) | No cross-provider arithmetic or cost comparison |
 | Transport | Local stdio to provider executables | No network listener or app-owned HTTP client |
 | Execution | One snapshot, up to three targets concurrently | No periodic refresh or automatic retry; excess targets wait for a free slot |
 | Persistence | User-authored account configuration only | No application-owned usage cache or credential store |
-| Output | Interactive terminal view, three-column table, or JSON; one line per configured target plus the header | Failures remain in their account row |
+| Output | Interactive terminal view, three-column table (with weekly and 5h sections), or JSON | Failures remain in their account row |
 
 The v0.1 plan limited the providers to Codex and Grok. [ADR-0001](../architecture-decision-records/ADR-0001-claude-usage-local-command.md) records why and how Claude was added afterwards; the adapter is [ARCH-16](#arch-16).
 
@@ -80,6 +81,7 @@ cmd/gaebokchi   composition root: version dispatch, help, output mode, signals, 
  +-> internal/provider/claude ----> internal/process, internal/provider/envfilter (no RPC)
  +-> internal/provider/agy    ----> internal/process, internal/provider/envfilter (no RPC)
  +-> internal/provider/cursor ----> internal/process, internal/provider/envfilter (no RPC)
+ +-> internal/provider/zcode  ----> internal/process, internal/provider/envfilter (no RPC)
 
 cmd/gaebokchi builds the providers and injects them into internal/app through the
 app.Querier interface; internal/app imports only internal/domain.
@@ -90,7 +92,7 @@ internal/testutil is an offline fake-process harness that only tests import.
 
 The application boundary is the small `app.Querier` interface, `Query(context.Context, domain.Target) domain.Result`. A provider returns exactly one terminal result for one target; it does not render, terminate the program, mutate the global environment, or coordinate other accounts. Expected provider failures belong in a typed result. Setup and argument failures before targets exist remain command-level errors.
 
-Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)); the `agy` adapter runs `--version` and `--print /usage --output-format json --print-timeout 15s` once per invocation and projects its two weekly pools (`gemini` and `claude/gpt`) onto `agy:0` and `agy:1` ([ARCH-18](#arch-18)); the Cursor adapter runs `<cursor-bin> status --format json` with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and normalizes the `Included` subscription quota onto `cursor:0` ([ARCH-19](#arch-19)).
+Multiple targets of one provider share adapter code but not connection state. The shared RPC layer knows framing and message correlation, not quota fields or provider billing semantics. Dialect codecs in `internal/rpc` own each provider's envelope rules and outbound method allowlist, while the Codex and Grok packages own their handshake sequences. The Claude adapter runs two CLI commands through `internal/process` and parses their output itself ([ARCH-16](#arch-16)); the `agy` adapter runs `--version` and `--print /usage --output-format json --print-timeout 15s` once per invocation and projects its two weekly pools (`gemini` and `claude/gpt`) onto `agy:0` and `agy:1` ([ARCH-18](#arch-18)); the Cursor adapter runs `<cursor-bin> status --format json` with a read-only `NODE_OPTIONS` preload hook on `./src/commands/status.ts` and normalizes the `Included` subscription quota onto `cursor:0` ([ARCH-19](#arch-19)); the ZCode adapter runs `<zcode-bin> doctor --json` with a read-only `NODE_OPTIONS` preload hook and normalizes the 5-hour Coding Plan quota onto `zcode:0` ([ARCH-20](#arch-20)).
 
 Repository layout (test suites are listed in `TESTING.md`):
 
@@ -109,6 +111,7 @@ internal/provider/grok/testdata/             # sanitized captured fixtures
 internal/provider/claude/provider.go
 internal/provider/agy/provider.go
 internal/provider/cursor/{provider.go,preload.cjs}
+internal/provider/zcode/{provider.go,preload.cjs}
 internal/provider/envfilter/envfilter.go
 internal/provider/home/home.go
 internal/render/{terminal,live,table,json}.go
@@ -124,13 +127,13 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 <a id="arch-03"></a>
 ## ARCH-03: Command contract and account targets
 
-Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064), [REQ-066](../specs/README.md#req-066).
+Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064), [REQ-066](../specs/README.md#req-066), [REQ-068](../specs/README.md#req-068).
 
-A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, `agy`, and `cursor` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)); `cursor` accepts at most one entry (`- name: <alias>`) with no `path` field ([ARCH-19](#arch-19)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
+A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, `agy`, `cursor`, and `zcode` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)); `cursor` and `zcode` each accept at most one entry (`- name: <alias>`) with no `path` field ([ARCH-19](#arch-19), [ARCH-20](#arch-20)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
 
-Targets are built in the top-level provider order and account list order written in `config.yaml` (with `agy` expanding to `gemini` followed by `claude/gpt` at its configured position, and falling back to `Codex, Grok, Claude, agy, Cursor` only when `accountConfig` is constructed directly without a parsed key order). IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), `cursor:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). An enabled `cursor` entry uses the CLI's single default login (`HOME` preserved) and emits one row (`cursor:0`) using the configured `name`. The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
+Targets are built in the top-level provider order and account list order written in `config.yaml` (with `agy` expanding to `gemini` followed by `claude/gpt` at its configured position, and falling back to `Codex, Grok, Claude, agy, Cursor, ZCode` only when `accountConfig` is constructed directly without a parsed key order). IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), `cursor:0`, `zcode:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). Enabled `cursor` and `zcode` entries use their CLIs' single default logins (`HOME` preserved) and emit one row (`cursor:0`, `zcode:0`) using the configured `name`. The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
-Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
+Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--zcode-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -147,11 +150,11 @@ type Result struct {
     AccountSource AccountSource // protocol_email or configured_alias
     Status        Status
     UsedPercent   *float64      // non-nil only for StatusOK
-    Period        PeriodKind   // weekly, monthly, unknown
-    QuotaID       string        // e.g. codex, claude_all_models, or cursor_included; not a cross-provider unit
+    Period        PeriodKind   // weekly, 5h, monthly, unknown
+    QuotaID       string        // e.g. codex, claude_all_models, cursor_included, or zcode_5h; not a cross-provider unit
     ResetAt       *time.Time
     ObservedAt    time.Time
-    Source        string        // codex_app_server, grok_acp_billing, claude_cli_usage, agy_cli_usage, or cursor_cli_usage
+    Source        string        // codex_app_server, grok_acp_billing, claude_cli_usage, agy_cli_usage, cursor_cli_usage, or zcode_cli_usage
     Diagnostic    Diagnostic    // safe code + application-owned message
     CleanupFailed bool          // bounded cleanup did not complete (ARCH-05)
 }
@@ -439,7 +442,7 @@ The trust boundary is the user-selected, already installed provider executable. 
 | Persistence | No application telemetry or permanent runtime files |
 | Shared processes | Do not shut down/kill provider leaders or unrelated coding sessions |
 
-Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`, followed by per-target `GROK_HOME`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16), preserves `HOME`, and sets `CLAUDE_CONFIG_DIR` only for non-default homes. `agy` filtering removes the Antigravity/Jetski/Gemini overrides listed in [ARCH-18](#arch-18) and sets `AGY_CLI_DISABLE_AUTO_UPDATE=true`. Cursor filtering (`envfilter.Cursor()`) removes all `CURSOR_*` variables and ambient parent `NODE_OPTIONS` before setting the controlled `NODE_OPTIONS` preload hook path ([ARCH-19](#arch-19)). TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
+Construct a new child environment for every target. Start from inherited environment only to retain necessary PATH, HOME, XDG/keychain, certificate, and proxy behavior; then filter known conflicting authentication/parent-session variables. Baseline Codex filtering includes `OPENAI_API_KEY`, `CODEX_API_KEY`, and replacement of every `CODEX_HOME` entry. Baseline Grok filtering includes `XAI_API_KEY` and `GROK_API_KEY`, followed by per-target `GROK_HOME`. Claude filtering removes the Anthropic credential and third-party routing overrides listed in [ARCH-16](#arch-16), preserves `HOME`, and sets `CLAUDE_CONFIG_DIR` only for non-default homes. `agy` filtering removes the Antigravity/Jetski/Gemini overrides listed in [ARCH-18](#arch-18) and sets `AGY_CLI_DISABLE_AUTO_UPDATE=true`. Cursor filtering (`envfilter.Cursor()`) removes all `CURSOR_*` variables and ambient parent `NODE_OPTIONS` before setting the controlled `NODE_OPTIONS` preload hook path ([ARCH-19](#arch-19)). ZCode filtering (`envfilter.ZCode()`) removes all `ZCODE_*`, `ZAI_*`, and `BIGMODEL_*` variables and ambient parent `NODE_OPTIONS` before setting the controlled `NODE_OPTIONS` preload hook path ([ARCH-20](#arch-20)). TASK-001 found no further variable that changed Codex or Grok outcomes; add a newly identified variable to the provider's filter only with evidence. Do not dump environment values as evidence or clear all variables indiscriminately.
 
 Shell aliases are not executables. Binary flags accept one program path/name, not arbitrary arguments. Do not bypass Go's `ErrDot` protection or run a binary accidentally found through an implicit current-directory PATH entry. A deliberately specified path containing spaces is passed as one executable value, not split into a command.
 
@@ -450,9 +453,9 @@ Treat error data as untrusted. Convert only verified structured codes to named s
 <a id="arch-10"></a>
 ## ARCH-10: Table, diagnostics and exit behavior
 
-Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024), [REQ-052](../specs/README.md#req-052). Owners: [TASK-010](../roadmap/README.md#task-010), [TASK-029](../roadmap/README.md#task-029).
+Related: [REQ-010](../specs/README.md#req-010) through [REQ-012](../specs/README.md#req-012), [REQ-024](../specs/README.md#req-024), [REQ-052](../specs/README.md#req-052), [REQ-068](../specs/README.md#req-068). Owners: [TASK-010](../roadmap/README.md#task-010), [TASK-029](../roadmap/README.md#task-029).
 
-For the plain table, render only after targets have terminal results, in their original order. Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the table renderer must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
+For the plain table, render only after targets have terminal results, in their original order within each non-empty period section (`WEEKLY USAGE` for weekly providers, followed by a blank line and `5H USAGE` when a 5-hour provider such as `zcode` is configured). Use `text/tabwriter` or an equivalent small standard-library implementation to produce space-aligned columns. Padding is cosmetic; headings, cells, order, logical line count, and final newline are contractual. Narrow terminals may visually wrap a long line; the table renderer must not insert additional line breaks to accommodate terminal width. [S-09](#s-09)
 
 Sanitize all externally supplied labels before rendering: replace control/format characters and non-space whitespace with safe spaces, trim, and collapse whitespace. Never emit ESC or bidi formatting controls. A blank sanitized configured alias is invalid input. Preserve ordinary printable Unicode characters. The README must warn that stdout can contain account identifiers supplied by the user.
 
@@ -475,7 +478,7 @@ gaebokchi: grok:0: N/A (monthly): grok:0: grok account reports a monthly period,
 
 For usage `--json`, render one compact, newline-terminated object with a
 `results` array in target order. Each element has exactly `target_id` (the
-invocation-local ID), `provider` (`codex`, `grok`, `claude`, `agy`, `cursor`), `account` (the
+invocation-local ID), `provider` (`codex`, `grok`, `claude`, `agy`, `cursor`, `zcode`), `account` (the
 normalized, disambiguated display label), `status` (the domain status string),
 `used_percent` (an unrounded JSON number for an OK measurement or the
 [REQ-034](../specs/README.md#req-034) Grok weekly omission fallback, otherwise
@@ -505,7 +508,7 @@ A normal missing executable/home is target-specific, not a usage error. For a co
 ### Interactive terminal view
 
 Related: [REQ-053](../specs/README.md#req-053) through
-[REQ-055](../specs/README.md#req-055). Owner:
+[REQ-055](../specs/README.md#req-055), [REQ-068](../specs/README.md#req-068). Owner:
 [TASK-030](../roadmap/README.md#task-030) in
 [EPIC-010](../roadmap/README.md#epic-010), whose inline design the owner
 approved on 2026-09-25. The table rules above govern non-interactive, non-JSON
@@ -533,12 +536,14 @@ framework. `golang.org/x/sys` (window size) and `golang.org/x/text` (display
 width) become the only direct runtime modules outside the standard library.
 Both are already pinned in `go.sum`, so the offline gate needs no network.
 
-**Frame.** The frame is a blank line, the title `🐡 gaebokchi · weekly usage`,
-a blank line, one row per target in target order with any reset shown inline or
-directly below its target, and a trailing blank line.
+**Frame.** For each non-empty period section (`weekly` and `5h`), the frame
+renders a blank line, the section title (`🐡 gaebokchi · weekly usage` or
+`🐡 gaebokchi · 5h usage`), a blank line, and one row per target in that
+section's target order with any reset shown inline or directly below its
+target, ending with a trailing blank line.
 A target row is a two-space margin, the provider display name (blank when the
 previous row has the same provider), and the account label padded to the widest
-label, separated by two spaces. Numeric rows continue with the usage bar, the
+label across all configured rows, separated by two spaces. Numeric rows continue with the usage bar, the
 `UsageCell` percentage right-aligned in six cells. Other rows continue with
 their status cell text. The bar is 20 cells of `█` over a `░` track, rounded
 to the nearest whole cell; the percentage retains its precision, including
@@ -548,12 +553,13 @@ below its account row. It uses whole truncated units (`↻ 2d 4h`): days and
 hours, hours and minutes, minutes, `<1m`, or `now` once the reset time has
 passed. It appears only on
 `OK` rows whose `ResetAt` came from the provider (Codex `resetsAt`, Grok period
-end, or the reset text on Claude's all-models weekly line). Grok monthly rows
+end, the reset text on Claude's all-models weekly line, `agy` bucket `reset_time`,
+Cursor `includedUsageResetsAtMs`/`billingCycleEndMs`, or ZCode `nextResetTime`). Grok and Cursor monthly rows
 show none.
 
 | Element | Style (SGR parameters) |
 |---|---|
-| Title | `gaebokchi` bold (1); `· weekly usage` faint (2) |
+| Title | `gaebokchi` bold (1); `· weekly usage` / `· 5h usage` faint (2) |
 | Provider name | bold (1) |
 | Bar fill and percentage | green (32) below 50, yellow (33) from 50 to below 80, red (31) at 80 and above; the percentage is also bold |
 | Bar track, countdown, spinner, `querying…` | faint (2) |
@@ -569,9 +575,9 @@ When a numeric row does not fit, shrink the bar from 20 toward 10 cells, then
 drop the bar if it still does not fit.
 Intermediate live frames clip remaining overflow and end it with `…`. The
 final frame never truncates an account label; it may wrap instead, because
-nothing redraws after it. When the maximum frame height (targets + 4, plus one
-possible reset line per target) is not smaller than the terminal
-rows, skip live redraws and write only the final frame once.
+nothing redraws after it. When the maximum frame height (1 + 3 per non-empty
+section + targets, plus one possible reset line per target) is not smaller than
+the terminal rows, skip live redraws and write only the final frame once.
 
 **Live progress.** `app.Runner` has an optional observation callback that
 receives a target's index and terminal result as soon as its slot is set,
@@ -608,7 +614,7 @@ discard case.
 <a id="arch-11"></a>
 ## ARCH-11: Verification catalog
 
-Related: [REQ-043](../specs/README.md#req-043) through [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056) through [REQ-059](../specs/README.md#req-059). Tests are created with the owning implementation task; [TASK-011](../roadmap/README.md#task-011) adds cross-component qualification rather than postponing unit tests.
+Related: [REQ-043](../specs/README.md#req-043) through [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056) through [REQ-059](../specs/README.md#req-059), [REQ-067](../specs/README.md#req-067), [REQ-068](../specs/README.md#req-068). Tests are created with the owning implementation task; [TASK-011](../roadmap/README.md#task-011) adds cross-component qualification rather than postponing unit tests.
 
 The following identifiers are referenced by individual requirements and tasks. Implementation records exact test names and commands under these IDs.
 
@@ -683,6 +689,23 @@ fixtures, `includedSpend/limit` fallback, API-key non-applicability
 secrets, and child cleanup. TASK-041 owns positive final-executable weekly usage
 verification and existing-provider regressions.
 
+<a id="v-zcode"></a>
+### V-ZCODE: ZCode qualification and integration
+
+Verify `<zcode-bin> doctor --json` with the read-only `NODE_OPTIONS` preload
+hook intercepting `runDoctor`, active/preferred account resolution before
+requiring a stored Coding Plan `:api-key` (never falling back to another
+provider family's key when the selected account is OAuth-only), strict
+`TOKENS_LIMIT` / `CREDIT_LIMIT` (`unit == 3 && number == 5`) selection
+(`domain.PeriodFiveHour`, `QuotaID: "zcode_5h"`, `domain.SourceZCodeCLIUsage`),
+`currentValue / usage * 100` and `(usage - remaining) / usage * 100` fallbacks,
+`ZCODE_*` / `ZAI_*` / `BIGMODEL_*` environment filtering, read-only filesystem
+(sync, `fs/promises`, and callback APIs) and HTTP guards (no OAuth POST
+provisioning, no `.corrupt-*.bak` writes, SEA asset extraction confined to the
+temporary preload directory), graceful `StatusUnsupported` fallback on unhooked
+`doctor --json` output, and two-section (`WEEKLY USAGE` / `5H USAGE` and
+`🐡 gaebokchi · weekly usage` / `🐡 gaebokchi · 5h usage`) rendering.
+
 <a id="v-identity"></a>
 ### V-IDENTITY: Display identity
 
@@ -696,7 +719,7 @@ Use controlled fake completion order. Verify at most three active targets, immed
 <a id="v-output"></a>
 ### V-OUTPUT: Output contracts
 
-Golden-test numeric and mixed-status outputs. Assert three headings, no separator/banner/color, exactly N+1 logical lines for N configured targets, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
+Golden-test numeric and mixed-status outputs. Assert three headings per section, no separator/banner/color in plain table mode, deterministic weekly and 5h sections, and a final newline. Check redirected stdout, Unicode/control sanitization, and diagnostics exclusively on stderr.
 For usage JSON, assert the exact field set, target order, number/null semantics,
 label normalization, privacy boundary, and one final newline.
 For the terminal view, test colorless and styled frames, reset provenance,
@@ -716,7 +739,7 @@ Assert complete outbound method allowlists, false host capabilities, no raw secr
 <a id="v-e2e"></a>
 ### V-E2E: Executable-level offline acceptance
 
-Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, `agy`, and Cursor executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
+Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, `agy`, Cursor, and ZCode executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
 
 <a id="v-build"></a>
 ### V-BUILD: Reproducible local builds
@@ -750,9 +773,9 @@ The canonical offline gate is `make test`. `TESTING.md` maps its prepare, unit, 
 <a id="arch-12"></a>
 ## ARCH-12: Compatibility gate and evidence policy
 
-Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038), [TASK-039](../roadmap/README.md#task-039), [TASK-041](../roadmap/README.md#task-041).
+Related: [REQ-005](../specs/README.md#req-005), [REQ-042](../specs/README.md#req-042), [REQ-048](../specs/README.md#req-048), [REQ-056](../specs/README.md#req-056), [REQ-060](../specs/README.md#req-060), [REQ-064](../specs/README.md#req-064), [REQ-065](../specs/README.md#req-065), [REQ-066](../specs/README.md#req-066), [REQ-067](../specs/README.md#req-067), [REQ-068](../specs/README.md#req-068). Owners: [TASK-001](../roadmap/README.md#task-001), [TASK-013](../roadmap/README.md#task-013), [TASK-034](../roadmap/README.md#task-034), [TASK-038](../roadmap/README.md#task-038), [TASK-039](../roadmap/README.md#task-039), [TASK-041](../roadmap/README.md#task-041).
 
-Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), the [agy compatibility record](../verification/agy-compatibility.md), and the [Cursor compatibility record](../verification/cursor-compatibility.md) hold the details and dates:
+Compatibility status; the [compatibility record](../verification/compatibility.md), the [Claude compatibility record](../verification/claude-compatibility.md), the [agy compatibility record](../verification/agy-compatibility.md), the [Cursor compatibility record](../verification/cursor-compatibility.md), and the [ZCode compatibility record](../verification/zcode-compatibility.md) hold the details and dates:
 
 | Integration | Public evidence | Installed CLI qualification |
 |---|---|---|
@@ -766,6 +789,7 @@ Compatibility status; the [compatibility record](../verification/compatibility.m
 | Claude weekly reset text | Installed CLI formatter behavior | Observed live with Claude Code 2.1.283 on darwin/arm64 |
 | `agy` single-account `/usage` JSON weekly pools (`gemini-weekly`, `3p-weekly`) | Antigravity CLI headless, usage, and troubleshooting references ([S-17](#s-17) through [S-19](#s-19), [S-22](#s-22), [S-23](#s-23)) | QUALIFIED live with `agy 1.4.0` on darwin/arm64 (TASK-034, TASK-038) |
 | Cursor single-account `status --format json` + read-only `NODE_OPTIONS` preload hook (`Included` / `totalPercentUsed`, weekly vs monthly period) | Cursor CLI parameters, usage limits, ACP references ([S-20](#s-20), [S-21](#s-21), [S-24](#s-24)), and installed bundle inspection (`./src/commands/status.ts`, `./src/usage/usage-data.ts`) | QUALIFIED live with `cursor-agent 2026.10.16-e3cb207` on darwin/arm64 (TASK-039, TASK-041) |
+| ZCode single-account `doctor --json` + read-only `NODE_OPTIONS` preload hook (`TOKENS_LIMIT` / `CREDIT_LIMIT` `unit == 3, number == 5` 5h window) | Installed bundle inspection (`zcode.cjs`: `runDoctor`, `createZaiCodingPlanQuotaClient`, `GET /api/monitor/usage/quota/limit`) | QUALIFIED live with `zcode 0.16.9` on darwin/arm64 |
 | macOS/Linux lifecycle behavior | Proposed architecture | QUALIFIED darwin/arm64 + linux/arm64 (containerized native suites, TASK-021); TASK-031 and TASK-032 reran the full gates on both; TASK-033 reran them on its corrected uncommitted candidate |
 
 Run small, bounded, developer-only metadata probes before production transport or provider work, as TASK-001 did for Codex and Grok. A disposable standard-library script is acceptable and is not a shipped command. Do not install/upgrade CLIs, relink accounts, launch a model, or edit auth configuration as part of a probe.
@@ -960,9 +984,11 @@ https://cursor.com/docs/cli/acp
 **Delivery:** EPIC-012, TASK-035 and TASK-036. **Requirements:** REQ-061 through
 REQ-063.
 
-`gaebokchi` preserves its weekly-only presentation across all output modes:
-the 3-column plain table (`AI PROVIDER`, `ACCOUNT`, `WEEKLY USAGE`), the
-interactive terminal view (`🐡 gaebokchi · weekly usage`), and the existing
+`gaebokchi` preserves its weekly presentation for all weekly providers across
+all output modes, while rendering `5h` providers in a dedicated `5h usage`
+section ([ARCH-20](#arch-20)):
+the 3-column plain table (`AI PROVIDER`, `ACCOUNT`, `WEEKLY USAGE` / `5H USAGE`), the
+interactive terminal view (`🐡 gaebokchi · weekly usage` / `🐡 gaebokchi · 5h usage`), and the existing
 `--json` `results` array. Existing Codex, Grok, and Claude normalization and
 row semantics remain unchanged.
 
@@ -1013,10 +1039,9 @@ decimal token using bounded exact decimal arithmetic before storing or formattin
 
 Because `internal/render/terminal.go`
 already blanks `provider` when `result.Provider == previous` and renders `↻`
-countdowns for any `StatusOK` result with `Period == PeriodWeekly` and non-nil
-`ResetAt`, emitting `agy:0` (`Account: "gemini"`) and `agy:1`
-(`Account: "claude/gpt"`) requires no layout changes to `table.go`,
-`terminal.go`, `live.go`, or `json.go`:
+countdowns for any `StatusOK` result with non-nil `ResetAt`, emitting `agy:0`
+(`Account: "gemini"`) and `agy:1` (`Account: "claude/gpt"`) requires no layout
+changes to `table.go`, `terminal.go`, `live.go`, or `json.go`:
 
 - **Interactive terminal view:**
   ```text
@@ -1048,7 +1073,7 @@ within the target timeout budget before invoking the usage command. An
 unqualified version must not reach a potentially model-capable invocation:
 report `StatusUnsupported` (`UNSUPPORTED`).
 
-All adapters use explicit dispatch: Codex, Grok, Claude, `agy`, and Cursor must
+All adapters use explicit dispatch: Codex, Grok, Claude, `agy`, Cursor, and ZCode must
 each select their own querier in `Runner.querierFor`. Remove the implicit Codex
 fallback; unknown providers or missing adapter wiring fail without launching any
 provider process.
@@ -1108,7 +1133,7 @@ documents the qualified `agy 1.4.0` contract on `darwin/arm64`.
 **Delivery:** EPIC-013, TASK-039 through TASK-041. **Requirements:** REQ-065 and
 REQ-066. The [Cursor compatibility record](../verification/cursor-compatibility.md)
 and [ADR-0002](../architecture-decision-records/ADR-0002-period-aware-provider-usage.md)
-document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm64`.
+documents the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm64`.
 
 ### Configuration and target construction
 
@@ -1197,3 +1222,72 @@ document the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/arm
        `currentPeriodUsage == nil`, `currentPeriodUsage.enabled == false`,
        `planUsage == nil`, or `totalPercentUsed == nil` with `limit <= 0` ->
        `StatusUnavailableNoData` (`N/A (no data)`).
+
+<a id="arch-20"></a>
+## ARCH-20: ZCode single-account 5h adapter and two-section presentation
+
+**Delivery:** User-requested extension (`none`). **Requirements:**
+[REQ-067](../specs/README.md#req-067) and [REQ-068](../specs/README.md#req-068).
+The [ZCode compatibility record](../verification/zcode-compatibility.md)
+documents the qualified `zcode 0.16.9` contract on `darwin/arm64`.
+
+### Configuration and target construction
+
+- `~/.config/gaebokchi/config.yaml` accepts an optional `zcode` list with at most
+  one entry (`- name: <alias>`; no `path` field is accepted because `zcode`
+  manages its default Coding Plan account state in `~/.zcode`). More than one
+  entry in `zcode` is a configuration error (exit 2). Omission or `[]` disables
+  ZCode.
+- The binary flag is `--zcode-bin` with default `zcode`.
+- Provider order follows the top-level key order written in `config.yaml` ([ARCH-03](#arch-03)).
+- When `zcode` is enabled, `buildTargets` emits one target:
+  `Target{ID: "zcode:0", Provider: domain.ProviderZCode, FallbackAccount: entry.Name, AccountSource: domain.AccountSourceConfiguredAlias, Bin: o.ZCodeBin}`.
+
+### Subprocess preload-hook execution, read-only guards, and normalization
+
+- The `internal/provider/zcode` adapter executes `<zcode-bin> doctor --json`
+  with a read-only `NODE_OPTIONS` preload hook:
+  1. Write the embedded read-only `preload.cjs` into a private mode-`0700`
+     temporary directory (`os.MkdirTemp("", "gaebokchi-zcode-")`, removed on
+     `defer` with any removal error folded into `Result.CleanupFailed`) and set
+     `NODE_OPTIONS=--require=<preloadPath>`.
+  2. **Environment filter (`envfilter.ZCode()`):** Preserve `HOME` and platform
+     keyring variables so `zcode` accesses its default login. Strip all
+     `ZCODE_*`, `ZAI_*`, and `BIGMODEL_*` variables and any ambient parent
+     `NODE_OPTIONS`, then apply the controlled `NODE_OPTIONS` preload path.
+  3. **Read-only filesystem, HTTP, and account-selection guards:** `preload.cjs`
+     enables a `node:fs` (sync and callback) and `node:fs/promises` write guard
+     (`enableReadOnlyFsGuard(__dirname)`) that rejects any filesystem write
+     outside `__dirname` (`preloadDir`), pre-validates `credentials.json` before
+     `load`/`loadMany` so corrupt JSON reports `corrupt_credentials`
+     (`StatusProviderError`) without writing `.corrupt-*.bak` files, materializes
+     SEA builtin provider config only inside `__dirname`, resolves the
+     preferred/active Coding Plan provider first (`defaultModelSelection.providerId`
+     or `oauth:active_provider`), and requires an already-stored Coding Plan API
+     key (`account-provider:coding-plan:${providerId}:account:${encodeURIComponent(accountIdentity)}:api-key`)
+     for that selected account without calling `refreshBeforeModelRequest`,
+     issuing OAuth token-exchange POST requests, or falling back to a different
+     provider family's key. It wraps `createDefaultHttpClient` with
+     `createReadOnlyQuotaHttpClient` so only `GET .../api/monitor/usage/quota/limit`
+     is allowed.
+  4. **Quota selection (`findFiveHourLimit`):** Select the first `limits[]`
+     entry with `type` in `{"TOKENS_LIMIT", "CREDIT_LIMIT"}`, `unit == 3`
+     (hours), and `number == 5`. Compute `UsedPercent` from `percentage`
+     (`[0, 100]`), or `currentValue / usage * 100` (falling back to
+     `(usage - remaining) / usage * 100`) when `percentage` is absent and
+     `usage > 0`, parse optional `nextResetTime` (epoch ms > 0) into `ResetAt`,
+     and return `StatusOK` with `Period: domain.PeriodFiveHour` (`"5h"`),
+     `QuotaID: "zcode_5h"` (`QuotaFiveHour`), and
+     `Source: domain.SourceZCodeCLIUsage` (`"zcode_cli_usage"`). Non-5h token
+     windows (such as `unit == 3, number == 1`) return `StatusUnavailableNoData`
+     (`N/A (no data)`).
+
+### Two-section (`weekly` and `5h`) presentation
+
+- `domain.ProviderKind.IsFiveHour()` returns `false` for `codex`, `grok`,
+  `claude`, `agy`, and `cursor`, and `true` for `zcode`.
+- Plain table (`internal/render/table.go`) and interactive terminal
+  (`internal/render/terminal.go`, `internal/render/live.go`) group results into
+  an upper weekly section (`WEEKLY USAGE` / `🐡 gaebokchi · weekly usage`) and a
+  lower 5-hour section (`5H USAGE` / `🐡 gaebokchi · 5h usage`), emitting only
+  non-empty sections while preserving configured order within each section.

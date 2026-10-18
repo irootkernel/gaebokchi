@@ -18,6 +18,7 @@ const (
 	DefaultClaudeBin = "claude"
 	DefaultAgyBin    = "agy"
 	DefaultCursorBin = "cursor-agent"
+	DefaultZCodeBin  = "zcode"
 	DefaultTimeout   = 20 * time.Second
 	minTimeout       = 1 * time.Second
 	maxTimeout       = 120 * time.Second
@@ -30,6 +31,7 @@ type Options struct {
 	ClaudeBin string
 	AgyBin    string
 	CursorBin string
+	ZCodeBin  string
 	Timeout   time.Duration
 	Help      bool
 	JSON      bool
@@ -84,6 +86,7 @@ func specs() map[string]*flagSpec {
 		"claude-bin": {name: "claude-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.ClaudeBin }, "claude-bin")},
 		"agy-bin":    {name: "agy-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.AgyBin }, "agy-bin")},
 		"cursor-bin": {name: "cursor-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.CursorBin }, "cursor-bin")},
+		"zcode-bin":  {name: "zcode-bin", kind: kindString, set: setBin(func(o *Options) *string { return &o.ZCodeBin }, "zcode-bin")},
 		"timeout": {name: "timeout", kind: kindDuration, set: func(o *Options, v string) error {
 			d, err := time.ParseDuration(v)
 			if err != nil || d < minTimeout || d > maxTimeout {
@@ -120,7 +123,7 @@ func parse(args []string) (Options, error) {
 	o := Options{
 		CodexBin: DefaultCodexBin, GrokBin: DefaultGrokBin,
 		ClaudeBin: DefaultClaudeBin, AgyBin: DefaultAgyBin,
-		CursorBin: DefaultCursorBin, Timeout: DefaultTimeout,
+		CursorBin: DefaultCursorBin, ZCodeBin: DefaultZCodeBin, Timeout: DefaultTimeout,
 	}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]

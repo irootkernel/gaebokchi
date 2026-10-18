@@ -21,7 +21,7 @@ test-unit:
 	ginkgo --race --randomize-all --fail-on-empty --fail-on-pending ./internal/domain ./internal/options ./internal/render ./internal/provider/envfilter
 
 test-int:
-	ginkgo --race --randomize-all --fail-on-empty --fail-on-pending ./internal/app ./internal/process ./internal/provider/agy ./internal/provider/claude ./internal/provider/codex ./internal/provider/cursor ./internal/provider/grok ./internal/rpc ./cmd/gaebokchi ./scripts
+	ginkgo --race --randomize-all --fail-on-empty --fail-on-pending ./internal/app ./internal/process ./internal/provider/agy ./internal/provider/claude ./internal/provider/codex ./internal/provider/cursor ./internal/provider/grok ./internal/provider/zcode ./internal/rpc ./cmd/gaebokchi ./scripts
 
 
 test-e2e:

@@ -26,7 +26,12 @@ const (
 	frameFixedLines = 4
 )
 
-func frameLineCount(results int) int { return results + frameFixedLines }
+func sectionFixedLines(hasWeekly, hasFiveHour bool) int {
+	if hasWeekly && hasFiveHour {
+		return frameFixedLines + 3
+	}
+	return frameFixedLines
+}
 
 type textStyle uint8
 
@@ -154,7 +159,8 @@ func countdown(reset, now time.Time) string {
 }
 
 func resetText(result domain.Result, now time.Time) string {
-	if result.Status != domain.StatusOK || result.ResetAt == nil || result.Period != domain.PeriodWeekly {
+	if result.Status != domain.StatusOK || result.ResetAt == nil ||
+		(result.Period != domain.PeriodWeekly && result.Period != domain.PeriodFiveHour) {
 		return ""
 	}
 	return "↻ " + countdown(*result.ResetAt, now)
@@ -212,9 +218,15 @@ func resultLine(result domain.Result, provider, account string, providerCells, a
 // Intermediate frames clip overflow; the final frame preserves every label.
 func TerminalFrame(results []domain.Result, columns int, now time.Time, color, intermediate bool, spinner string) (string, int) {
 	providerCells, accountCells := 0, 0
-	for _, result := range results {
+	var weeklyIndices, fiveHourIndices []int
+	for i, result := range results {
 		providerCells = max(providerCells, cellWidth(result.Provider.DisplayName()))
 		accountCells = max(accountCells, cellWidth(SanitizeLabel(result.Account)))
+		if result.Provider.IsFiveHour() {
+			fiveHourIndices = append(fiveHourIndices, i)
+		} else {
+			weeklyIndices = append(weeklyIndices, i)
+		}
 	}
 	resets := make([]string, len(results))
 	inlineResets := true
@@ -233,23 +245,33 @@ func TerminalFrame(results []domain.Result, columns int, now time.Time, color, i
 			inlineResets = false
 		}
 	}
-	lines := make([]frameLine, 0, frameLineCount(len(results))+len(results))
-	lines = append(lines, nil, frameLine{{"  🐡 ", 0}, {"gaebokchi", styleBold}, {" · weekly usage", styleFaint}}, nil)
-	var previous domain.ProviderKind
-	for i, result := range results {
-		provider := result.Provider.DisplayName()
-		if result.Provider == previous {
-			provider = ""
+	fixed := sectionFixedLines(len(weeklyIndices) > 0, len(fiveHourIndices) > 0)
+	lines := make([]frameLine, 0, len(results)+fixed+len(results))
+	appendSection := func(suffix string, indices []int) {
+		lines = append(lines, nil, frameLine{{"  🐡 ", 0}, {"gaebokchi", styleBold}, {suffix, styleFaint}}, nil)
+		var previous domain.ProviderKind
+		for _, i := range indices {
+			result := results[i]
+			provider := result.Provider.DisplayName()
+			if result.Provider == previous {
+				provider = ""
+			}
+			previous = result.Provider
+			line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, spinner)
+			if inlineResets && resets[i] != "" {
+				line = append(line, span{rowGap, 0}, span{resets[i], styleFaint})
+			}
+			lines = append(lines, line)
+			if !inlineResets && resets[i] != "" {
+				lines = append(lines, frameLine{{"    ", 0}, {resets[i], styleFaint}})
+			}
 		}
-		previous = result.Provider
-		line := resultLine(result, provider, SanitizeLabel(result.Account), providerCells, accountCells, columns, spinner)
-		if inlineResets && resets[i] != "" {
-			line = append(line, span{rowGap, 0}, span{resets[i], styleFaint})
-		}
-		lines = append(lines, line)
-		if !inlineResets && resets[i] != "" {
-			lines = append(lines, frameLine{{"    ", 0}, {resets[i], styleFaint}})
-		}
+	}
+	if len(weeklyIndices) > 0 || len(fiveHourIndices) == 0 {
+		appendSection(" · weekly usage", weeklyIndices)
+	}
+	if len(fiveHourIndices) > 0 {
+		appendSection(" · 5h usage", fiveHourIndices)
 	}
 	lines = append(lines, nil)
 	var b strings.Builder

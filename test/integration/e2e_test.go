@@ -65,6 +65,7 @@ type invocation struct {
 	grokUsageByHome   map[string]int
 	claudeUsageByHome map[string]int
 	cursorPayload     string
+	zcodePayload      string
 	argLog            string
 	envLog            string
 }
@@ -97,7 +98,7 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	codexJSON, _ := json.Marshal(inv.codex)
 	grokJSON, _ := json.Marshal(inv.grok)
 
-	args := make([]string, 0, len(inv.args)+10)
+	args := make([]string, 0, len(inv.args)+12)
 	if !hasFlag(inv.args, "--timeout") {
 		args = append(args, "--timeout", "5s")
 	}
@@ -116,6 +117,9 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	if !hasFlag(inv.args, "--cursor-bin") {
 		args = append(args, "--cursor-bin", fake)
 	}
+	if !hasFlag(inv.args, "--zcode-bin") {
+		args = append(args, "--zcode-bin", fake)
+	}
 	args = append(args, inv.args...)
 
 	cmd := exec.Command(bin, args...)
@@ -131,6 +135,9 @@ func runCLI(t testT, inv invocation) (stdout, stderr string, code int) {
 	}
 	if inv.cursorPayload != "" {
 		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_CURSOR_PAYLOAD="+inv.cursorPayload)
+	}
+	if inv.zcodePayload != "" {
+		cmd.Env = append(cmd.Env, "GAEBOKCHI_FAKE_ZCODE_PAYLOAD="+inv.zcodePayload)
 	}
 	if len(inv.grokUsageByHome) > 0 {
 		byHome, err := json.Marshal(inv.grokUsageByHome)
@@ -849,6 +856,56 @@ var _ = ginkgo.It("queries Cursor once and emits its weekly or monthly row in ta
 	})
 	if monthlyCode != 0 || !strings.Contains(monthlyOut, "N/A (monthly)") || !strings.Contains(monthlyErr, "cursor:0: N/A (monthly):") {
 		t.Fatalf("monthly cursor code=%d stdout=%q stderr=%q", monthlyCode, monthlyOut, monthlyErr)
+	}
+})
+
+var _ = ginkgo.It("queries zcode 5h usage and renders weekly and 5h sections", func() {
+	t := testT{ginkgo.GinkgoT()}
+	argLog := filepath.Join(t.TempDir(), "args.log")
+	envLog := filepath.Join(t.TempDir(), "env.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "zcode:\n  - name: default\n",
+		args:   []string{"--json"},
+		argLog: argLog, envLog: envLog,
+		env: []string{
+			"ZCODE_API_KEY=secret-zcode-key",
+			"NODE_OPTIONS=--inspect=0.0.0.0:9229",
+		},
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 1 ||
+		rows[0].TargetID != "zcode:0" || rows[0].Provider != "zcode" || rows[0].Account != "default" ||
+		rows[0].Status != "ok" || rows[0].UsedPercent == nil || *rows[0].UsedPercent != 18 || rows[0].CleanupFailed {
+		t.Fatalf("zcode JSON rows = %+v", rows)
+	}
+	args, err := os.ReadFile(argLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(args)) != "argv: doctor --json" {
+		t.Fatalf("unexpected zcode argv log: %q", args)
+	}
+	env, err := os.ReadFile(envLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(env), "ZCODE_API_KEY=") ||
+		strings.Contains(string(env), "--inspect=") ||
+		!strings.Contains(string(env), "\nNODE_OPTIONS=--require=") {
+		t.Fatalf("zcode child env was not filtered: %q", env)
+	}
+
+	tableOut, tableErr, tableCode := runCLI(t, invocation{
+		config: "cursor:\n  - name: default\nzcode:\n  - name: default\n",
+	})
+	if tableCode != 0 || tableErr != "" {
+		t.Fatalf("table code=%d stderr=%q", tableCode, tableErr)
+	}
+	if !strings.Contains(tableOut, "WEEKLY USAGE\n") || !strings.Contains(tableOut, "\n\nAI PROVIDER  ACCOUNT  5H USAGE\nZCode        default  18%\n") {
+		t.Fatalf("unexpected two-section table:\n%s", tableOut)
 	}
 })
 

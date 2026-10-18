@@ -117,6 +117,30 @@ var _ = ginkgo.It("TestCursorRuleDropsPrefixesAndReplacesNodeOptions", func() {
 	}
 })
 
+var _ = ginkgo.It("TestZCodeRuleDropsPrefixesAndReplacesNodeOptions", func() {
+	t := testT{ginkgo.GinkgoT()}
+	parent := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"ZCODE_DATA_BASE_DIR=/tmp/zcode",
+		"ZCODE_CREDENTIAL_SECRET=secret",
+		"ZAI_BUSINESS_BASE_URL=https://override.invalid",
+		"BIGMODEL_API_ORIGIN=https://override.invalid",
+		"NODE_OPTIONS=--inspect",
+	}
+	r := ZCode()
+	r.Set = map[string]string{"NODE_OPTIONS": "--require=/tmp/preload.cjs"}
+	got := Apply(parent, r)
+	want := []string{
+		"PATH=/usr/bin",
+		"HOME=/Users/tester",
+		"NODE_OPTIONS=--require=/tmp/preload.cjs",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("zcode env = %v, want %v", got, want)
+	}
+})
+
 func contains(list []string, want string) bool {
 	for _, v := range list {
 		if v == want {

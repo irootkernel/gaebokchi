@@ -31,8 +31,16 @@ type LiveRenderer struct {
 }
 
 func NewLiveRenderer(out io.Writer, targets []domain.Target, columns, rows int, color bool) *LiveRenderer {
+	hasWeekly, hasFiveHour := false, false
+	for _, target := range targets {
+		if target.Provider.IsFiveHour() {
+			hasFiveHour = true
+		} else {
+			hasWeekly = true
+		}
+	}
 	// Every target may add one reset line below its row.
-	maxLines := frameLineCount(len(targets)) + len(targets)
+	maxLines := len(targets) + sectionFixedLines(hasWeekly, hasFiveHour) + len(targets)
 	r := &LiveRenderer{
 		out: out, columns: columns, color: color,
 		live:    maxLines < rows,

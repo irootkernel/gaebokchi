@@ -32,6 +32,7 @@ type accountConfig struct {
 	Claude []account             `yaml:"claude"`
 	Agy    []account             `yaml:"agy"`
 	Cursor []cursorAccount       `yaml:"cursor"`
+	ZCode  []cursorAccount       `yaml:"zcode"`
 	order  []domain.ProviderKind `yaml:"-"`
 }
 
@@ -136,7 +137,17 @@ func loadConfig(path, home string) (accountConfig, error) {
 			return accountConfig{}, configf(path, "cursor account %d needs a visible name", i+1)
 		}
 	}
-	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+len(cfg.Agy)+len(cfg.Cursor) == 0 {
+	if len(cfg.ZCode) > 1 {
+		return accountConfig{}, configf(path, "zcode supports at most one account")
+	}
+	for i := range cfg.ZCode {
+		a := &cfg.ZCode[i]
+		a.Name = domain.NormalizeLabel(a.Name)
+		if a.Name == "" {
+			return accountConfig{}, configf(path, "zcode account %d needs a visible name", i+1)
+		}
+	}
+	if len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+len(cfg.Agy)+len(cfg.Cursor)+len(cfg.ZCode) == 0 {
 		return accountConfig{}, configf(path, "configuration needs at least one account")
 	}
 	return cfg, nil
@@ -276,10 +287,11 @@ var defaultProviderOrder = []domain.ProviderKind{
 	domain.ProviderClaude,
 	domain.ProviderAgy,
 	domain.ProviderCursor,
+	domain.ProviderZCode,
 }
 
 func buildTargets(cfg accountConfig, o Options) []domain.Target {
-	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy)+len(cfg.Cursor))
+	targets := make([]domain.Target, 0, len(cfg.Codex)+len(cfg.Grok)+len(cfg.Claude)+2*len(cfg.Agy)+len(cfg.Cursor)+len(cfg.ZCode))
 	order := cfg.order
 	if len(order) == 0 {
 		order = defaultProviderOrder
@@ -314,6 +326,13 @@ func buildTargets(cfg accountConfig, o Options) []domain.Target {
 				targets = append(targets, domain.Target{
 					ID: fmt.Sprintf("%s:%d", domain.ProviderCursor, i), Index: len(targets),
 					Provider: domain.ProviderCursor, FallbackAccount: a.Name, Bin: o.CursorBin,
+				})
+			}
+		case domain.ProviderZCode:
+			for i, a := range cfg.ZCode {
+				targets = append(targets, domain.Target{
+					ID: fmt.Sprintf("%s:%d", domain.ProviderZCode, i), Index: len(targets),
+					Provider: domain.ProviderZCode, FallbackAccount: a.Name, Bin: o.ZCodeBin,
 				})
 			}
 		}

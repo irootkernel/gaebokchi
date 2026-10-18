@@ -19,6 +19,11 @@ current merely because a later tree retains the record.
   semantics, `CURSOR_*` environment filter, sanitized live fixture, and the
   completed `EPIC-013` (`TASK-039` through `TASK-041`) offline and live
   acceptance evidence.
+- [zcode-compatibility.md](zcode-compatibility.md) records the qualified
+  `zcode 0.16.9` subprocess (`doctor --json`) + read-only `NODE_OPTIONS`
+  preload hook contract, 5-hour Coding Plan quota selection (`unit == 3`,
+  `number == 5`), `ZCODE_*` environment filter, two-section (`weekly usage` /
+  `5h usage`) rendering, and offline/live acceptance evidence.
 - [provider-extension-preflight-2026-10-16.md](provider-extension-preflight-2026-10-16.md)
   records the 2026-10-16 discovery pass, the 2026-10-17 live `agy 1.4.0`
   metadata qualification, and the 2026-10-18 live `cursor-agent

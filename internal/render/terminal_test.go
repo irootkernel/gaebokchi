@@ -119,6 +119,32 @@ var _ = ginkgo.It("renders two agy weekly rows with blanked second provider labe
 	if !strings.Contains(plain(cuMonthlyFrame), "Cursor  default  N/A (monthly)") || strings.Contains(plain(cuMonthlyFrame), "↻") {
 		t.Fatalf("cursor monthly frame = %q", plain(cuMonthlyFrame))
 	}
+
+	zc := domain.Result{
+		TargetID:    "zcode:0",
+		Provider:    domain.ProviderZCode,
+		Account:     "default",
+		Status:      domain.StatusOK,
+		UsedPercent: pct(42),
+		Period:      domain.PeriodFiveHour,
+		ResetAt:     ptrTime(fixedNow.Add(3*time.Hour + 42*time.Minute)),
+		Source:      domain.SourceZCodeCLIUsage,
+	}
+	bothFrame, bothLines := TerminalFrame([]domain.Result{cu, zc}, 100, fixedNow, false, false, "")
+	wantBoth := "\n  🐡 gaebokchi · weekly usage\n\n" +
+		"  Cursor  default  █████░░░░░░░░░░░░░░░     25%  ↻ 3d 2h\n\n" +
+		"  🐡 gaebokchi · 5h usage\n\n" +
+		"  ZCode   default  ████████░░░░░░░░░░░░     42%  ↻ 3h 42m\n\n"
+	if plain(bothFrame) != wantBoth || bothLines != 9 {
+		t.Fatalf("weekly+5h frame = %q, lines = %d; want %q", plain(bothFrame), bothLines, wantBoth)
+	}
+
+	onlyZcFrame, onlyZcLines := TerminalFrame([]domain.Result{zc}, 100, fixedNow, false, false, "")
+	wantOnlyZc := "\n  🐡 gaebokchi · 5h usage\n\n" +
+		"  ZCode  default  ████████░░░░░░░░░░░░     42%  ↻ 3h 42m\n\n"
+	if plain(onlyZcFrame) != wantOnlyZc || onlyZcLines != 5 {
+		t.Fatalf("5h-only frame = %q, lines = %d; want %q", plain(onlyZcFrame), onlyZcLines, wantOnlyZc)
+	}
 })
 
 func ptrTime(value time.Time) *time.Time { return &value }

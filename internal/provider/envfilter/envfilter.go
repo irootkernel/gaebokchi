@@ -77,6 +77,22 @@ func Cursor() Rule {
 	}
 }
 
+// ZCode drops ambient ZCODE_*, ZAI_*, and BIGMODEL_* overrides and parent
+// NODE_OPTIONS while preserving HOME for the default ZCode login.
+// The caller injects NODE_OPTIONS=--require=<preloadPath>.
+func ZCode() Rule {
+	return Rule{
+		Drop: []string{
+			"NODE_OPTIONS",
+		},
+		DropPrefixes: []string{
+			"ZCODE_",
+			"ZAI_",
+			"BIGMODEL_",
+		},
+	}
+}
+
 // Apply returns the child environment for parent. Later duplicate
 // entries for the same name win in the parent list; after Apply each
 // adjusted name appears exactly once, at its last position, and

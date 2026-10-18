@@ -566,14 +566,15 @@ var _ = ginkgo.It("rejects removed account flags and invalid scalar flags", func
 		{"--codex-bin", ""}, {"--claude-bin", "a", "--claude-bin", "b"},
 		{"--agy-bin", ""}, {"--agy-bin", "a", "--agy-bin", "b"},
 		{"--cursor-bin", ""}, {"--cursor-bin", "a", "--cursor-bin", "b"},
+		{"--zcode-bin", ""}, {"--zcode-bin", "a", "--zcode-bin", "b"},
 	} {
 		_, err := parse(args)
 		if !IsUsageError(err) {
 			ginkgo.Fail("accepted invalid args: " + strings.Join(args, " "))
 		}
 	}
-	o, err := parse([]string{"--codex-bin=/tmp/codex", "--agy-bin=/tmp/agy", "--cursor-bin=/tmp/cursor-agent", "-h"})
-	if err != nil || o.CodexBin != "/tmp/codex" || o.AgyBin != "/tmp/agy" || o.CursorBin != "/tmp/cursor-agent" || !o.Help {
+	o, err := parse([]string{"--codex-bin=/tmp/codex", "--agy-bin=/tmp/agy", "--cursor-bin=/tmp/cursor-agent", "--zcode-bin=/tmp/zcode", "-h"})
+	if err != nil || o.CodexBin != "/tmp/codex" || o.AgyBin != "/tmp/agy" || o.CursorBin != "/tmp/cursor-agent" || o.ZCodeBin != "/tmp/zcode" || !o.Help {
 		ginkgo.Fail("valid flags rejected")
 	}
 })
@@ -632,5 +633,33 @@ var _ = ginkgo.It("emits one cursor target after agy and rejects invalid cursor 
 	path = writeConfig(t, home, "codex:\n  - name: active\n    path: /active\ncursor: null\n")
 	if _, err := loadConfig(path, home); !IsConfigError(err) || !strings.Contains(err.Error(), "cursor must be a list") {
 		t.Fatalf("null cursor list was accepted: %v", err)
+	}
+})
+
+var _ = ginkgo.It("emits one zcode target and rejects invalid zcode configurations", func() {
+	t := testT{ginkgo.GinkgoT()}
+	o := parseWithConfig(t, "cursor:\n  - name: default\nzcode:\n  - name: \"  default  \"\n", "--zcode-bin", "/opt/bin/zcode")
+	targets := o.Targets()
+	if len(targets) != 2 {
+		t.Fatalf("targets = %+v, want 2 targets (cursor + zcode)", targets)
+	}
+	if targets[1].ID != "zcode:0" || targets[1].Index != 1 || targets[1].FallbackAccount != "default" || targets[1].Bin != "/opt/bin/zcode" || targets[1].Home != "" {
+		t.Fatalf("unexpected zcode target: %+v", targets[1])
+	}
+
+	home := t.TempDir()
+	path := writeConfig(t, home, "zcode:\n  - name: first\n  - name: second\n")
+	if _, err := loadConfig(path, home); !IsConfigError(err) || !strings.Contains(err.Error(), "zcode supports at most one account") {
+		t.Fatalf("multiple zcode accounts were accepted: %v", err)
+	}
+
+	path = writeConfig(t, home, "zcode:\n  - name: default\n    path: ~/.zcode\n")
+	if _, err := loadConfig(path, home); !IsConfigError(err) || !strings.Contains(err.Error(), "invalid configuration file") {
+		t.Fatalf("zcode path field was accepted: %v", err)
+	}
+
+	path = writeConfig(t, home, "zcode:\n  - name: \"   \"\n")
+	if _, err := loadConfig(path, home); !IsConfigError(err) || !strings.Contains(err.Error(), "zcode account 1 needs a visible name") {
+		t.Fatalf("blank zcode name was accepted: %v", err)
 	}
 })

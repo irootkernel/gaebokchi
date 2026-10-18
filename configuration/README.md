@@ -27,6 +27,8 @@ agy:
   - name: default
 cursor:
   - name: default
+zcode:
+  - name: default
 ```
 
 Save that YAML as `~/.config/gaebokchi/config.yaml`. The example names and paths
@@ -43,7 +45,9 @@ required) and queries the single default `agy` login once to display two weekly
 model-pool rows (`gemini` and `claude/gpt`). `cursor` accepts at most one entry
 (such as `- name: default`, with no `path` field allowed) and queries the single
 default `cursor-agent` login once to display its weekly `Included` subscription
-usage row:
+usage row. `zcode` accepts at most one entry (such as `- name: default`, with no
+`path` field allowed) and queries the single default `zcode` login once to
+display its 5-hour Coding Plan subscription usage row in the `5h usage` section:
 
 | List | Child environment variable | Login state |
 |---|---|---|
@@ -52,6 +56,7 @@ usage row:
 | `claude` | `CLAUDE_CONFIG_DIR` for other homes | Claude Code configuration directory |
 | `agy` | Preserves `HOME` (`AGY_CLI_DISABLE_AUTO_UPDATE=true`) | Single default Google Antigravity CLI login (`gemini` and `claude/gpt` weekly pools) |
 | `cursor` | Preserves `HOME` (controlled `NODE_OPTIONS` preload hook) | Single default Cursor CLI login (`cursor-agent`) |
+| `zcode` | Preserves `HOME` (controlled `NODE_OPTIONS` preload hook) | Single default ZCode CLI login (`zcode`) with a stored Coding Plan API key |
 
 Log in separately through each provider CLI with the matching variable. For
 example:
@@ -62,15 +67,20 @@ CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
 ```
 
 For Grok, set `GROK_HOME` to the configured path while using the installed
-Grok CLI's login flow. For `agy` and `cursor`, log in once through the installed
-`agy` or `cursor-agent` CLI.
+Grok CLI's login flow. For `agy` and `cursor`, log in once through the
+installed `agy` or `cursor-agent` CLI. For `zcode`, ensure the active Coding
+Plan account has a stored Coding Plan API key (`:api-key`) in
+`~/.zcode/v2/credentials.json` (by configuring a Coding Plan API key through the
+`zcode` CLI outside `gaebokchi`; an OAuth-only `zcode login` without a stored
+Coding Plan key reports `AUTH REQUIRED` because `gaebokchi` never issues
+token-exchange or key-provisioning `POST` requests).
 Gaebokchi does not create provider homes, read credentials, or perform logins.
 For Claude, it removes an inherited `CLAUDE_CODE_OAUTH_TOKEN` from the child
 environment so the configured login state is used. The default `~/.claude` home
 uses the CLI's implicit credential namespace; other Claude homes set
-`CLAUDE_CONFIG_DIR` and need their own login. For Cursor, it removes inherited
-`CURSOR_*` overrides and any ambient `NODE_OPTIONS` so the default stored login
-is used.
+`CLAUDE_CONFIG_DIR` and need their own login. For Cursor and ZCode, it removes
+inherited `CURSOR_*`, `ZCODE_*`, `ZAI_*`, and `BIGMODEL_*` overrides and any
+ambient `NODE_OPTIONS` so the default stored login is used.
 
 ## Choose which providers run
 
@@ -95,8 +105,8 @@ produces a `NOT INSTALLED` row; an omitted provider launches no CLI.
 
 Run `gaebokchi --json` for one machine-readable usage snapshot or `gaebokchi`
 for the terminal view or plain table. The reported value is the percentage of
-the provider's weekly subscription allowance already used, not a raw token
-count.
+the provider's weekly (or 5-hour, for `zcode`) subscription allowance already
+used, not a raw token count.
 
 Paths must be absolute or start with `~/`. Shell variables and other `~user`
 forms are not expanded. `~/` is expanded before use; `.` and `..` retain their

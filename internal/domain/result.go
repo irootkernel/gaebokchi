@@ -17,9 +17,10 @@ const (
 type PeriodKind string
 
 const (
-	PeriodWeekly  PeriodKind = "weekly"
-	PeriodMonthly PeriodKind = "monthly"
-	PeriodUnknown PeriodKind = "unknown"
+	PeriodFiveHour PeriodKind = "5h"
+	PeriodWeekly   PeriodKind = "weekly"
+	PeriodMonthly  PeriodKind = "monthly"
+	PeriodUnknown  PeriodKind = "unknown"
 )
 
 // Source identifies which provider interface produced the metric.
@@ -29,6 +30,7 @@ const (
 	SourceClaudeCLIUsage = "claude_cli_usage"
 	SourceAgyCLIUsage    = "agy_cli_usage"
 	SourceCursorCLIUsage = "cursor_cli_usage"
+	SourceZCodeCLIUsage  = "zcode_cli_usage"
 )
 
 // Diagnostic is a safe, application-owned error summary. Codes and messages

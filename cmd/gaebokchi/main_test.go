@@ -51,10 +51,10 @@ func (f *fakeProv) Query(ctx context.Context, tgt domain.Target) domain.Result {
 		AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusOK, UsedPercent: &v}
 }
 
-func fakes() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
+func fakes() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
 	return &fakeProv{}, &fakeProv{results: map[string]domain.Result{
 		"grok:0": {Account: "default", AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusOK, UsedPercent: ptr(28)},
-	}}, &fakeProv{}, &fakeProv{}, &fakeProv{}
+	}}, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
 }
 
 func ptr(v float64) *float64 { return &v }
@@ -89,8 +89,8 @@ var _ = ginkgo.It("missing configuration links to the dedicated guide before pro
 	}
 	t.Setenv("HOME", t.TempDir())
 	bomb := &fakeProv{}
-	providers := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return bomb, bomb, bomb, bomb, bomb
+	providers := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
 	}
 	var out, errBuf bytes.Buffer
 	code := runWithIO(nil, &out, &errBuf, providers)
@@ -122,8 +122,8 @@ var _ = ginkgo.It("invalid configuration reports its path before provider launch
 	}
 	bomb := &fakeProv{}
 	var out, errBuf bytes.Buffer
-	code := runWithIO(nil, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return bomb, bomb, bomb, bomb, bomb
+	code := runWithIO(nil, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
 	})
 	if code != 2 || out.Len() != 0 || !strings.Contains(errBuf.String(), path) ||
 		!strings.Contains(errBuf.String(), "claude account names must be unique") ||
@@ -135,8 +135,8 @@ var _ = ginkgo.It("invalid configuration reports its path before provider launch
 var _ = ginkgo.It("TestVersionDispatchPrecedesOptionsAndProviders", func() {
 	t := testT{ginkgo.GinkgoT()}
 	bomb := &fakeProv{results: map[string]domain.Result{"codex:0": {Status: domain.StatusProtocolError}}}
-	newProviders := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return bomb, bomb, bomb, bomb, bomb
+	newProviders := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
 	}
 	var stdout, stderr bytes.Buffer
 	code := runWithIO([]string{"version", "--json"}, &stdout, &stderr, newProviders)
@@ -160,9 +160,9 @@ var _ = ginkgo.It("TestVersionDispatchPrecedesOptionsAndProviders", func() {
 
 // executeWith runs execute with test fakes.
 func executeWith(opts options.Options, stdout, stderr *bytes.Buffer) int {
-	cx, gk, cl, ag, cu := fakes()
-	return execute(opts, stdout, stderr, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return cx, gk, cl, ag, cu
+	cx, gk, cl, ag, cu, zc := fakes()
+	return execute(opts, stdout, stderr, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, gk, cl, ag, cu, zc
 	})
 }
 
@@ -217,8 +217,8 @@ var _ = ginkgo.It("TestPartialFailureKeepsTableExitOne", func() {
 	}}
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
 	})
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for one incomplete row", code)
@@ -245,8 +245,8 @@ var _ = ginkgo.It("TestJSONPartialFailureKeepsOrderedResults", func() {
 	}}
 	var out, errBuf bytes.Buffer
 	code := runWithIO([]string{"--json"}, &out, &errBuf,
-		func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-			return cx, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
+		func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+			return cx, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
 		})
 	if code != 1 {
 		t.Fatalf("code = %d, want 1", code)
@@ -337,8 +337,8 @@ var _ = ginkgo.It("TestMonthlyAndAPIKeyAreCleanExitZero", func() {
 	}}
 	opts := parse(t, "--timeout", "5s")
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
 	})
 	if code != 0 {
 		t.Fatalf("code = %d, want 0 for non-applicable outcomes", code)
@@ -352,8 +352,8 @@ var _ = ginkgo.It("TestHelpLaunchesNoProviders", func() {
 		"codex:0": {Status: domain.StatusProtocolError},
 	}}
 	var out, errBuf bytes.Buffer
-	code := execute(parse(t, "--help"), &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return bomb, bomb, bomb, bomb, bomb
+	code := execute(parse(t, "--help"), &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
 	})
 	if code != 0 || !strings.HasPrefix(out.String(), "Usage:\n  gaebokchi") {
 		t.Fatalf("help: code=%d out=%q", code, out.String())
@@ -367,7 +367,9 @@ var _ = ginkgo.It("TestBrokenStdoutExitsOne", func() {
 	t := testT{ginkgo.GinkgoT()}
 	opts := parse(t, "--timeout", "5s")
 	errBuf := &bytes.Buffer{}
-	code := execute(opts, errWriter{}, errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) { return fakes() })
+	code := execute(opts, errWriter{}, errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return fakes()
+	})
 	if code != 1 {
 		t.Fatalf("code = %d, want 1 for stdout failure", code)
 	}
@@ -501,8 +503,8 @@ var _ = ginkgo.It("TestCleanupFailureKeepsRowsAndExitsOne", func() {
 	setTestConfig(t, fmt.Sprintf("codex:\n  - name: a\n    path: %s\n  - name: b\n    path: %s\ngrok:\n  - name: default\n    path: ~/grok\n", homeA, homeB))
 	opts := parse(t, "--timeout", "10s", "--codex-bin", os.Args[0], "--grok-bin", os.Args[0])
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, gk, &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}
 	})
 
 	if code != 1 {
@@ -560,8 +562,8 @@ var _ = ginkgo.It("TestAgyTwoWeeklyRowsInTableAndJSON", func() {
 		"agy:0": {Status: domain.StatusOK, UsedPercent: ptr(74.15718734264374), Period: domain.PeriodWeekly},
 		"agy:1": {Status: domain.StatusOK, UsedPercent: ptr(12.76919841766357), Period: domain.PeriodWeekly},
 	}}
-	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return &fakeProv{}, &fakeProv{}, &fakeProv{}, ag, &fakeProv{}
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return &fakeProv{}, &fakeProv{}, &fakeProv{}, ag, &fakeProv{}, &fakeProv{}
 	}
 	var out, errBuf bytes.Buffer
 	code := runWithIO(nil, &out, &errBuf, prov)
@@ -596,8 +598,8 @@ var _ = ginkgo.It("TestCursorRowInTableAndJSON", func() {
 			Source:      domain.SourceCursorCLIUsage,
 		},
 	}}
-	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, cu
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, cu, &fakeProv{}
 	}
 	var out, errBuf bytes.Buffer
 	code := runWithIO(nil, &out, &errBuf, prov)
@@ -630,14 +632,56 @@ var _ = ginkgo.It("TestCursorRowInTableAndJSON", func() {
 			},
 		},
 	}}
-	provMonthly := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, cuMonthly
+	provMonthly := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, cuMonthly, &fakeProv{}
 	}
 	out.Reset()
 	errBuf.Reset()
 	code = runWithIO(nil, &out, &errBuf, provMonthly)
 	if code != 0 || !strings.Contains(out.String(), "N/A (monthly)") || !strings.Contains(errBuf.String(), "cursor:0: N/A (monthly):") {
 		t.Fatalf("monthly cursor table failed: code=%d stdout=%q stderr=%q", code, out.String(), errBuf.String())
+	}
+})
+
+var _ = ginkgo.It("TestZCodeFiveHourSectionInTableTerminalAndJSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	setTestConfig(t, "cursor:\n  - name: default\nzcode:\n  - name: default\n")
+	cu := &fakeProv{results: map[string]domain.Result{
+		"cursor:0": {
+			Status:      domain.StatusOK,
+			UsedPercent: ptr(25),
+			Period:      domain.PeriodWeekly,
+			Source:      domain.SourceCursorCLIUsage,
+		},
+	}}
+	zc := &fakeProv{results: map[string]domain.Result{
+		"zcode:0": {
+			Status:      domain.StatusOK,
+			UsedPercent: ptr(42),
+			Period:      domain.PeriodFiveHour,
+			Source:      domain.SourceZCodeCLIUsage,
+		},
+	}}
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return &fakeProv{}, &fakeProv{}, &fakeProv{}, &fakeProv{}, cu, zc
+	}
+	var out, errBuf bytes.Buffer
+	code := runWithIO(nil, &out, &errBuf, prov)
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("table run failed: code=%d stderr=%q", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "WEEKLY USAGE\nCursor       default  25%\n\nAI PROVIDER  ACCOUNT  5H USAGE\nZCode        default  42%\n") {
+		t.Fatalf("unexpected weekly+5h table:\n%s", out.String())
+	}
+
+	out.Reset()
+	code = runWithIO([]string{"--json"}, &out, &errBuf, prov)
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("json run failed: code=%d stderr=%q", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), `"target_id":"zcode:0"`) || !strings.Contains(out.String(), `"provider":"zcode"`) ||
+		!strings.Contains(out.String(), `"account":"default"`) || !strings.Contains(out.String(), `"used_percent":42`) {
+		t.Fatalf("unexpected zcode JSON:\n%s", out.String())
 	}
 })
 
@@ -676,8 +720,8 @@ codex:
 	cu := &fakeProv{results: map[string]domain.Result{
 		"cursor:0": {Status: domain.StatusOK, UsedPercent: ptr(25), Period: domain.PeriodWeekly},
 	}}
-	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return cx, gk, cl, ag, cu
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, gk, cl, ag, cu, &fakeProv{}
 	}
 
 	var out, errBuf bytes.Buffer
@@ -782,8 +826,8 @@ func runSignalTestChild() {
 		os.Exit(2)
 	}
 	var out, errBuf bytes.Buffer
-	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier) {
-		return slow, slow, slow, slow, slow
+	code := execute(opts, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return slow, slow, slow, slow, slow, slow
 	})
 	fmt.Fprintf(os.Stderr, "SIGTEST-TABLE:\n%s", out.String())
 	os.Exit(code)

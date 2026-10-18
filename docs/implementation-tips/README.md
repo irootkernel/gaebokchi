@@ -36,8 +36,10 @@ toolchain using `go install golang.org/x/vuln/cmd/govulncheck@v1.8.0`.
 | Codex or Grok wire behavior | `internal/rpc`, `internal/provider/codex`, `internal/provider/grok` | ARCH-06 to ARCH-08, the `testdata/` fixtures, the compatibility record |
 | Claude behavior | `internal/provider/claude` | ARCH-16, REQ-056 to REQ-059, the Claude compatibility record |
 | `agy` behavior | `internal/provider/agy` | ARCH-17, ARCH-18, REQ-060 to REQ-064, the agy compatibility record |
+| Cursor behavior | `internal/provider/cursor` | ARCH-19, REQ-065, REQ-066, the Cursor compatibility record |
+| ZCode behavior | `internal/provider/zcode` | ARCH-20, REQ-067, REQ-068, the ZCode compatibility record |
 | Child environment filtering | `internal/provider/envfilter` | ARCH-09 and the provider's own section |
-| Table, JSON, terminal view, or diagnostics | `internal/render`, `cmd/gaebokchi` | ARCH-10, REQ-011, REQ-012, REQ-052 to REQ-055, the README |
+| Table, JSON, terminal view, or diagnostics | `internal/render`, `cmd/gaebokchi` | ARCH-10, REQ-011, REQ-012, REQ-052 to REQ-055, REQ-068, the README |
 | Exit codes or signals | `cmd/gaebokchi` | ARCH-10, REQ-024 |
 | Release packaging | `scripts/build-release.sh`, `scripts/archivecheck.go` | ARCH-13, REQ-046, the release procedure below |
 

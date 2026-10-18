@@ -14,6 +14,7 @@ const (
 	ProviderClaude ProviderKind = "claude"
 	ProviderAgy    ProviderKind = "agy"
 	ProviderCursor ProviderKind = "cursor"
+	ProviderZCode  ProviderKind = "zcode"
 )
 
 // DisplayName returns the AI PROVIDER column text for a provider kind.
@@ -29,9 +30,16 @@ func (p ProviderKind) DisplayName() string {
 		return "agy"
 	case ProviderCursor:
 		return "Cursor"
+	case ProviderZCode:
+		return "ZCode"
 	default:
 		return string(p)
 	}
+}
+
+// IsFiveHour reports whether the provider belongs to the 5-hour usage section.
+func (p ProviderKind) IsFiveHour() bool {
+	return p == ProviderZCode
 }
 
 // Target is one invocation-local query target with a deterministic ID.

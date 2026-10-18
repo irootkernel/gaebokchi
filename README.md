@@ -1,8 +1,9 @@
 # Gaebokchi (개복치)
 
 See how much of your weekly Codex (ChatGPT), Grok, Claude, `agy`
-(Google Antigravity CLI), and Cursor subscription allowance you have used, in
-one command, using the logins your installed CLIs already manage.
+(Google Antigravity CLI), and Cursor subscription allowance — plus your 5-hour
+ZCode Coding Plan allowance — you have used, in one command, using the logins
+your installed CLIs already manage.
 
 ```text
 
@@ -23,31 +24,38 @@ one command, using the logins your installed CLIs already manage.
   Cursor   default               █████░░░░░░░░░░░░░░░     25%
     ↻ 3d 2h
 
+  🐡 gaebokchi · 5h usage
+
+  ZCode    default               ████████░░░░░░░░░░░░     42%
+    ↻ 3h 42m
+
 ```
 
 (Illustrative output. Account names are the aliases in your configuration; `agy`
 shows its two weekly model pools, `gemini` and `claude/gpt`, for the default
-login.)
+login, and `zcode` appears in the bottom `5h usage` section when configured.)
 
 ## Why
 
-AI coding subscriptions enforce weekly limits, and each provider shows them
-somewhere different: a TUI screen, a web page, a slash command. Gaebokchi asks
-each installed CLI for its provider-reported weekly usage through a prompt-free
-metadata interface and puts the results side by side. It never sends a model
-prompt, never reads your credentials, and exits after one snapshot.
+AI coding subscriptions enforce weekly or rolling 5-hour limits, and each
+provider shows them somewhere different: a TUI screen, a web page, a slash
+command. Gaebokchi asks each installed CLI for its provider-reported subscription
+usage through a prompt-free metadata interface and puts the results side by side.
+It never sends a model prompt, never reads your credentials, and exits after one
+snapshot.
 
 Gaebokchi is a small, read-only tool in the Aquarium tool family.
 
 ## What it shows, and what it does not
 
-- One row per configured Codex, Grok, Claude, or Cursor account in
+- One row per configured Codex, Grok, Claude, Cursor, or ZCode account in
   `~/.config/gaebokchi/config.yaml`, plus two weekly model-pool rows (`gemini`
   and `claude/gpt`) when the single default `agy` account is enabled. Omit a
   provider to disable it; list multiple homes for Codex, Grok, or Claude.
 - The **percentage already used** of each provider-reported **weekly
-  subscription allowance**. It never shows remaining quota, local token totals,
-  API spend, or a calendar-week estimate.
+  subscription allowance** in the top section, and **5-hour subscription
+  allowance** for ZCode in the bottom section. It never shows remaining quota,
+  local token totals, API spend, or a calendar-week estimate.
 - A reset countdown in the interactive view, when the provider reports a reset
   time.
 - One snapshot, then exit. There is no daemon, watch mode, polling, retry,
@@ -67,7 +75,11 @@ Gaebokchi is a small, read-only tool in the Aquarium tool family.
   - `agy` (Google Antigravity CLI `>= 1.2.15`), logged in with your main Google
     account when `agy` is enabled;
   - `cursor-agent` (Cursor CLI), logged in with your default Cursor account when
-    `cursor` is enabled.
+    `cursor` is enabled;
+  - `zcode` (ZCode CLI), with a stored Coding Plan API key for the active ZCode
+    account when `zcode` is enabled (an OAuth-only `zcode login` that has not
+    yet stored a Coding Plan `:api-key` in `~/.zcode/v2/credentials.json`
+    reports `AUTH REQUIRED`).
 - Go 1.27 or newer, only if you build from source.
 
 A configured account whose CLI is missing gets a `NOT INSTALLED` row and makes
@@ -153,24 +165,30 @@ agy:
   - name: default
 cursor:
   - name: default
+zcode:
+  - name: default
 ```
 
-Each `name` in `codex`, `grok`, `claude`, and `cursor` is a display alias, not a login
+Each `name` in `codex`, `grok`, `claude`, `cursor`, and `zcode` is a display alias, not a login
 selector or a verified email. Each `path` in `codex`, `grok`, and `claude` selects the CLI-managed account state
 for that row: `CODEX_HOME` for Codex, `GROK_HOME` for Grok, and
 `CLAUDE_CONFIG_DIR` for non-default Claude homes. The default Claude home
 (`~/.claude`) uses the CLI's implicit login state. `agy` supports at most one
 entry (the user's single default `agy` login, no `path` needed) and emits two
 weekly rows under provider `agy`: `gemini` (`agy:0`) and `claude/gpt` (`agy:1`)
-from a single shared `agy` query. `cursor` supports at most one entry (`- name: <alias>`,
-with no `path` field allowed) for the single default `cursor-agent` login and
-emits one row (`cursor:0`) under provider `Cursor`. Log in through the matching
-provider CLI before querying.
+from a single shared `agy` query. `cursor` and `zcode` each support at most one
+entry (`- name: <alias>`, with no `path` field allowed) for the single default
+`cursor-agent` or `zcode` login and emit one row (`cursor:0` under `Cursor` in
+the weekly section, and `zcode:0` under `ZCode` in the 5-hour section). Log in
+through the matching provider CLI before querying.
 For example, `CODEX_HOME="$HOME/.codex-work" codex login` and
 `CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login` select those homes;
-use the Grok CLI's own login flow with `GROK_HOME="$HOME/.grok-personal"`, and
+use the Grok CLI's own login flow with `GROK_HOME="$HOME/.grok-personal"`,
 log in once with `agy` and `cursor-agent login` for the default Antigravity and
-Cursor accounts.
+Cursor accounts, and ensure `zcode` has a stored Coding Plan API key in
+`~/.zcode/v2/credentials.json` for the active ZCode account (by configuring a
+Coding Plan API key through the `zcode` CLI outside `gaebokchi`; an OAuth login
+alone without a stored Coding Plan `:api-key` reports `AUTH REQUIRED`).
 Gaebokchi never reads or creates provider credentials.
 
 Use an absolute path or a path beginning with `~/`; shell variables and
@@ -197,6 +215,7 @@ gaebokchi --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi --agy-bin /usr/local/bin/agy
 gaebokchi --cursor-bin ~/.local/bin/cursor-agent
+gaebokchi --zcode-bin ~/.local/bin/zcode
 gaebokchi --json                                     # machine-readable snapshot
 NO_COLOR=1 gaebokchi                                 # terminal view without color
 gaebokchi version
@@ -212,6 +231,7 @@ gaebokchi version --json
 | `--claude-bin PATH` | `claude` | claude executable path or name |
 | `--agy-bin PATH` | `agy` | agy executable path or name |
 | `--cursor-bin PATH` | `cursor-agent` | cursor-agent executable path or name |
+| `--zcode-bin PATH` | `zcode` | zcode executable path or name |
 | `--timeout DURATION` | `20s` | Per-target query budget, from 1s to 120s |
 | `--json` | off | Emit one JSON usage snapshot instead of the terminal view or table |
 | `-h`, `--help` | — | Print help and exit without launching providers |
@@ -253,7 +273,8 @@ frame, like the one at the top of this page, stays in your scrollback.
 ### Plain table
 
 Pipes, redirects, `TERM=dumb`, and terminals without a readable size get a
-plain table with one line per target:
+plain table with one line per target, grouped into weekly and 5h sections when
+a 5h provider (`zcode`) is configured:
 
 ```text
 AI PROVIDER  ACCOUNT               WEEKLY USAGE
@@ -264,6 +285,9 @@ Claude       work                  43.2%
 agy          gemini                74.2%
 agy          claude/gpt            12.8%
 Cursor       default               25%
+
+AI PROVIDER  ACCOUNT               5H USAGE
+ZCode        default               18%
 ```
 
 ### JSON
@@ -279,7 +303,7 @@ result; real output includes every target, failures too:
 Each result has exactly these fields:
 
 - `target_id`;
-- `provider` (`codex`, `grok`, `claude`, `agy`, or `cursor`);
+- `provider` (`codex`, `grok`, `claude`, `agy`, `cursor`, or `zcode`);
 - `account`;
 - `status`;
 - `used_percent`, a number with the provider's precision, or `null` when no
@@ -295,9 +319,9 @@ outputs. Help output stays text.
 
 ## Statuses and exit codes
 
-| WEEKLY USAGE | Meaning |
+| WEEKLY USAGE / 5H USAGE | Meaning |
 |---|---|
-| `37%`, `43.2%` | Weekly allowance used; whole values have no decimal, others show one decimal place |
+| `37%`, `43.2%` | Allowance used (`weekly` or `5h`); whole values have no decimal, others show one decimal place |
 | `0%` on a Grok row | Grok reported a weekly period but omitted the percentage; shown as zero by convention, not a measured zero |
 | `N/A (monthly)` | The account has a monthly allowance, which is not weekly usage |
 | `N/A (API key)` | API-key authentication has no subscription allowance |
@@ -341,6 +365,10 @@ the others. All account labels come from configuration and are not verified emai
   - For Cursor, `CURSOR_*` overrides and any ambient parent `NODE_OPTIONS` are
     removed while preserving `HOME` for the default login, and a controlled
     read-only `NODE_OPTIONS` preload hook is injected into `cursor-agent status --format json`.
+  - For ZCode, `ZCODE_*`, `ZAI_*`, and `BIGMODEL_*` overrides and any ambient
+    parent `NODE_OPTIONS` are removed while preserving `HOME` for the default
+    login, and a controlled read-only `NODE_OPTIONS` preload hook is injected
+    into `zcode doctor --json`.
   - Codex and Grok children get their configured `CODEX_HOME` or `GROK_HOME`.
     Claude children get `CLAUDE_CONFIG_DIR` for non-default homes; the default
     `~/.claude` home uses the CLI's implicit credential namespace. `HOME` and
@@ -367,14 +395,17 @@ Gaebokchi drives provider interfaces that are qualified per CLI version:
 | Claude | Claude Code 2.1.280 and 2.1.284; reset text on 2.1.283 | The prompt-free `auth status` read and the `/usage` local command |
 | `agy` | `agy 1.4.0` (`>= 1.2.15` required) | `agy --print /usage --output-format json --print-timeout 15s` |
 | Cursor | `cursor-agent 2026.10.16-e3cb207` | `cursor-agent status --format json` with read-only `NODE_OPTIONS` preload hook |
+| ZCode | `zcode 0.16.9` | `zcode doctor --json` with read-only `NODE_OPTIONS` preload hook |
 
 The later positive-path qualification used the current configured-account binary
 with two Codex homes, one Grok home, and one Claude home on macOS/arm64;
 see [TASK-032](docs/verification/TASK-032.md). Single-account `agy` weekly
 model-pool qualification (`gemini` and `claude/gpt`) is recorded in
-[agy compatibility](docs/verification/agy-compatibility.md), and single-account
+[agy compatibility](docs/verification/agy-compatibility.md), single-account
 Cursor qualification is recorded in
-[Cursor compatibility](docs/verification/cursor-compatibility.md). Distinct real Grok
+[Cursor compatibility](docs/verification/cursor-compatibility.md), and
+single-account ZCode 5-hour qualification is recorded in
+[ZCode compatibility](docs/verification/zcode-compatibility.md). Distinct real Grok
 or Claude logins across multiple homes have not been qualified.
 
 - **Offline test suites.** The current code's suites ran natively on
@@ -394,12 +425,21 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
   using a read-only `NODE_OPTIONS` preload hook. If a CLI update alters that
   module boundary, the row shows `UNSUPPORTED` until gaebokchi is qualified
   against the new version.
+- The ZCode row intercepts `runDoctor` in `zcode doctor --json` using a
+  read-only `NODE_OPTIONS` preload hook and reports the 5-hour Coding Plan
+  token/credit window in the `5h usage` section. Because `gaebokchi` never calls
+  ZCode's OAuth token-exchange or key-provisioning `POST` endpoints, the active
+  ZCode account must already have a stored Coding Plan `:api-key` in
+  `~/.zcode/v2/credentials.json`; an OAuth-only login without a stored Coding
+  Plan key reports `AUTH REQUIRED`. If a CLI update alters the `runDoctor`
+  boundary, the row shows `UNSUPPORTED` until gaebokchi is qualified against
+  the new version.
 - A Grok weekly response without a percentage is shown as `0%`, which is a
   display convention, not a measured zero.
 - Multi-account Grok and non-default Claude homes depend on the installed CLI
   honoring `GROK_HOME` and `CLAUDE_CONFIG_DIR` respectively. Different aliases alone
-  do not establish different logged-in identities. `agy` and `cursor` support
-  only the single default login.
+  do not establish different logged-in identities. `agy`, `cursor`, and `zcode`
+  support only the single default login.
 - Bars can misalign in terminals configured to draw East Asian Ambiguous
   characters at double width. Narrowing the window during a live redraw can
   leave reflowed lines above the final frame.
@@ -413,9 +453,10 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
 ## Troubleshooting
 
 - **`AUTH REQUIRED`**: log in with the provider CLI (`codex login`, `grok`,
-  `claude auth login`, `agy`, or `cursor-agent login`), then rerun.
+  `claude auth login`, `agy`, `cursor-agent login`, or `zcode` with a stored
+  Coding Plan API key for the active account), then rerun.
 - **`NOT INSTALLED`**: install the CLI, or point `--codex-bin`, `--grok-bin`,
-  `--claude-bin`, `--agy-bin`, or `--cursor-bin` at it.
+  `--claude-bin`, `--agy-bin`, `--cursor-bin`, or `--zcode-bin` at it.
 - **`HOME NOT FOUND` / `HOME ERROR`**: check the path, or pass the homes you
   configured in `config.yaml`. Gaebokchi never creates a home directory.
 - **`UNSUPPORTED` / `PROTOCOL ERROR`**: gaebokchi does not accept the installed
@@ -423,7 +464,8 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
   before upgrading or downgrading anything. For Claude, confirm that
   `claude auth status` reports a Claude subscription login. For `agy`, confirm
   `agy --version` is at least `1.2.15`. For Cursor, confirm `cursor-agent --version`
-  matches the qualified release.
+  matches the qualified release. For ZCode, confirm `zcode --version` matches
+  the qualified release.
 - **`TIMEOUT`**: raise `--timeout`; quota reads go over the network and can be
   slow.
 - **`ERROR`**: the provider CLI failed in a way gaebokchi does not classify.

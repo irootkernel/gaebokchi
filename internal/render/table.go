@@ -17,9 +17,10 @@ import (
 
 // Headings are contractual.
 const (
-	HeadingProvider = "AI PROVIDER"
-	HeadingAccount  = "ACCOUNT"
-	HeadingUsage    = "WEEKLY USAGE"
+	HeadingProvider      = "AI PROVIDER"
+	HeadingAccount       = "ACCOUNT"
+	HeadingUsage         = "WEEKLY USAGE"
+	HeadingFiveHourUsage = "5H USAGE"
 )
 
 // SanitizeLabel applies the domain display-label normalization policy
@@ -30,7 +31,7 @@ func SanitizeLabel(s string) string {
 	return domain.NormalizeLabel(s)
 }
 
-// UsageCell renders the WEEKLY USAGE cell for one result.
+// UsageCell renders the usage cell for one result.
 func UsageCell(r domain.Result) string {
 	if r.Status == domain.StatusOK {
 		if r.UsedPercent == nil {
@@ -46,23 +47,39 @@ func UsageCell(r domain.Result) string {
 	return r.Status.Cell()
 }
 
-// Table renders the header plus one row per result in the given order.
-// The returned text ends with a newline and contains no blank lines,
-// separators, titles, or trailing padding.
+// Table renders the weekly section and, when 5-hour targets are present,
+// the 5-hour section below it.
 func Table(results []domain.Result) string {
-	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
-	// The tabwriter writes only to an in-memory bytes.Buffer, which cannot fail.
-	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", HeadingProvider, HeadingAccount, HeadingUsage)
+	var weekly, fiveHour []domain.Result
 	for _, r := range results {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n",
-			SanitizeLabel(r.Provider.DisplayName()),
-			SanitizeLabel(r.Account),
-			UsageCell(r),
-		)
+		if r.Provider.IsFiveHour() {
+			fiveHour = append(fiveHour, r)
+		} else {
+			weekly = append(weekly, r)
+		}
 	}
-	_ = w.Flush()
-	return buf.String()
+	renderSection := func(heading string, rows []domain.Result) string {
+		var buf bytes.Buffer
+		w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+		// The tabwriter writes only to an in-memory bytes.Buffer, which cannot fail.
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", HeadingProvider, HeadingAccount, heading)
+		for _, r := range rows {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n",
+				SanitizeLabel(r.Provider.DisplayName()),
+				SanitizeLabel(r.Account),
+				UsageCell(r),
+			)
+		}
+		_ = w.Flush()
+		return buf.String()
+	}
+	if len(fiveHour) == 0 {
+		return renderSection(HeadingUsage, weekly)
+	}
+	if len(weekly) == 0 {
+		return renderSection(HeadingFiveHourUsage, fiveHour)
+	}
+	return renderSection(HeadingUsage, weekly) + "\n" + renderSection(HeadingFiveHourUsage, fiveHour)
 }
 
 // WriteDiagnostics emits at most one bounded line per result, in result
