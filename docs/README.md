@@ -60,7 +60,9 @@ Each extension has a linked [execution dossier](todo/README.md). The roadmap
 owns lifecycle state; the dossiers map tasks to canonical requirements and
 architecture.
 
-The ZCode (`zcode`) 5h usage extension (`REQ-067`, `REQ-068`, and `ARCH-20`) adds
+[EPIC-014](roadmap/README.md#epic-014) ([TASK-042](roadmap/README.md#task-042))
+records the delivered ZCode (`zcode`) 5h component and owns `REQ-067`, `REQ-068`,
+and `ARCH-20`. This extension adds
 single-account ZCode Coding Plan 5-hour usage (`zcode:0`) via `<zcode-bin> doctor --json`
 with a read-only `NODE_OPTIONS` preload hook and splits the UI into top
 **Weekly usage** and bottom **5h usage** sections when configured, verified
@@ -72,7 +74,7 @@ When documents disagree, resolve the conflict in the same scoped change. Until t
 
 ## Identifiers
 
-- **Roadmap.** The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN` and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history are preserved. Epic and task sequences are independent and monotonic; numbers are never reused. New allocations increment the current epic maximum of 13 and task maximum of 41. Cross-scope qualification is unnecessary while this repository has one delivery scope.
+- **Roadmap.** The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN` and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history are preserved. Epic and task sequences are independent and monotonic; numbers are never reused. New allocations increment the current epic maximum of 14 and task maximum of 42. Cross-scope qualification is unnecessary while this repository has one delivery scope.
 - **Specification.** Requirements (`REQ-###`), architecture sections (`ARCH-##`), verification catalog entries (such as V-CODEX, in ARCH-11), and primary sources (`S-##`, in ARCH-15) are stable identifiers with explicit `<a id>` anchors. They are never renumbered or reused. The current maxima are REQ-068, ARCH-20, and S-24.
 - **Decision records.** ADR file names are numbered from `ADR-0001` upward.
 

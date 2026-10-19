@@ -425,10 +425,12 @@ including no provider auto-upgrade and offline test isolation.
 <a id="req-067"></a>
 - [x] **REQ-067: Qualified ZCode 5h metadata interface.** Establish a real installed-CLI path (`<zcode-bin> doctor --json` with a read-only `NODE_OPTIONS` preload hook) for the single default ZCode login (`zcode 0.16.9`) that resolves the preferred/active ZCode Coding Plan account first, requires an already-stored Coding Plan API key (`:api-key`) for that selected account from `zcode`'s credential store (`createSharedZCodeCredentialStore`), and performs a single read-only `GET /api/monitor/usage/quota/limit` request through `zcode`'s HTTP client (`createDefaultHttpClient`) without invoking `ProjectAccessTokenClient`, minting or creating server-side API keys, falling back to another provider family's key when the selected account is OAuth-only, starting model turns/sessions, or writing any files outside `gaebokchi`'s private temporary preload directory via sync, promise, or callback `node:fs` APIs (including when `credentials.json` is corrupt or `zcode` runs as a SEA binary). Omit all PII and credentials from hook output and degrade to `StatusUnsupported` (`UNSUPPORTED`) if an incompatible CLI build does not trigger the hook.
   - Architecture: [ARCH-20](../architecture/README.md#arch-20), [ARCH-12](../architecture/README.md#arch-12), [ARCH-09](../architecture/README.md#arch-09). Verification: [V-ZCODE](../architecture/README.md#v-zcode), [V-CONTRACT](../architecture/README.md#v-contract), [V-SAFETY](../architecture/README.md#v-safety). Evidence: [ZCode compatibility](../verification/zcode-compatibility.md).
+  - Owner: [TASK-042](../roadmap/README.md#task-042), [EPIC-014](../roadmap/README.md#epic-014).
 
 <a id="req-068"></a>
 - [x] **REQ-068: ZCode default-login 5h support and two-section presentation.** Add an optional `zcode` list in `~/.config/gaebokchi/config.yaml` accepting at most one entry (`- name: <alias>`, with no `path` field; target ID `zcode:0`) and `--zcode-bin` with default `zcode`. Omission or `[]` disables ZCode. Select only the 5-hour token/credit quota (`type` in `{"TOKENS_LIMIT", "CREDIT_LIMIT"}`, `unit == 3`, `number == 5`, `Period: domain.PeriodFiveHour`, `QuotaID: "zcode_5h"`, `Source: "zcode_cli_usage"`) using `percentage` (or `currentValue / usage * 100` / `(usage - remaining) / usage * 100` when `percentage` is absent and `usage > 0`), and never report non-5h hourly windows (`number != 5`) or monthly tool limits (`unit == 5`) as 5-hour usage. Render `zcode` in a bottom **5h usage** section (`🐡 gaebokchi · 5h usage` in the interactive terminal view and `AI PROVIDER  ACCOUNT  5H USAGE` in the plain table) while keeping weekly providers in the top **Weekly usage** section and preserving the flat `--json` `results` array. Strip ambient `ZCODE_*`, `ZAI_*`, `BIGMODEL_*`, and parent `NODE_OPTIONS` environment variables before setting the controlled `NODE_OPTIONS` preload path.
   - Architecture: [ARCH-20](../architecture/README.md#arch-20), [ARCH-10](../architecture/README.md#arch-10). Verification: [V-ZCODE](../architecture/README.md#v-zcode), [V-OUTPUT](../architecture/README.md#v-output), [V-E2E](../architecture/README.md#v-e2e). Evidence: [ZCode compatibility](../verification/zcode-compatibility.md).
+  - Owner: [TASK-042](../roadmap/README.md#task-042), [EPIC-014](../roadmap/README.md#epic-014).
 
 | Delivery | Required reconciliation |
 |---|---|
@@ -439,7 +441,9 @@ including no provider auto-upgrade and offline test isolation.
 REQ-060 through REQ-064 are verified and closed by EPIC-012 ([TASK-034](../roadmap/README.md#task-034)
 through [TASK-038](../roadmap/README.md#task-038)). REQ-065 and REQ-066 are verified and closed by
 EPIC-013 ([TASK-039](../roadmap/README.md#task-039) through [TASK-041](../roadmap/README.md#task-041)).
-REQ-067 and REQ-068 are verified in [ZCode compatibility](../verification/zcode-compatibility.md).
+REQ-067 and REQ-068 are owned by [TASK-042](../roadmap/README.md#task-042) in
+[EPIC-014](../roadmap/README.md#epic-014) and verified in
+[ZCode compatibility](../verification/zcode-compatibility.md).
 Preserve completed task/evidence bodies and the historical v0.1.0 release gate.
 
 <a id="completion-rules"></a>
@@ -497,6 +501,7 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-038](../roadmap/README.md#task-038) | [REQ-064](#req-064); TASK-037 supplies implementation coverage |
 | [TASK-039](../roadmap/README.md#task-039) | [REQ-065](#req-065) |
 | [TASK-041](../roadmap/README.md#task-041) | [REQ-066](#req-066); TASK-040 supplies implementation coverage |
+| [TASK-042](../roadmap/README.md#task-042) | [REQ-067](#req-067), [REQ-068](#req-068); owns ZCode component traceability |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).
 

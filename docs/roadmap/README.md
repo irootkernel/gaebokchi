@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: v0.1.0 baseline with provider extensions\
-Status: EPIC-001 through EPIC-013 retain their recorded COMPLETE milestones. The exact-release gate remains separately recorded below.
+Status: EPIC-001 through EPIC-014 retain their recorded COMPLETE milestones. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
@@ -14,7 +14,8 @@ described in the [current requirements](../specs/README.md) and
 [architecture](../architecture/README.md). Historical task records below retain
 the meaning they had when completed; the [current release gate](#current-release-gate)
 governs v0.1.0 publication. Cursor adapter integration and live executable
-acceptance are complete in EPIC-013 (TASK-039 through TASK-041).
+acceptance are complete in EPIC-013 (TASK-039 through TASK-041). ZCode support
+and its requirement ownership are recorded in EPIC-014 (TASK-042).
 
 ## How to use this plan
 
@@ -40,7 +41,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011 -> EPIC-012 -> EPIC-013
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011 -> EPIC-012 -> EPIC-013 -> EPIC-014
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -58,8 +59,9 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 11 | [EPIC-011: Public v0.1.0 release readiness](#epic-011) | [TASK-031](#task-031) -> [TASK-032](#task-032) -> [TASK-033](#task-033) | [EPIC-010](#epic-010) complete | COMPLETE (exact release commit gate requires post-commit receipt) |
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; `cursor-agent 2026.10.16-e3cb207` preload-hook contract qualified on 2026-10-18 | COMPLETE (implementation and live acceptance milestone) |
+| 14 | [EPIC-014: ZCode usage support and traceability](#epic-014) | [TASK-042](#task-042) | EPIC-013 complete; ZCode qualification and integrated-executable evidence recorded | COMPLETE (component milestone; release gates remain separate) |
 
-Historical note: every epic began NOT STARTED at plan authoring. The reconciled
+Historical note: EPIC-001 through EPIC-013 began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
 implementation milestones and task commits (with EPIC-006's final acceptance
 superseded by EPIC-007, as the TASK-013/TASK-014 supersession notes record).
@@ -69,7 +71,7 @@ the interactive terminal view. EPIC-011 completed current public-release
 readiness: YAML and Claude acceptance, packaging, and the REQ-048 live gate.
 The exact release commit still needs its post-commit gate receipt before tagging.
 
-The task order is globally sequential: TASK-001 through TASK-041. Runtime
+The task order is globally sequential: TASK-001 through TASK-042. Runtime
 account queries may be concurrent; development tasks may not.
 
 EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
@@ -1798,6 +1800,57 @@ Evidence: [cursor-compatibility.md](../verification/cursor-compatibility.md).
 
 **Handoff:** Canonical Cursor outcomes and exact compatibility limits recorded;
 EPIC-013 marked complete.
+
+<a id="epic-014"></a>
+## EPIC-014: ZCode usage support and traceability
+
+- [x] Epic complete. **Status: COMPLETE (component milestone).**
+
+**Goal:** Record the delivered single-account ZCode 5-hour Coding Plan support,
+weekly/5-hour presentation, and canonical ownership of REQ-067 and REQ-068.
+
+**Entry:** EPIC-013 complete and the qualified ZCode interface recorded in
+[ZCode compatibility](../verification/zcode-compatibility.md).
+
+**Task sequence:** [TASK-042](#task-042).
+
+**Local epic acceptance:** The installed-CLI qualification and positive
+integrated-executable component evidence are recorded, and both checked ZCode
+requirements link to their architecture, evidence and owning task.
+
+**Handoff:** The release procedure owns fresh exact-candidate QA, native gates,
+packaging, live acceptance, installation and publication.
+
+<a id="task-042"></a>
+### TASK-042: Register ZCode support and acceptance ownership
+
+- [x] Task complete. **Status: COMPLETE.**
+
+**Purpose:** Reconcile the already delivered ZCode component with REQ-050's
+requirement-to-architecture-to-task traceability contract.
+
+**Dependency:** EPIC-013 complete and the existing ZCode qualification and
+integrated-executable acceptance evidence available.
+
+**Owners:** REQ-067 and REQ-068; ARCH-20 and the ARCH-10 period presentation.
+
+**Scope and deliverables:** Register the single default ZCode login, stored
+Coding Plan API-key prerequisite, read-only `doctor --json` preload interface,
+strict 5-hour quota selection and two-section output as an owned component.
+Retain the flat JSON contract and the CLI's credential ownership. Link both
+requirements to this task and preserve their recorded compatibility evidence.
+
+**Acceptance:** REQ-067 and REQ-068 have canonical task ownership, their
+architecture and qualification evidence remain traceable, and the component
+milestone is distinguished from each release's exact-candidate gates.
+
+**Verification:** Cross-check [ZCode compatibility](../verification/zcode-compatibility.md),
+[REQ-067](../specs/README.md#req-067), [REQ-068](../specs/README.md#req-068), and
+[ARCH-20](../architecture/README.md#arch-20); run `go run scripts/check-docs.go`.
+The compatibility record owns the qualified CLI and component live evidence.
+
+**Handoff:** The release handler retains responsibility for current-candidate
+verification and publication under the release procedure.
 
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate

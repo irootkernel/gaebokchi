@@ -1226,7 +1226,9 @@ documents the qualified `cursor-agent 2026.10.16-e3cb207` contract on `darwin/ar
 <a id="arch-20"></a>
 ## ARCH-20: ZCode single-account 5h adapter and two-section presentation
 
-**Delivery:** User-requested extension (`none`). **Requirements:**
+**Delivery:** [EPIC-014](../roadmap/README.md#epic-014),
+[TASK-042](../roadmap/README.md#task-042) (component ownership registration;
+original implementation was a user-requested extension). **Requirements:**
 [REQ-067](../specs/README.md#req-067) and [REQ-068](../specs/README.md#req-068).
 The [ZCode compatibility record](../verification/zcode-compatibility.md)
 documents the qualified `zcode 0.16.9` contract on `darwin/arm64`.
