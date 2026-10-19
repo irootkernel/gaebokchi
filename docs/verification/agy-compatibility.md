@@ -29,6 +29,9 @@ absent-login probes.
   ```
   Run with stdin closed (`os.DevNull`), an empty private temporary working
   directory (`0700`), and the outer per-target context deadline.
+  The CLI's fixed 15-second print timeout is independent of `--timeout`;
+  increasing the outer budget cannot extend it. CLI exit 3 is reported as
+  `TIMEOUT`.
 - **Zero-turn / read-only verification:** Observed live execution exited `0` in
   ~5.2s with `status: "SUCCESS"`, `num_turns: 0`, `usage.total_tokens: 0`,
   `conversation_id: ""`, empty `errors`, and no created files in the temporary

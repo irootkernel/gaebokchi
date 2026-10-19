@@ -165,6 +165,53 @@ var _ = ginkgo.It("TestParseUsageRejectsInvalidEnvelopeOrTurns", func() {
 	}
 })
 
+var _ = ginkgo.It("rejects malformed agy pools without losing the valid sibling", func() {
+	t := testT{ginkgo.GinkgoT()}
+	for _, invalid := range []string{
+		`{"id":"gemini-weekly","window":"weekly","remaining_fraction":0.5},{"id":"gemini-weekly","window":"weekly","remaining_fraction":0.6}`,
+		`{"id":"gemini-weekly","window":"5h","remaining_fraction":0.5}`,
+		`{"id":"gemini-weekly","window":"weekly","remaining_fraction":null}`,
+		`{"id":"gemini-weekly","window":"weekly","remaining_fraction":"0.5"}`,
+	} {
+		payload := `{"status":"SUCCESS","num_turns":0,"command":{"name":"usage","data":{"groups":[{"quotas":[` + invalid + `,{"id":"3p-weekly","window":"weekly","remaining_fraction":0.9}]}]}}}`
+		pools, status, _, _ := parseUsage([]byte(payload))
+		if status != "" || pools[QuotaGemini].status != domain.StatusProtocolError {
+			t.Fatalf("invalid pool was not rejected: %s / %v / %+v", invalid, status, pools)
+		}
+		if sibling := pools[QuotaClaudeGPT]; sibling.status != domain.StatusOK || sibling.percent == nil || *sibling.percent != 10 {
+			t.Fatalf("valid sibling was lost: %s / %+v", invalid, sibling)
+		}
+	}
+})
+
+var _ = ginkgo.It("classifies agy usage exits and rejects oversized child output for both pools", func() {
+	t := testT{ginkgo.GinkgoT()}
+	for _, tc := range []struct {
+		command string
+		status  domain.Status
+	}{
+		{"exit 3", domain.StatusTimeout},
+		{"exit 2", domain.StatusUnsupported},
+		{"exit 1", domain.StatusProviderError},
+		{"head -c 300000 /dev/zero", domain.StatusProtocolError},
+	} {
+		bin := filepath.Join(t.TempDir(), "agy")
+		script := "#!/bin/sh\nif [ \"$1\" = --version ]; then printf '1.4.0\\n'; else " + tc.command + "; fi\n"
+		if err := os.WriteFile(bin, []byte(script), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		p := New()
+		a, b := agyTargets(bin)
+		for _, target := range []domain.Target{a, b} {
+			if result := p.Query(ctx, target); result.Status != tc.status || result.UsedPercent != nil || result.CleanupFailed {
+				t.Fatalf("%s: got %+v, want %v without percentage or cleanup failure", tc.command, result, tc.status)
+			}
+		}
+		cancel()
+	}
+})
+
 func fakeAgy(t testT, version, usage string) (bin, log string) {
 	t.Helper()
 	dir := t.TempDir()

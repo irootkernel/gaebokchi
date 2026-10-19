@@ -33,7 +33,7 @@ All Go unit, integration, and E2E suites run under Ginkgo v2 `v2.33.0` and Gomeg
 
 ## Gaori Mapping
 
-No `.gaori/tester.yaml` exists in this repository, so no Gaori parser mapping is configured. If added later, aggregate and prepare output use `generic`; each single-format Ginkgo stage can use `ginkgo` after checking the installed Gaori parser catalog.
+The committed `.gaori/tester.yaml` maps `test` and `test-prepare` to the `generic` parser, and `test-unit`, `test-int`, and `test-e2e` to the `ginkgo` parser. The Makefile remains the executable authority for these commands.
 
 ## E2E Environment
 

@@ -119,7 +119,7 @@ function wrapHandleStatus(origFn) {
           ? {
               totalSpend: typeof pu.totalSpend === "number" ? pu.totalSpend : 0,
               includedSpend:
-                typeof pu.includedSpend === "number" ? pu.includedSpend : 0,
+                typeof pu.includedSpend === "number" ? pu.includedSpend : null,
               bonusSpend: typeof pu.bonusSpend === "number" ? pu.bonusSpend : 0,
               remaining: typeof pu.remaining === "number" ? pu.remaining : 0,
               limit: typeof pu.limit === "number" ? pu.limit : 0,

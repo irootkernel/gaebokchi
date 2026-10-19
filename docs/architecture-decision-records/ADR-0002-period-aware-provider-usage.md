@@ -7,6 +7,11 @@
   decision to retire the pure public-flag restriction for Cursor in favor of a
   subprocess (`cursor-agent status --format json`) + read-only `NODE_OPTIONS`
   preload hook contract.
+- **ZCode amendment (2026-10-18):** [REQ-068](../specs/README.md#req-068)
+  and [ARCH-20](../architecture/README.md#arch-20) add a separate bottom 5-hour
+  section for ZCode. The weekly-only decision below remains the scope of the
+  agy and Cursor deliveries; it does not prohibit that later ZCode extension.
+  The flat JSON `results` contract remains unchanged.
 - **Delivery:** [EPIC-012](../roadmap/README.md#epic-012) and
   [EPIC-013](../roadmap/README.md#epic-013).
 - **Related:** [REQ-060](../specs/README.md#req-060) through
@@ -57,7 +62,8 @@ Static and bounded live qualification of `cursor-agent 2026.10.16-e3cb207` on
 
 ## Decision
 
-1. **Preserve the weekly-only output and existing JSON contract.** Keep the
+1. **Preserve weekly output for the weekly providers and the existing JSON
+   contract.** For the agy and Cursor deliveries, keep the
    current 3-column plain table (`AI PROVIDER`, `ACCOUNT`, `WEEKLY USAGE`),
    the interactive terminal frame (`🐡 gaebokchi · weekly usage`), and the
    existing `--json` `results` snapshot without introducing multi-period
@@ -117,6 +123,8 @@ Static and bounded live qualification of `cursor-agent 2026.10.16-e3cb207` on
   Rejected by the owner on 2026-10-17 because `gaebokchi`'s purpose is a concise
   weekly usage view, and all target providers (`ChatGPT`, `Grok`, `Claude`,
   `agy`, `Cursor`) provide weekly usage.
+  The later ZCode amendment permits its separate `5H USAGE` section while
+  retaining weekly rows for these providers and the flat JSON snapshot.
 - **Multi-account `agy` or `Cursor` via synthetic `HOME` / config directories:**
   Rejected by the owner; only the single default CLI login is used for both
   providers.

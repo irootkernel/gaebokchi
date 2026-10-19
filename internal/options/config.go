@@ -68,14 +68,18 @@ func loadConfig(path, home string) (accountConfig, error) {
 	if len(root.Content) > 0 && root.Content[0].Kind == yaml.MappingNode {
 		fields := root.Content[0].Content
 		for i := 0; i < len(fields); i += 2 {
+			key := fields[i]
+			for key.Kind == yaml.AliasNode {
+				key = key.Alias
+			}
 			value := fields[i+1]
 			for value.Kind == yaml.AliasNode {
 				value = value.Alias
 			}
 			if value.Tag == "!!null" {
-				return accountConfig{}, configf(path, "%s must be a list; omit it or use [] to disable", fields[i].Value)
+				return accountConfig{}, configf(path, "%s must be a list; omit it or use [] to disable", key.Value)
 			}
-			cfg.order = append(cfg.order, domain.ProviderKind(fields[i].Value))
+			cfg.order = append(cfg.order, domain.ProviderKind(key.Value))
 		}
 	}
 	for _, group := range []struct {

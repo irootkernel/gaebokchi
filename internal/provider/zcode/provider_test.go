@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -160,6 +161,8 @@ func fakeZCode(t testT, payload string) (bin, argLog, envLog, preloadCheckLog st
 		"printf '%s\\n' \"$*\" >> " + argLog + "\n" +
 		"env >> " + envLog + "\n" +
 		"req=${NODE_OPTIONS#--require=}\n" +
+		"req=${req#\\\"}\n" +
+		"req=${req%\\\"}\n" +
 		"if [ -f \"$req\" ]; then printf 'exists:%s\\n' \"$req\" > " + preloadCheckLog + "; fi\n" +
 		"cat " + payloadFile + "\n"
 	if err := os.WriteFile(bin, []byte(script), 0o700); err != nil {
@@ -179,6 +182,10 @@ var _ = ginkgo.It("TestQueryExecutesDoctorWithPreloadHookFiltersEnvAndCleansTemp
 
 	bin, argLog, envLog, preloadCheckLog := fakeZCode(t, syntheticZCodeFiveHourJSON)
 	p := New()
+	p.TempParent = filepath.Join(t.TempDir(), "tmp with space")
+	if err := os.MkdirAll(p.TempParent, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	tgt := domain.Target{
 		ID: "zcode:0", Provider: domain.ProviderZCode, FallbackAccount: "default", Bin: bin,
 	}
@@ -214,12 +221,12 @@ var _ = ginkgo.It("TestQueryExecutesDoctorWithPreloadHookFiltersEnvAndCleansTemp
 		strings.Contains(envStr, "\nBIGMODEL_API_ORIGIN=") ||
 		strings.Contains(envStr, "--inspect") ||
 		!strings.Contains(envStr, "\nHOME=/Users/tester\n") ||
-		!strings.Contains(envStr, "\nNODE_OPTIONS=--require="+preloadPath+"\n") {
+		!strings.Contains(envStr, "\nNODE_OPTIONS=--require="+strconv.Quote(preloadPath)+"\n") {
 		t.Fatalf("child environment was not filtered properly:\n%s", envStr)
 	}
 })
 
-var _ = ginkgo.It("TestQueryHandlesMissingCLITimeoutAndCleanupFailure", func() {
+var _ = ginkgo.It("TestQueryHandlesMissingCLITimeoutOversizedOutputAndCleanupFailure", func() {
 	t := testT{ginkgo.GinkgoT()}
 	p := New()
 	missing := p.Query(context.Background(), domain.Target{
@@ -242,6 +249,17 @@ var _ = ginkgo.It("TestQueryHandlesMissingCLITimeoutAndCleanupFailure", func() {
 	})
 	if timedOut.Status != domain.StatusTimeout {
 		t.Fatalf("timeout status = %v, want StatusTimeout", timedOut.Status)
+	}
+
+	hugeBin := filepath.Join(dir, "zcode-huge")
+	if err := os.WriteFile(hugeBin, []byte("#!/bin/sh\nhead -c 300000 /dev/zero\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	limitCtx, limitCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer limitCancel()
+	oversized := p.Query(limitCtx, domain.Target{ID: "zcode:0", Provider: domain.ProviderZCode, FallbackAccount: "default", Bin: hugeBin})
+	if oversized.Status != domain.StatusProtocolError || oversized.UsedPercent != nil || oversized.CleanupFailed {
+		t.Fatalf("oversized child output = %+v", oversized)
 	}
 
 	bin, _, _, _ := fakeZCode(t, syntheticZCodeFiveHourJSON)
@@ -277,7 +295,7 @@ var _ = ginkgo.It("TestPreloadScriptExecutesAndStripsPIIInNode", func() {
 		ginkgo.Skip("node not on PATH")
 	}
 	dir := t.TempDir()
-	preloadDir := filepath.Join(dir, "preload")
+	preloadDir := filepath.Join(dir, "preload with space")
 	if err := os.MkdirAll(preloadDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +385,7 @@ runDoctor({ stdout: process.stdout, stderr: process.stderr }, { json: true });
 		t.Fatal(err)
 	}
 	cmd := exec.Command(nodeBin, driverPath)
-	cmd.Env = append(os.Environ(), "NODE_OPTIONS=--require="+preloadPath)
+	cmd.Env = childEnv(preloadPath)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("node execution failed: %v: %s", err, out)
@@ -592,5 +610,19 @@ runDoctor({ stdout: process.stdout, stderr: process.stderr }, { json: true });
 		if _, statErr := os.Stat(filepath.Join(preloadDir, "zcode-builtin.json")); statErr != nil {
 			t.Fatalf("expected SEA builtin asset in preloadDir, got: %v", statErr)
 		}
+	}
+})
+
+var _ = ginkgo.It("reports a nonzero zcode CLI exit without fabricating usage", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bin := filepath.Join(t.TempDir(), "zcode-fail")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	result := New().Query(ctx, domain.Target{ID: "zcode:0", Provider: domain.ProviderZCode, FallbackAccount: "default", Bin: bin})
+	if result.Status != domain.StatusProviderError || result.Diagnostic.Code != "status_exit_error" || result.UsedPercent != nil || result.CleanupFailed {
+		t.Fatalf("nonzero CLI exit = %+v", result)
 	}
 })

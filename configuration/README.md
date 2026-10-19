@@ -42,7 +42,9 @@ the label shown in the table and JSON output. It does not select or verify a
 provider login. `path` selects the CLI-managed account state for that row.
 `agy` accepts at most one entry (such as `- name: default`, with no `path`
 required) and queries the single default `agy` login once to display two weekly
-model-pool rows (`gemini` and `claude/gpt`). `cursor` accepts at most one entry
+model-pool rows (`gemini` and `claude/gpt`). An optional `agy.path` is validated
+as a path but does not select a login or change the default credential home.
+`cursor` accepts at most one entry
 (such as `- name: default`, with no `path` field allowed) and queries the single
 default `cursor-agent` login once to display its weekly `Included` subscription
 usage row. `zcode` accepts at most one entry (such as `- name: default`, with no

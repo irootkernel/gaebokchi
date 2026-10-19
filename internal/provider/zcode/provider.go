@@ -65,7 +65,7 @@ func ResolveBin(bin string) (string, error) {
 func childEnv(preloadPath string) []string {
 	r := envfilter.ZCode()
 	r.Set = map[string]string{
-		"NODE_OPTIONS": "--require=" + preloadPath,
+		"NODE_OPTIONS": "--require=" + strconv.Quote(preloadPath),
 	}
 	return envfilter.Apply(os.Environ(), r)
 }

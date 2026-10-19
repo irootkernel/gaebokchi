@@ -62,9 +62,16 @@ subscriptions enforce a **5-hour rolling token/credit quota window** (`unit == 3
     via `backupCorruptFile` (`MJt`), and SEA builds can materialize
     `zcode-builtin.json` under `dataBaseDir`. `preload.cjs` pre-validates
     `credentials.json` before `rawStore.load`, materializes any SEA asset only
-    inside its own private temporary `preloadDir`, and wraps `node:fs` (sync and
-    callback APIs) and `node:fs/promises` to reject any filesystem mutation
-    outside `preloadDir` with `EROFS`.
+    inside its own private temporary `preloadDir`, and guards the qualified
+    credential-store and asset write operations with `EROFS` outside
+    `preloadDir`: write/append, mkdir, chmod, unlink/rm/rmdir, truncate,
+    rename/copyFile, write-mode open, and createWriteStream, including their
+    callback and promise forms where available. This in-process guard is not
+    a filesystem sandbox: it starts after bootstrap and does not intercept
+    every mutating Node API (for example, link, symlink, mkdtemp, or fd writes).
+    The no-external-writes requirement applies to the qualified `zcode 0.16.9`
+    query path, including corrupt credentials and SEA assets; it is not a
+    guarantee for arbitrary code or an unqualified future CLI build.
 
 ## 2026-10-18 bounded live qualification (`darwin/arm64`)
 

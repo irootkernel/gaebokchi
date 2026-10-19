@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -278,6 +279,8 @@ func fakeCursor(t testT, payload string) (bin, argLog, envLog, preloadCheckLog s
 		"printf '%s\\n' \"$*\" >> " + argLog + "\n" +
 		"env >> " + envLog + "\n" +
 		"req=${NODE_OPTIONS#--require=}\n" +
+		"req=${req#\\\"}\n" +
+		"req=${req%\\\"}\n" +
 		"if [ -f \"$req\" ]; then printf 'exists:%s\\n' \"$req\" > " + preloadCheckLog + "; fi\n" +
 		"cat " + payloadFile + "\n"
 	if err := os.WriteFile(bin, []byte(script), 0o700); err != nil {
@@ -296,6 +299,10 @@ var _ = ginkgo.It("TestQueryExecutesStatusWithPreloadHookFiltersEnvAndCleansTemp
 
 	bin, argLog, envLog, preloadCheckLog := fakeCursor(t, capturedCursorWeeklyJSON)
 	p := New()
+	p.TempParent = filepath.Join(t.TempDir(), "tmp with space")
+	if err := os.MkdirAll(p.TempParent, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	tgt := domain.Target{
 		ID: "cursor:0", Provider: domain.ProviderCursor, FallbackAccount: "default", Bin: bin,
 	}
@@ -330,7 +337,7 @@ var _ = ginkgo.It("TestQueryExecutesStatusWithPreloadHookFiltersEnvAndCleansTemp
 		strings.Contains(envStr, "\nCURSOR_CONFIG_DIR=") ||
 		strings.Contains(envStr, "--inspect") ||
 		!strings.Contains(envStr, "\nHOME=/Users/tester\n") ||
-		!strings.Contains(envStr, "\nNODE_OPTIONS=--require="+preloadPath+"\n") {
+		!strings.Contains(envStr, "\nNODE_OPTIONS=--require="+strconv.Quote(preloadPath)+"\n") {
 		t.Fatalf("child environment was not filtered properly:\n%s", envStr)
 	}
 })
@@ -403,7 +410,10 @@ var _ = ginkgo.It("TestPreloadScriptExecutesAndStripsPIIInNode", func() {
 	if err != nil {
 		ginkgo.Skip("node not on PATH")
 	}
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "tmp with space")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	preloadPath := filepath.Join(dir, "preload.cjs")
 	if err := os.WriteFile(preloadPath, preloadScript, 0o600); err != nil {
 		t.Fatal(err)
@@ -455,16 +465,7 @@ const dashClient = {
     billingCycleStart: BigInt("1791986273284"),
     billingCycleEnd: BigInt("1792591073284"),
     enabled: true,
-    planUsage: {
-      totalSpend: 0,
-      includedSpend: 0,
-      bonusSpend: 0,
-      remaining: 0,
-      limit: 0,
-      autoPercentUsed: 100,
-      apiPercentUsed: 0,
-      totalPercentUsed: 25
-    },
+    planUsage: JSON.parse(process.argv[2]),
     spendLimitUsage: {
       individualSpend: 9999
     }
@@ -476,18 +477,53 @@ exp.handleStatus(credMgr, dashClient, { format: "json" });
 	if err := os.WriteFile(driverPath, []byte(driverCode), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(nodeBin, driverPath)
-	cmd.Env = append(os.Environ(), "NODE_OPTIONS=--require="+preloadPath)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("node execution failed: %v: %s", err, out)
+	for _, tc := range []struct {
+		name      string
+		planUsage string
+		status    domain.Status
+		percent   float64
+	}{
+		{"reported percentage", "{\"totalPercentUsed\":25,\"includedSpend\":0,\"limit\":0}", domain.StatusOK, 25},
+		{"spend fallback", "{\"includedSpend\":3,\"limit\":10}", domain.StatusOK, 30},
+		{"measured zero", "{\"includedSpend\":0,\"limit\":10}", domain.StatusOK, 0},
+		{"missing spend", "{\"limit\":10}", domain.StatusUnavailableNoData, 0},
+		{"nonnumeric spend", "{\"includedSpend\":\"not-numeric\",\"limit\":10}", domain.StatusUnavailableNoData, 0},
+		{"reported percentage without spend", "{\"totalPercentUsed\":25,\"limit\":10}", domain.StatusOK, 25},
+	} {
+		cmd := exec.Command(nodeBin, driverPath, tc.planUsage)
+		cmd.Env = childEnv(preloadPath)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s: node execution failed: %v: %s", tc.name, err, out)
+		}
+		if strings.Contains(string(out), "pii-secret") || strings.Contains(string(out), "secret-access-token") ||
+			strings.Contains(string(out), "spendLimitUsage") {
+			t.Fatalf("%s: PII, token, or spendLimitUsage leaked from preload.cjs: %s", tc.name, out)
+		}
+		parsed := parseStatus(out)
+		if parsed.status != tc.status {
+			t.Fatalf("%s: parsed outcome = %+v, want %s (%s)", tc.name, parsed, tc.status, out)
+		}
+		if tc.status == domain.StatusOK {
+			if parsed.percent == nil || *parsed.percent != tc.percent {
+				t.Fatalf("%s: percentage = %v, want %v", tc.name, parsed.percent, tc.percent)
+			}
+		} else if parsed.percent != nil {
+			t.Fatalf("%s: unavailable usage has a measured percentage: %v", tc.name, *parsed.percent)
+		}
 	}
-	if strings.Contains(string(out), "pii-secret") || strings.Contains(string(out), "secret-access-token") ||
-		strings.Contains(string(out), "spendLimitUsage") {
-		t.Fatalf("PII, token, or spendLimitUsage leaked from preload.cjs: %s", out)
+})
+
+var _ = ginkgo.It("reports a nonzero cursor CLI exit without fabricating usage", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bin := filepath.Join(t.TempDir(), "cursor-fail")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
 	}
-	parsed := parseStatus(out)
-	if parsed.status != domain.StatusOK || parsed.percent == nil || *parsed.percent != 25 {
-		t.Fatalf("preload output did not parse as 25%% StatusOK: %+v (%s)", parsed, out)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	result := New().Query(ctx, domain.Target{ID: "cursor:0", Provider: domain.ProviderCursor, FallbackAccount: "default", Bin: bin})
+	if result.Status != domain.StatusProviderError || result.Diagnostic.Code != "status_exit_error" || result.UsedPercent != nil || result.CleanupFailed {
+		t.Fatalf("nonzero CLI exit = %+v", result)
 	}
 })

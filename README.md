@@ -41,8 +41,8 @@ AI coding subscriptions enforce weekly or rolling 5-hour limits, and each
 provider shows them somewhere different: a TUI screen, a web page, a slash
 command. Gaebokchi asks each installed CLI for its provider-reported subscription
 usage through a prompt-free metadata interface and puts the results side by side.
-It never sends a model prompt, never reads your credentials, and exits after one
-snapshot.
+It never sends a model prompt, keeps credential handling inside the provider
+CLI processes, and exits after one snapshot.
 
 Gaebokchi is a small, read-only tool in the Aquarium tool family.
 
@@ -189,7 +189,9 @@ Cursor accounts, and ensure `zcode` has a stored Coding Plan API key in
 `~/.zcode/v2/credentials.json` for the active ZCode account (by configuring a
 Coding Plan API key through the `zcode` CLI outside `gaebokchi`; an OAuth login
 alone without a stored Coding Plan `:api-key` reports `AUTH REQUIRED`).
-Gaebokchi never reads or creates provider credentials.
+Gaebokchi does not create provider credentials. The Cursor and ZCode hooks use
+the provider CLI's credential manager inside its child process, as described
+under [Privacy and side effects](#privacy-and-side-effects).
 
 Use an absolute path or a path beginning with `~/`; shell variables and
 relative paths are not expanded. `~/` is expanded without changing the filesystem
@@ -331,7 +333,7 @@ outputs. Help output stays text.
 | `UNSUPPORTED` | The installed CLI lacks the qualified interface, its output changed, or its login mode is not supported, for example a Claude login routed through Bedrock or Vertex |
 | `NOT INSTALLED` | The executable was not found |
 | `HOME NOT FOUND` / `HOME ERROR` | A configured provider directory is missing or inaccessible |
-| `TIMEOUT` | The query did not finish within `--timeout` |
+| `TIMEOUT` | The query reached `--timeout` or the provider CLI's own deadline |
 | `PROTOCOL ERROR` | The provider answered in a shape gaebokchi does not accept |
 | `ERROR` | Any other failure, including a failed authentication check |
 | `CANCELLED` | Interrupted by SIGINT or SIGTERM |
@@ -348,8 +350,12 @@ the others. All account labels come from configuration and are not verified emai
 
 ## Privacy and side effects
 
-- **Credentials** stay with the provider CLIs. Gaebokchi never reads auth
-  files, tokens, or keychains, and never implements OAuth.
+- **Credentials** stay inside the provider CLI processes. The Cursor hook uses
+  `cursor-agent`'s credential manager. The ZCode hook validates the credential
+  file before loading the selected account's stored Coding Plan API key through
+  ZCode's credential store and uses it only for the provider quota request.
+  Secrets never appear in hook output. Gaebokchi does not implement OAuth or
+  create credentials.
 - **Environment.** Each provider runs as a child process with a filtered
   environment:
   - The API-key overrides `OPENAI_API_KEY`, `CODEX_API_KEY`, `XAI_API_KEY`,
@@ -408,9 +414,10 @@ single-account ZCode 5-hour qualification is recorded in
 [ZCode compatibility](docs/verification/zcode-compatibility.md). Distinct real Grok
 or Claude logins across multiple homes have not been qualified.
 
-- **Offline test suites.** The current code's suites ran natively on
+- **Offline test suites.** The v0.1.0 baseline's suites ran natively on
   macOS/arm64 and Linux/arm64 (containerized) during
   [TASK-032](docs/verification/TASK-032.md), including the fake-provider E2E suite.
+  Each release candidate must repeat the native macOS and Linux gates.
 - **Other targets** are cross-compiled.
 
 Newer CLI versions may change these interfaces. When that happens, gaebokchi
@@ -466,8 +473,10 @@ reports `UNSUPPORTED` or `PROTOCOL ERROR` rather than guessing.
   `agy --version` is at least `1.2.15`. For Cursor, confirm `cursor-agent --version`
   matches the qualified release. For ZCode, confirm `zcode --version` matches
   the qualified release.
-- **`TIMEOUT`**: raise `--timeout`; quota reads go over the network and can be
-  slow.
+- **`TIMEOUT`**: raise `--timeout` if the per-target budget is too short; quota
+  reads go over the network and can be slow. The `agy` usage command also has a
+  fixed 15-second print timeout, so raising `--timeout` above that cannot extend
+  its quota query. Retry later if that CLI deadline is reached.
 - **`ERROR`**: the provider CLI failed in a way gaebokchi does not classify.
   Run the provider CLI on its own to see its messages; gaebokchi deliberately
   does not print raw provider output.

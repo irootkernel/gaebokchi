@@ -136,6 +136,28 @@ codex:
 	}
 })
 
+var _ = ginkgo.It("resolves aliased provider keys without dropping configured targets", func() {
+	t := testT{ginkgo.GinkgoT()}
+	o := parseWithConfig(t, "agy: [{name: &provider cursor}]\n? *provider\n: [{name: alias-key}]\n")
+	targets := o.Targets()
+	wantIDs := []string{"agy:0", "agy:1", "cursor:0"}
+	if len(targets) != len(wantIDs) {
+		t.Fatalf("targets = %+v, want %d targets", targets, len(wantIDs))
+	}
+	for i, wantID := range wantIDs {
+		if targets[i].ID != wantID || targets[i].Index != i {
+			t.Fatalf("target %d = %+v, want %s at index %d", i, targets[i], wantID, i)
+		}
+	}
+
+	home := t.TempDir()
+	path := writeConfig(t, home, "agy: [{name: &provider cursor}]\n? *provider\n: null\n")
+	_, err := loadConfig(path, home)
+	if !IsConfigError(err) || !strings.Contains(err.Error(), "cursor must be a list") {
+		t.Fatalf("null aliased provider list returned %v, want resolved provider diagnostic", err)
+	}
+})
+
 var _ = ginkgo.It("disabled providers have no targets", func() {
 	t := testT{ginkgo.GinkgoT()}
 	o := parseWithConfig(t, "grok: []\nclaude:\n  - name: only\n    path: ~/.claude\n")
@@ -581,7 +603,7 @@ var _ = ginkgo.It("rejects removed account flags and invalid scalar flags", func
 
 var _ = ginkgo.It("emits two weekly pool targets for a single configured agy account and rejects more than one", func() {
 	t := testT{ginkgo.GinkgoT()}
-	o := parseWithConfig(t, "agy:\n  - name: default\n", "--agy-bin", "/opt/bin/agy")
+	o := parseWithConfig(t, "agy:\n  - name: default\n    path: ~/unused-agy-home\n", "--agy-bin", "/opt/bin/agy")
 	targets := o.Targets()
 	if len(targets) != 2 {
 		t.Fatalf("targets = %+v, want 2 agy pool targets", targets)
@@ -589,6 +611,9 @@ var _ = ginkgo.It("emits two weekly pool targets for a single configured agy acc
 	if targets[0].ID != "agy:0" || targets[0].FallbackAccount != "gemini" || targets[0].Bin != "/opt/bin/agy" ||
 		targets[1].ID != "agy:1" || targets[1].FallbackAccount != "claude/gpt" || targets[1].Bin != "/opt/bin/agy" {
 		t.Fatalf("unexpected agy targets: %+v", targets)
+	}
+	if targets[0].Home != "" || targets[1].Home != "" {
+		t.Fatalf("agy path must not select a credential home: %+v", targets)
 	}
 
 	home := t.TempDir()
