@@ -100,7 +100,7 @@ archive per platform and a `SHA256SUMS` file.
 | Linux, x86-64 | `Linux x86_64` | `gaebokchi-linux-amd64.tar.gz` |
 
 ```sh
-VERSION=v0.1.0
+VERSION=v0.1.1
 TARGET=darwin-arm64    # pick yours from the table above
 curl -fLO "https://github.com/irootkernel/gaebokchi/releases/download/$VERSION/gaebokchi-$TARGET.tar.gz"
 curl -fLO "https://github.com/irootkernel/gaebokchi/releases/download/$VERSION/SHA256SUMS"
@@ -127,9 +127,9 @@ attribute with `xattr -d com.apple.quarantine ~/.local/bin/gaebokchi`.
 ### From source
 
 ```sh
-git clone --branch v0.1.0 https://github.com/irootkernel/gaebokchi.git
+git clone --branch v0.1.1 https://github.com/irootkernel/gaebokchi.git
 cd gaebokchi
-go build -trimpath -ldflags "-X main.buildVersion=v0.1.0" -o gaebokchi ./cmd/gaebokchi
+go build -trimpath -ldflags "-X main.buildVersion=v0.1.1" -o gaebokchi ./cmd/gaebokchi
 ```
 
 Set `buildVersion` only when building the matching tag; otherwise another

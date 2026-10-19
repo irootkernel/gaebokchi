@@ -4,7 +4,7 @@
 # publishes, signs, or bundles provider binaries.
 set -eu
 
-RELEASE_VERSION="${1:-v0.1.0}"
+RELEASE_VERSION="${1:-v0.1.1}"
 case "$RELEASE_VERSION" in
   v?*) ;;
   *) echo "usage: $0 vVERSION" >&2; exit 2 ;;

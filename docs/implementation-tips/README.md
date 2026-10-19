@@ -121,11 +121,11 @@ tree.
 4. **Stage the archives.**
 
    ```sh
-   sh scripts/build-release.sh v0.1.0
+   sh scripts/build-release.sh v0.1.1
    GAEBOKCHI_REQUIRE_STAGED_RELEASE=1 go run github.com/onsi/ginkgo/v2/ginkgo --fail-on-empty --label-filter=staged-release ./scripts
    ```
 
-   The build script replaces `dist/gaebokchi-v0.1.0` with four platform
+   The build script replaces `dist/gaebokchi-v0.1.1` with four platform
    archives plus `SHA256SUMS`; inspect any existing local staging before
    running it. The staged-release check verifies the archive members (including
    LICENSE and THIRD_PARTY_NOTICES.txt), executable permissions,
@@ -143,7 +143,7 @@ tree.
 7. **Finalize the gate receipt.** After the closeout commit passes steps 1–6,
    record its full SHA, all four archive checksums, platform gate results,
    archive check, and sanitized four-row live outcome in a local receipt under
-   ignored `dist/gaebokchi-v0.1.0/`. Verify that the tracked requirement,
+   ignored `dist/gaebokchi-v0.1.1/`. Verify that the tracked requirement,
    task, epic, and release-gate checkboxes agree with that evidence. If any
    check fails, stop before tagging and correct the repository state; do not
    treat the closeout commit's pre-commit evidence as a substitute for this
@@ -151,10 +151,10 @@ tree.
 8. **Tag and publish, with owner approval only.**
 
    ```sh
-   git tag -a v0.1.0 -m "gaebokchi v0.1.0" <release-commit>
-   git push origin v0.1.0
-   gh release create v0.1.0 --verify-tag --title "gaebokchi v0.1.0" --notes-file <release-notes.md> \
-     dist/gaebokchi-v0.1.0/gaebokchi-*.tar.gz dist/gaebokchi-v0.1.0/SHA256SUMS
+   git tag -a v0.1.1 -m "gaebokchi v0.1.1" <release-commit>
+   git push origin v0.1.1
+   gh release create v0.1.1 --verify-tag --title "gaebokchi v0.1.1" --notes-file <release-notes.md> \
+     dist/gaebokchi-v0.1.1/gaebokchi-*.tar.gz dist/gaebokchi-v0.1.1/SHA256SUMS
    ```
 
    Upload only the `dist/gaebokchi-v<version>/` directory you just staged;

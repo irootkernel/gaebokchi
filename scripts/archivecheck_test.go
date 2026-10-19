@@ -245,7 +245,7 @@ var _ = ginkgo.It("TestStagedReleaseArchives", ginkgo.Label("staged-release"), f
 		if !require {
 			t.Skip("no current release candidate selected")
 		}
-		dist = filepath.Join(root, "dist", "gaebokchi-v0.1.0")
+		dist = filepath.Join(root, "dist", "gaebokchi-v0.1.1")
 	}
 	err := checkStagedRelease(root, dist, require)
 	if errors.Is(err, errReleaseNotStaged) {
