@@ -65,6 +65,7 @@ Repository guidance for AI coding agents working on gaebokchi.
 
 ### Repository Index and Authorities
 
+- Aquarium release notes: CHANGELOG.md
 - `README.md` owns the public product overview, installation from GitHub Releases or source, supported usage, privacy boundary, compatibility, and license notice.
 - `docs/README.md` indexes project documents; `docs/specs/README.md`, `docs/architecture/README.md`, and `docs/roadmap/README.md` own requirements, architecture, and roadmap status. `docs/implementation-tips/README.md` lists the local verification commands.
 - This is a Go 1.27 module. Run `go vet ./...`, `golangci-lint run ./...`, and `go test ./... -count=1` for the documented offline checks; use the narrower package tests and race command listed in `docs/implementation-tips/README.md` when relevant. User installation is in `README.md`; release staging and publication steps are in `docs/implementation-tips/README.md` and `scripts/build-release.sh`.
