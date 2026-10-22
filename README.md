@@ -137,6 +137,50 @@ commit would claim that version. Without the override, `gaebokchi version`
 reports the version that Go records at build time: one derived from the
 repository when that information is available, otherwise `(devel)`.
 
+### Optional: install the agent skill
+
+The [`use-gaebokchi` skill](skills/use-gaebokchi/SKILL.md) helps coding agents
+query usage, configure accounts and provider aliases, and diagnose failures.
+It is optional: the CLI works without it. Installing the CLI does not install
+or update the skill, and the CLI release archives do not include it.
+
+From the root of a source checkout containing `skills/use-gaebokchi/`, copy the
+complete skill directory into your agent's skills directory. For agents that
+discover the shared `~/.agents/skills/` location, use:
+
+```sh
+gaebokchi_skills_dir="$HOME/.agents/skills"
+mkdir -p "$gaebokchi_skills_dir"
+cp -R skills/use-gaebokchi "$gaebokchi_skills_dir/"
+```
+
+For a Codex-only installation, use `${CODEX_HOME:-$HOME/.codex}/skills` as
+`gaebokchi_skills_dir` instead. Install one copy in the location your agent
+discovers; consult its documentation for reload or restart requirements.
+Keep the complete directory, including `agents/openai.yaml`, together.
+
+This skill is new in the unreleased source; the `v0.1.1` checkout used in the
+source-build example above does not contain it. Use a checkout containing the
+skill and verify its compatibility with your executable. In particular,
+`v0.1.1` does not support `-t` / `--target` or provider aliases. The skill checks
+the executable's help and matching documentation before using those features;
+installing the skill does not upgrade the binary.
+
+Once your agent has loaded the skill, request a snapshot, for example:
+
+```text
+Use $use-gaebokchi to show my configured subscription usage.
+```
+
+A usage request runs real provider CLI queries. Installing the skill alone does
+not query providers, change logins, or grant permission to edit configuration.
+
+To update, back up any local skill edits and replace the complete installed
+`use-gaebokchi` directory from a compatible, exact source tag or commit. The copy
+command above overwrites same-named files but does not remove obsolete files.
+To uninstall the skill, remove only its installed directory; this leaves the CLI,
+Gaebokchi configuration, and provider login state intact.
+
 ### Uninstall
 
 Delete the `gaebokchi` binary and, if no longer needed,

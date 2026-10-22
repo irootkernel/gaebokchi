@@ -30,6 +30,7 @@ This directory is the maintainer and contributor documentation for Gaebokchi. If
 Supporting documents outside the eight roles:
 
 - [configuration/README.md](../configuration/README.md) is the public account setup guide. The root README remains the public product entrypoint.
+- [skills/use-gaebokchi/SKILL.md](../skills/use-gaebokchi/SKILL.md) is the distributable agent operating skill. The root README owns its installation, update, and removal instructions; CLI release archives do not include the skill.
 - [verification/README.md](verification/README.md) indexes snapshot-bound validation evidence. Evidence supports claims but is not a ninth normative role and does not replace current specifications, architecture, or roadmap state.
 - [`TESTING.md`](../TESTING.md) at the repository root is the test contract: stages, tools, and the E2E environment.
 - [`AGENTS.md`](../AGENTS.md) holds the guidance for AI coding agents; `CLAUDE.md` defers to it.

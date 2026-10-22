@@ -5,6 +5,7 @@
 ### Added
 
 - Select configured providers with `-t`/`--target` using case-insensitive display names and configurable aliases.
+- Add the optional use-gaebokchi agent skill with installation and maintenance guidance.
 
 ## v0.1.1 - 2026-10-20
 

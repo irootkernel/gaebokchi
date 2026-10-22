@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Gaebokchi"
+  short_description: "Query subscription usage and manage Gaebokchi setup"
+  default_prompt: "Use $use-gaebokchi to show one snapshot of my configured subscription usage."
