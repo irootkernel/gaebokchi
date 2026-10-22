@@ -19,7 +19,8 @@ acceptance are complete in EPIC-013 (TASK-039 through TASK-041). ZCode support
 and its requirement ownership are recorded in EPIC-014 (TASK-042).
 EPIC-015 implements provider selection and configurable aliases through
 TASK-043 to TASK-045. Alias configuration, matching and target selection are
-implemented; integrated acceptance remains pending TASK-045.
+implemented and verified through TASK-045. Final assembled Epic review and
+Master acceptance remain pending.
 
 ## How to use this plan
 
@@ -1868,11 +1869,14 @@ case-insensitively, including aliases shared by several providers.
 
 **Entry:** EPIC-014 complete. The owner approved this documentation registration
 on 2026-10-22. Alias configuration, matching and target-option integration
-are implemented; TASK-045 owns integrated acceptance.
+are implemented and verified through TASK-045. Final assembled Epic review
+and Master acceptance remain pending.
 
-**Execution dossier:** [Provider target selection](../todo/TODO-PROVIDER-TARGET-SELECTION.md)
-is temporary and must be retired during TASK-045 closeout after durable
-documentation and evidence are complete. This roadmap owns status and order.
+**Execution dossier:** Retired during TASK-045 after successful offline checks
+and preservation of its lasting content in the specifications, ARCH-21, public
+guidance and [task evidence](../verification/TASK-045.md). This roadmap owns
+status and order. Task acceptance is recorded; final Epic acceptance remains
+pending.
 
 **Task sequence:** [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045).
 
@@ -1956,7 +1960,7 @@ and current user instructions.
 <a id="task-045"></a>
 ### TASK-045: Accept provider selection and retire the dossier
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Verify the complete selection contract and finish durable
 documentation before retiring the temporary execution dossier.

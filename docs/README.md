@@ -73,15 +73,16 @@ against `zcode 0.16.9` in [zcode-compatibility.md](verification/zcode-compatibil
 [EPIC-015](roadmap/README.md#epic-015) owns invocation-local provider selection
 with `-t` / `--target` and configurable provider aliases. It is
 **IN PROGRESS**: TASK-043 implemented alias configuration and matching, and
-TASK-044 implemented the selection option and execution boundary; integrated
-acceptance remains pending TASK-045. [REQ-069](specs/README.md#req-069),
+TASK-044 implemented the selection option and execution boundary. TASK-045
+records integrated offline acceptance; final assembled Epic review and Master
+acceptance remain pending. [REQ-069](specs/README.md#req-069),
 [REQ-070](specs/README.md#req-070), and [ARCH-21](architecture/README.md#arch-21)
-own the contract; the
-[temporary execution dossier](todo/TODO-PROVIDER-TARGET-SELECTION.md) maps the
-work to TASK-043 through TASK-045 and defines its retirement conditions.
+own the contract. [TASK-045 evidence](verification/TASK-045.md) records the
+offline checks and retirement of the temporary execution dossier after its
+lasting content was retained in canonical documents.
 Public usage and configuration instructions describe the delivered behavior;
-the requirement checkboxes stay open until TASK-045 records integrated
-acceptance.
+TASK-045 records Coordinator acceptance of the requirements under the approved
+Task delegation.
 
 ## Precedence
 

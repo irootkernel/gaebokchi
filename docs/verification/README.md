@@ -49,5 +49,8 @@ current merely because a later tree retains the record.
 - [TASK-044.md](TASK-044.md) records target-option, provider-isolation and
   terminal/table/JSON checks; integrated acceptance belongs to TASK-045.
 
+- [TASK-045.md](TASK-045.md) records full offline provider-selection checks,
+  requirement coverage and temporary-dossier retirement.
+
 The canonical lifecycle state remains in [the roadmap](../roadmap/README.md),
 and required behavior remains in [the specifications](../specs/README.md).

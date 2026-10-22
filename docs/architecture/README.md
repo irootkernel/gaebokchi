@@ -12,8 +12,8 @@ TASK-039 through TASK-041) and the ZCode (`zcode 0.16.9`) 5-hour single-account
 adapter and two-section presentation ([ARCH-20](#arch-20)).
 The provider-selection extension in [ARCH-21](#arch-21) is owned by EPIC-015.
 TASK-043 implemented alias configuration and matching; TASK-044 integrated the
-`-t` / `--target` selection option and execution boundary. TASK-045 owns their
-final integrated acceptance.
+`-t` / `--target` selection option and execution boundary. TASK-045 records their
+integrated offline acceptance; final Epic acceptance remains separate.
 
 | Section | Responsibility |
 |---|---|
@@ -1321,8 +1321,8 @@ Related: [REQ-069](../specs/README.md#req-069), [REQ-070](../specs/README.md#req
 Owners: [TASK-043](../roadmap/README.md#task-043) through
 [TASK-045](../roadmap/README.md#task-045), [EPIC-015](../roadmap/README.md#epic-015).
 TASK-043 implemented the alias configuration and name-resolution contract below;
-TASK-044 implemented the selection option and execution boundary. TASK-045 owns
-final integrated acceptance. ARCH-03 describes the command's default
+TASK-044 implemented the selection option and execution boundary. TASK-045 records
+integrated offline acceptance; final Epic acceptance remains separate. ARCH-03 describes the command's default
 account-query behavior without the selection flag.
 
 ### Configuration and name resolution
