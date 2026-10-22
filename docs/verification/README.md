@@ -46,6 +46,8 @@ current merely because a later tree retains the record.
   and local scanner upgrade against its own working-tree snapshot.
 - [TASK-043.md](TASK-043.md) records provider alias configuration and matching
   checks; CLI selection and integrated acceptance belong to TASK-044 and TASK-045.
+- [TASK-044.md](TASK-044.md) records target-option, provider-isolation and
+  terminal/table/JSON checks; integrated acceptance belongs to TASK-045.
 
 The canonical lifecycle state remains in [the roadmap](../roadmap/README.md),
 and required behavior remains in [the specifications](../specs/README.md).

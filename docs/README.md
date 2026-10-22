@@ -68,18 +68,20 @@ with a read-only `NODE_OPTIONS` preload hook and splits the UI into top
 **Weekly usage** and bottom **5h usage** sections when configured, verified
 against `zcode 0.16.9` in [zcode-compatibility.md](verification/zcode-compatibility.md).
 
-## Planned provider selection
+## Provider selection
 
-[EPIC-015](roadmap/README.md#epic-015) registers invocation-local provider
-selection with `-t` / `--target` and configurable provider aliases. It is
-**IN PROGRESS**: TASK-043 implements alias configuration and matching; the
-selection option remains pending TASK-044. [REQ-069](specs/README.md#req-069),
+[EPIC-015](roadmap/README.md#epic-015) owns invocation-local provider selection
+with `-t` / `--target` and configurable provider aliases. It is
+**IN PROGRESS**: TASK-043 implemented alias configuration and matching, and
+TASK-044 implemented the selection option and execution boundary; integrated
+acceptance remains pending TASK-045. [REQ-069](specs/README.md#req-069),
 [REQ-070](specs/README.md#req-070), and [ARCH-21](architecture/README.md#arch-21)
-own the planned contract; the
+own the contract; the
 [temporary execution dossier](todo/TODO-PROVIDER-TARGET-SELECTION.md) maps the
 work to TASK-043 through TASK-045 and defines its retirement conditions.
-The implemented usage command still queries all configured accounts. Public usage and
-configuration instructions change when TASK-044 implements selection.
+Public usage and configuration instructions describe the delivered behavior;
+the requirement checkboxes stay open until TASK-045 records integrated
+acceptance.
 
 ## Precedence
 

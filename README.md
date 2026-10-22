@@ -213,6 +213,8 @@ provider and prints the path plus a link to the configuration guide. `--help` an
 ```sh
 gaebokchi                                            # configured accounts
 gaebokchi --timeout 40s                              # longer query budget
+gaebokchi -t chatgpt                                 # query the providers matching chatgpt
+gaebokchi -t GROK --json                             # matching providers, JSON snapshot
 gaebokchi --grok-bin /opt/homebrew/bin/grok
 gaebokchi --claude-bin /opt/homebrew/bin/claude
 gaebokchi --agy-bin /usr/local/bin/agy
@@ -234,6 +236,7 @@ gaebokchi version --json
 | `--agy-bin PATH` | `agy` | agy executable path or name |
 | `--cursor-bin PATH` | `cursor-agent` | cursor-agent executable path or name |
 | `--zcode-bin PATH` | `zcode` | zcode executable path or name |
+| `-t`, `--target NAME` | — | Query only the providers matching NAME, case-insensitive: `chatgpt`, `grok`, `claude`, `agy`, `cursor`, `zcode`, or a configured alias |
 | `--timeout DURATION` | `20s` | Per-target query budget, from 1s to 120s |
 | `--json` | off | Emit one JSON usage snapshot instead of the terminal view or table |
 | `-h`, `--help` | — | Print help and exit without launching providers |
@@ -247,6 +250,7 @@ The following are usage errors, which exit 2 and print nothing on stdout:
 - repeating a flag;
 - a missing or empty value;
 - an invalid or out-of-range `--timeout`;
+- a blank, repeated, or unmatched `-t` / `--target` value;
 - a missing or invalid configuration file. The diagnostic links to the
   [configuration guide](configuration/README.md).
 

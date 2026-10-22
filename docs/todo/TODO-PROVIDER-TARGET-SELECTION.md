@@ -4,8 +4,9 @@ This temporary execution dossier supports
 [EPIC-015](../roadmap/README.md#epic-015). The
 [roadmap](../roadmap/README.md#epic-015) owns task membership, execution order
 and lifecycle status. Registration on 2026-10-22 covered documentation only.
-TASK-043 implements alias configuration and matching; the selection option and
-integrated acceptance remain pending TASK-044 and TASK-045.
+TASK-043 implemented alias configuration and matching; TASK-044 implements the
+selection option and execution boundary. Integrated acceptance remains pending
+TASK-045.
 
 ## Outcome and authority
 
@@ -27,9 +28,9 @@ credential access or live probes are introduced by this plan.
 
 ## Configuration and expected selection
 
-The following is a planned configuration example, using placeholder account
-homes. Configuration now accepts `aliases`; the target option remains pending
-TASK-044.
+The following configuration example uses placeholder account homes. Alias
+metadata and the target option are implemented; TASK-045 owns final integrated
+acceptance and this dossier's retirement.
 
 ```yaml
 aliases:

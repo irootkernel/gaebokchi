@@ -1042,4 +1042,228 @@ func hasFlag(args []string, flag string) bool {
 	return false
 }
 
+var _ = ginkgo.It("target selection queries only the matching provider end to end", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	argLog := filepath.Join(dir, "args.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		args:   []string{"-t", "grok"},
+		grok:   grokWeekly(28),
+		argLog: argLog, envLog: filepath.Join(dir, "env.log"),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[1], "Grok") || !strings.HasSuffix(lines[1], "28%") {
+		t.Fatalf("selected table = %q", stdout)
+	}
+	if strings.Contains(stdout, "e2e-a") || strings.Contains(stdout, "Claude") {
+		t.Fatalf("unselected providers produced rows:\n%s", stdout)
+	}
+	log, err := os.ReadFile(argLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Code reachability keeps unselected providers off the child-launch path;
+	// the argv log confirms no codex or claude child existed.
+	if strings.Contains(string(log), "app-server") || strings.Contains(string(log), "auth status") ||
+		strings.Count(string(log), "agent stdio") != 1 {
+		t.Fatalf("unselected provider launched a child: %q", log)
+	}
+})
+
+var _ = ginkgo.It("a missing unselected executable contributes nothing", func() {
+	t := testT{ginkgo.GinkgoT()}
+	dir := t.TempDir()
+	stdout, stderr, code := runCLI(t, invocation{
+		args: []string{"-t", "grok", "--codex-bin", filepath.Join(dir, "no-such-codex")},
+		grok: grokWeekly(28),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	if strings.Contains(stdout, "NOT INSTALLED") || strings.Count(stdout, "\n") != 2 || !strings.Contains(stdout, "28%") {
+		t.Fatalf("unselected missing CLI affected the run:\n%s", stdout)
+	}
+})
+
+var _ = ginkgo.It("ChatGPT selection keeps dense Codex-only JSON order", func() {
+	t := testT{ginkgo.GinkgoT()}
+	stdout, stderr, code := runCLI(t, invocation{
+		args:  []string{"-t", "ChatGPT", "--json"},
+		codex: codexOK("account1@example.com", 37),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 2 || rows[0].TargetID != "codex:0" || rows[0].Account != "e2e-a" ||
+		rows[1].TargetID != "codex:1" || rows[1].Account != "e2e-b" ||
+		rows[0].Status != "ok" || rows[0].UsedPercent == nil || *rows[0].UsedPercent != 37 ||
+		rows[1].Status != "ok" || rows[1].UsedPercent == nil || *rows[1].UsedPercent != 37 {
+		t.Fatalf("selected JSON rows = %+v", rows)
+	}
+})
+
+var _ = ginkgo.It("a shared alias selects a weekly provider and ZCode at the executable level", func() {
+	t := testT{ginkgo.GinkgoT()}
+	config := "aliases: {zcode: [grok]}\ngrok:\n  - name: grok-main\n    path: ~/grok\nzcode:\n  - name: default\n"
+	stdout, stderr, code := runCLI(t, invocation{
+		config: config,
+		args:   []string{"-t", "GROK"},
+		grok:   grokWeekly(28),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	if len(lines) != 5 || !strings.Contains(lines[0], "WEEKLY USAGE") ||
+		!strings.Contains(lines[1], "Grok") || !strings.Contains(lines[1], "grok-main") || !strings.HasSuffix(lines[1], "28%") ||
+		lines[2] != "" || !strings.Contains(lines[3], "5H USAGE") ||
+		!strings.Contains(lines[4], "ZCode") || !strings.Contains(lines[4], "default") || !strings.HasSuffix(lines[4], "18%") {
+		t.Fatalf("shared-alias table = %q", stdout)
+	}
+
+	stdout, stderr, code = runCLI(t, invocation{
+		config: config,
+		args:   []string{"-t", "GROK", "--json"},
+		grok:   grokWeekly(28),
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("json code=%d stderr=%q", code, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	// The flat array keeps each provider's own percentage; selection adds no
+	// aggregate row across the weekly and 5h sections.
+	if len(rows) != 2 || rows[0].TargetID != "grok:0" || rows[0].Provider != "grok" ||
+		rows[0].UsedPercent == nil || *rows[0].UsedPercent != 28 ||
+		rows[1].TargetID != "zcode:0" || rows[1].Provider != "zcode" ||
+		rows[1].UsedPercent == nil || *rows[1].UsedPercent != 18 {
+		t.Fatalf("shared-alias JSON rows = %+v", rows)
+	}
+})
+
+var _ = ginkgo.It("selected target failures keep their rows and exit one", func() {
+	t := testT{ginkgo.GinkgoT()}
+	argLog := filepath.Join(t.TempDir(), "args.log")
+	authFail := []testutil.Step{
+		{Wait: 1},
+		{Reply: []testutil.ReplySpec{{Slot: 0, Result: map[string]any{"platformOs": "macos"}}}},
+		{Wait: 1},
+		{Emit: `{"id":2,"result":{"account":null}}` + "\n"},
+	}
+	stdout, stderr, code := runCLI(t, invocation{
+		args:   []string{"-t", "ChatGPT", "--json"},
+		codex:  authFail,
+		argLog: argLog,
+	})
+	if code != 1 {
+		t.Fatalf("code=%d, want 1 for selected failures", code)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 2 || rows[0].Status != "auth_required" || rows[1].Status != "auth_required" ||
+		rows[0].UsedPercent != nil || rows[1].UsedPercent != nil {
+		t.Fatalf("selected failure rows = %+v", rows)
+	}
+	if strings.Count(stderr, "gaebokchi: codex:") != 2 || !strings.Contains(stderr, "AUTH REQUIRED") {
+		t.Fatalf("selected failure diagnostics: %q", stderr)
+	}
+	log := readProviderArgs(t, argLog)
+	if strings.Count(log, "argv:") != 2 || strings.Count(log, "argv: app-server\n") != 2 {
+		t.Fatalf("selected failures launched unexpected provider children: %q", log)
+	}
+})
+
+var _ = ginkgo.It("invalid target input exits two with empty stdout at the executable level", func() {
+	t := testT{ginkgo.GinkgoT()}
+	for _, args := range [][]string{
+		{"-t", "codex"}, {"--target", "no-such-name"},
+		{"-t", ""}, {"--target="},
+		{"-t", "a", "-t", "b"}, {"-t", "a", "--target=b"},
+		{"-t", "chat"}, {"-t", "grok,cursor"},
+	} {
+		argLog := filepath.Join(t.TempDir(), "args.log")
+		stdout, stderr, code := runCLI(t, invocation{args: args, codex: codexOK("a@example.com", 11), argLog: argLog})
+		if code != 2 || stdout != "" || stderr == "" {
+			t.Fatalf("args %v: code=%d stdout=%q stderr=%q", args, code, stdout, stderr)
+		}
+		if log := readProviderArgs(t, argLog); log != "" {
+			t.Fatalf("invalid args %v launched providers: %q", args, log)
+		}
+	}
+	stdout, stderr, code := runCLI(t, invocation{args: []string{"-t", "codex"}})
+	if code != 2 || stdout != "" || !strings.Contains(stderr, `target "codex" matched no enabled account targets`) {
+		t.Fatalf("no-match diagnostic: code=%d stderr=%q", code, stderr)
+	}
+
+	argLog := filepath.Join(t.TempDir(), "args.log")
+	stdout, stderr, code = runCLI(t, invocation{
+		config: "claude:\n  - name: same\n    path: /one\n  - name: same\n    path: /two\n",
+		args:   []string{"-t", "grok"},
+		argLog: argLog,
+	})
+	if code != 2 || stdout != "" || !strings.Contains(stderr, "claude account names must be unique") {
+		t.Fatalf("invalid unselected configuration: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if log := readProviderArgs(t, argLog); log != "" {
+		t.Fatalf("invalid configuration launched providers: %q", log)
+	}
+})
+
+var _ = ginkgo.It("a ZCode-only selection omits the weekly section and other provider children", func() {
+	t := testT{ginkgo.GinkgoT()}
+	argLog := filepath.Join(t.TempDir(), "args.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "codex:\n  - name: skip\n    path: ~/e2e-a\ngrok:\n  - name: skip\n    path: ~/grok\nzcode:\n  - name: selected\n",
+		args:   []string{"--target=zcode"},
+		argLog: argLog,
+	})
+	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
+	if code != 0 || stderr != "" || len(lines) != 2 || !strings.Contains(lines[0], "5H USAGE") ||
+		strings.Contains(stdout, "WEEKLY USAGE") || !strings.Contains(lines[1], "ZCode") ||
+		!strings.Contains(lines[1], "selected") || !strings.HasSuffix(lines[1], "18%") {
+		t.Fatalf("ZCode selection: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if log := readProviderArgs(t, argLog); log != "argv: doctor --json\n" {
+		t.Fatalf("ZCode selection launched unexpected children: %q", log)
+	}
+})
+
+var _ = ginkgo.It("a default-name alias selects Cursor and Grok in configured JSON order", func() {
+	t := testT{ginkgo.GinkgoT()}
+	argLog := filepath.Join(t.TempDir(), "args.log")
+	stdout, stderr, code := runCLI(t, invocation{
+		config: "cursor:\n  - name: cursor-main\naliases: {cursor: [grok]}\ngrok:\n  - name: grok-main\n    path: ~/grok\ncodex:\n  - name: skip\n    path: ~/e2e-a\n",
+		args:   []string{"-t=GROK", "--json"},
+		grok:   grokWeekly(28),
+		argLog: argLog,
+	})
+	if code != 0 || stderr != "" {
+		t.Fatalf("shared selection: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	rows := decodeUsageJSON(t, stdout)
+	if len(rows) != 2 || rows[0].TargetID != "cursor:0" || rows[0].Account != "cursor-main" ||
+		rows[0].UsedPercent == nil || *rows[0].UsedPercent != 25 ||
+		rows[1].TargetID != "grok:0" || rows[1].Account != "grok-main" ||
+		rows[1].UsedPercent == nil || *rows[1].UsedPercent != 28 {
+		t.Fatalf("shared selection rows = %+v", rows)
+	}
+	log := readProviderArgs(t, argLog)
+	if strings.Count(log, "argv:") != 2 || !strings.Contains(log, "argv: status --format json\n") ||
+		!strings.Contains(log, "argv: --no-auto-update agent stdio\n") {
+		t.Fatalf("shared selection launched unexpected children: %q", log)
+	}
+})
+
+// An absent argument log means no fake provider process was started.
+func readProviderArgs(t testT, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 func intPtr(i int) *int { return &i }

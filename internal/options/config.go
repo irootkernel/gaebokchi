@@ -311,6 +311,13 @@ func buildTargets(cfg accountConfig, o Options) []domain.Target {
 	if len(order) == 0 {
 		order = defaultProviderOrder
 	}
+	// Selection filters whole providers before their accounts are appended,
+	// keeping provider-local IDs and dense indices. Parse rejects a selection
+	// that produced no targets, including through unmatched raw legacy keys.
+	var selected map[domain.ProviderKind]bool
+	if o.TargetName != "" {
+		selected = cfg.matchProviders(o.TargetName)
+	}
 	appendAccounts := func(kind domain.ProviderKind, accounts []account, bin string) {
 		for i, a := range accounts {
 			targets = append(targets, domain.Target{
@@ -320,6 +327,9 @@ func buildTargets(cfg accountConfig, o Options) []domain.Target {
 		}
 	}
 	for _, kind := range order {
+		if selected != nil && !selected[kind] {
+			continue
+		}
 		switch kind {
 		case domain.ProviderCodex:
 			appendAccounts(domain.ProviderCodex, cfg.Codex, o.CodexBin)

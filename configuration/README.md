@@ -98,10 +98,48 @@ claude:
     path: ~/.claude-personal
 ```
 
-At least one account is required. Rows appear in the provider and account order
-written in `config.yaml` (with `agy` expanding to `gemini` then `claude/gpt` at
-its configured position). A missing CLI for a configured account
+At least one account is required. Rows follow the provider and account order
+written in `config.yaml` within each displayed usage period, with `agy`
+expanding to `gemini` and `claude/gpt` at its configured position. JSON retains
+one flat array in configured target order. A missing CLI for a queried account
 produces a `NOT INSTALLED` row; an omitted provider launches no CLI.
+
+## Provider aliases and target selection
+
+An optional top-level `aliases` mapping adds extra selection names for
+providers. Configured accounts, their display labels and provider order stay
+unchanged:
+
+```yaml
+aliases:
+  codex: [codex]
+  cursor: [grok]
+```
+
+The always-valid default selection names are `chatgpt` (the Codex-backed
+provider), `grok`, `claude`, `agy`, `cursor`, and `zcode`. There is no implicit
+`codex` alias; add `aliases: {codex: [codex]}` to select the Codex-backed
+provider with that spelling. Names and aliases match case-insensitively as
+whole strings; gaebokchi never trims spaces or expands prefixes, substrings, or
+comma lists. The defaults and the configured aliases together select every
+matching enabled provider once, and a default name has no priority over an
+alias. Omit `aliases`, use `{}`, or use an empty per-provider list to add
+nothing. Alias entries for disabled providers are allowed but never enable
+them, and an alias-only configuration still fails the at-least-one-account
+requirement. Unknown provider keys, non-string or blank aliases, and invalid
+mapping or list shapes fail validation before any provider starts.
+
+Gaebokchi validates the entire configuration before applying a selection:
+invalid data in an unselected provider still fails the run with exit 2. Use
+`-t NAME`, `-t=NAME`, `--target NAME`, or `--target=NAME` to query only the
+providers whose default name or alias matches NAME, through every configured
+account of each (both `agy` pools included). The flag may be supplied once per
+invocation. All output modes keep their existing schema, and unselected
+providers launch nothing and add no rows. Without the flag, every configured
+account is queried as before. In the example above, `-t ChatGPT` and `-t CODEX`
+both select the Codex accounts, and `-t grok` selects Grok and Cursor. An
+empty, whitespace-only, repeated, or unmatched value exits 2 before any
+provider starts.
 
 ## Check the file
 

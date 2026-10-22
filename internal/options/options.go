@@ -26,16 +26,17 @@ const (
 )
 
 type Options struct {
-	CodexBin  string
-	GrokBin   string
-	ClaudeBin string
-	AgyBin    string
-	CursorBin string
-	ZCodeBin  string
-	Timeout   time.Duration
-	Help      bool
-	JSON      bool
-	targets   []domain.Target
+	CodexBin   string
+	GrokBin    string
+	ClaudeBin  string
+	AgyBin     string
+	CursorBin  string
+	ZCodeBin   string
+	TargetName string
+	Timeout    time.Duration
+	Help       bool
+	JSON       bool
+	targets    []domain.Target
 }
 
 type UsageError struct{ msg string }
@@ -95,6 +96,13 @@ func specs() map[string]*flagSpec {
 			o.Timeout = d
 			return nil
 		}},
+		"target": {name: "target", kind: kindString, set: func(o *Options, v string) error {
+			if strings.TrimSpace(v) == "" {
+				return usagef("--target must not be blank")
+			}
+			o.TargetName = v
+			return nil
+		}},
 		"help": {name: "help", kind: kindBool, set: func(o *Options, _ string) error { o.Help = true; return nil }},
 		"json": {name: "json", kind: kindBool, set: func(o *Options, _ string) error { o.JSON = true; return nil }},
 	}
@@ -114,6 +122,12 @@ func Parse(args []string) (Options, error) {
 		return Options{}, err
 	}
 	o.targets = buildTargets(accounts, o)
+	// Matched providers can still yield no targets (a tagged legacy provider
+	// key records its raw spelling in the build order), so the actual slice,
+	// not the matcher result, decides the usage error.
+	if o.TargetName != "" && len(o.targets) == 0 {
+		return Options{}, usagef("target %q matched no enabled account targets", o.TargetName)
+	}
 	return o, nil
 }
 
@@ -137,6 +151,9 @@ func parse(args []string) (Options, error) {
 		}
 		if name == "h" {
 			name = "help"
+		}
+		if name == "t" {
+			name = "target"
 		}
 		spec := table[name]
 		if spec == nil {

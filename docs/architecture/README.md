@@ -11,15 +11,16 @@ EPIC-013 Cursor single-account adapter (`cursor-agent 2026.10.16-e3cb207`,
 TASK-039 through TASK-041) and the ZCode (`zcode 0.16.9`) 5-hour single-account
 adapter and two-section presentation ([ARCH-20](#arch-20)).
 The provider-selection extension in [ARCH-21](#arch-21) is owned by EPIC-015.
-TASK-043 implements alias configuration and matching; the command still queries
-all configured accounts until TASK-044 integrates selection.
+TASK-043 implemented alias configuration and matching; TASK-044 integrated the
+`-t` / `--target` selection option and execution boundary. TASK-045 owns their
+final integrated acceptance.
 
 | Section | Responsibility |
 |---|---|
 | [ARCH-01](#arch-01) | Decisions and scope |
 | [ARCH-02](#arch-02) | Components, dependency direction, repository layout |
 | [ARCH-03](#arch-03) | CLI options and account targets |
-| [ARCH-21](#arch-21) | Planned provider selection and configurable aliases |
+| [ARCH-21](#arch-21) | Provider selection and configurable aliases |
 | [ARCH-04](#arch-04) | Domain model and usage semantics |
 | [ARCH-05](#arch-05) | Execution, deadlines, ownership and cleanup |
 | [ARCH-06](#arch-06) | Shared transport with separate wire dialects |
@@ -133,15 +134,16 @@ Prefer constructors and ordinary functions over a service container, plugin regi
 
 Related: [REQ-002](../specs/README.md#req-002), [REQ-006](../specs/README.md#req-006) through [REQ-008](../specs/README.md#req-008), [REQ-056](../specs/README.md#req-056), [REQ-064](../specs/README.md#req-064), [REQ-066](../specs/README.md#req-066), [REQ-068](../specs/README.md#req-068).
 
-A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, `agy`, `cursor`, and `zcode` lists. `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)); `cursor` and `zcode` each accept at most one entry (`- name: <alias>`) with no `path` field ([ARCH-19](#arch-19), [ARCH-20](#arch-20)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
+A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]` do not. The file has optional `codex`, `grok`, `claude`, `agy`, `cursor`, and `zcode` lists, plus an optional `aliases` selection-name mapping ([ARCH-21](#arch-21)). `codex`, `grok`, and `claude` entries contain required `name` and `path`; `agy` accepts at most one entry (such as `- name: default`) with `path` optional and not used as a credential selector ([ARCH-18](#arch-18)); `cursor` and `zcode` each accept at most one entry (`- name: <alias>`) with no `path` field ([ARCH-19](#arch-19), [ARCH-20](#arch-20)). At least one account is required. Omission or `[]` disables a provider; a present null list is invalid. Strict YAML decoding rejects unknown and duplicate keys, merge keys, or multiple documents. Names are normalized display aliases and must be nonblank and unique within the provider. Paths must be absolute or begin with the current user's `~/`; `~/` is expanded without cleaning `.` or `..` before filesystem traversal. Duplicate detection compares existing directories by filesystem identity and missing homes by the deepest existing directory plus Unicode-decomposed, case-folded unresolved suffix, following existing symlink ancestors within each provider. This conservative missing-path rule is the same on every platform; two case variants on a case-sensitive filesystem become independently configurable once both directories exist. Missing directories remain row-level `HOME NOT FOUND` errors; inaccessible or non-directory paths become `HOME ERROR`. No provider state is created.
 
 Targets are built in the top-level provider order and account list order written in `config.yaml` (with `agy` expanding to `gemini` followed by `claude/gpt` at its configured position, and falling back to `Codex, Grok, Claude, agy, Cursor, ZCode` only when `accountConfig` is constructed directly without a parsed key order). IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), `cursor:0`, `zcode:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). Enabled `cursor` and `zcode` entries use their CLIs' single default logins (`HOME` preserved) and emit one row (`cursor:0`, `zcode:0`) using the configured `name`. The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
-Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--zcode-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
+Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--zcode-bin`, the single-use `-t NAME` / `--target NAME` provider-selection flag ([ARCH-21](#arch-21)), `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
 
-The unimplemented extension in [ARCH-21](#arch-21) will add optional alias
-metadata and target filtering. The account and command descriptions above
-remain the implemented baseline until that work is delivered.
+[ARCH-21](#arch-21) adds the optional alias metadata and `-t` / `--target`
+target filtering delivered by TASK-044; TASK-045 owns their final integrated
+acceptance. The account and command descriptions above remain the implemented
+baseline for default invocations without the selection flag.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -634,7 +636,7 @@ Record versions, executable identities, successful prompt-free exchanges, precis
 <a id="v-options"></a>
 ### V-OPTIONS: Target and flag policy
 
-Cover required and invalid YAML, null provider lists, disabled providers, configured order, absolute and `~/` paths, relative-path rejection, empty names or paths, duplicate names or symlinked paths (including a missing suffix under an existing link), missing/inaccessible homes, scalar duplicates, invalid duration/ranges, removed and unknown flags, positional arguments, help/version without configuration, and explicit binary paths.
+Cover required and invalid YAML, null provider lists, disabled providers, configured order, absolute and `~/` paths, relative-path rejection, empty names or paths, duplicate names or symlinked paths (including a missing suffix under an existing link), missing/inaccessible homes, scalar duplicates, invalid duration/ranges, removed and unknown flags, positional arguments, help/version without configuration, and explicit binary paths. Cover strict alias metadata, default names, shared/default-name collisions, disabled-provider aliases and invocation-local matching. Cover the `-t` / `--target` forms with shared short/long duplicate rejection, blank values, unmatched names and final zero-target selections, provider-local IDs with dense indices under selection, and whole-configuration validation before selection.
 
 <a id="v-rpc"></a>
 ### V-RPC: Framing and protocol dialects
@@ -733,11 +735,15 @@ label normalization, privacy boundary, and one final newline.
 For the terminal view, test colorless and styled frames, reset provenance,
 display width and clipping, every status and color boundary, the ANSI
 allowlist, and the final visible screen after live updates and cancellation.
+Selection must reach the plain table, terminal view, and JSON with the same
+target set. The table and terminal view omit empty sections, always place
+weekly above 5h, and preserve configured order within each section; JSON
+retains one flat array in configured target order, without aggregation.
 
 <a id="v-exit"></a>
 ### V-EXIT: Exit contract
 
-Test all-clean, all-non-applicable, partial failure, all failure, invalid usage, help/version, broken stdout, SIGINT, and SIGTERM. Assert code and output together rather than testing only internal status enums.
+Test all-clean, all-non-applicable, partial failure, all failure, invalid usage, help/version, broken stdout, SIGINT, and SIGTERM. Assert code and output together rather than testing only internal status enums. Include selected-run partial failures (exit 1 with rows and diagnostics retained) and blank, repeated, or unmatched target values (exit 2, empty stdout, no provider execution).
 
 <a id="v-safety"></a>
 ### V-SAFETY: Read-only and secret boundary
@@ -748,6 +754,12 @@ Assert complete outbound method allowlists, false host capabilities, no raw secr
 ### V-E2E: Executable-level offline acceptance
 
 Build gaebokchi into a temporary directory and point the Codex, Grok, Claude, `agy`, Cursor, and ZCode executable flags at the test binary acting as a scripted fake provider. Run the actual command with a temporary configuration and provider homes. Verify configured multi-account output, an omitted provider, one failing home, missing CLI, monthly Grok, malformed Grok response, slow/hung provider, unsafe callbacks, signal cancellation, and concurrent account isolation. Through real OS pipes, also verify a broken stdout pipe, each signal with unwritable stdout, and mixed completion under cancellation. Normal CI must not use an actual logged-in home.
+
+Exercise target selection with multiple Codex accounts, shared aliases, mixed
+weekly/5h output and a 5h-only selection. Record fake child arguments to verify
+that unselected providers launch nothing and usage/configuration errors launch
+no provider. A missing unselected executable has no effect; selected failures
+retain their rows, diagnostics and exit 1.
 
 <a id="v-build"></a>
 ### V-BUILD: Reproducible local builds
@@ -1303,14 +1315,15 @@ documents the qualified `zcode 0.16.9` contract on `darwin/arm64`.
   non-empty sections while preserving configured order within each section.
 
 <a id="arch-21"></a>
-## ARCH-21: Provider selection and alias resolution (planned)
+## ARCH-21: Provider selection and alias resolution
 
 Related: [REQ-069](../specs/README.md#req-069), [REQ-070](../specs/README.md#req-070).
 Owners: [TASK-043](../roadmap/README.md#task-043) through
 [TASK-045](../roadmap/README.md#task-045), [EPIC-015](../roadmap/README.md#epic-015).
-TASK-043 implements the alias configuration and name-resolution contract below.
-The selection option and execution boundary remain pending TASK-044. ARCH-03
-continues to describe the command's default account-query behavior.
+TASK-043 implemented the alias configuration and name-resolution contract below;
+TASK-044 implemented the selection option and execution boundary. TASK-045 owns
+final integrated acceptance. ARCH-03 describes the command's default
+account-query behavior without the selection flag.
 
 ### Configuration and name resolution
 

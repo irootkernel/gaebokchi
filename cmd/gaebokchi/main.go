@@ -47,6 +47,9 @@ Flags:
   --agy-bin PATH        agy executable path or name (default "agy")
   --cursor-bin PATH     cursor-agent executable path or name (default "cursor-agent")
   --zcode-bin PATH      zcode executable path or name (default "zcode")
+  -t, --target NAME     query only providers matching NAME, case-insensitive:
+                        chatgpt, grok, claude, agy, cursor, zcode, or a
+                        configured alias (see the configuration guide)
   --timeout DURATION    per-target query budget, 1s to 120s (default 20s)
   --json                emit one JSON usage snapshot instead of the terminal view or table
   -h, --help            show this help and exit

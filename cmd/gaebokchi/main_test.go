@@ -8,6 +8,7 @@ import (
 	ginkgo "github.com/onsi/ginkgo/v2"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -832,3 +833,304 @@ func runSignalTestChild() {
 	fmt.Fprintf(os.Stderr, "SIGTEST-TABLE:\n%s", out.String())
 	os.Exit(code)
 }
+
+// sortedIDs reports a fake provider's call set; concurrent admissions make
+// the arrival order nondeterministic, so tests compare sorted IDs.
+func sortedIDs(f *fakeProv) []string {
+	ids := append([]string(nil), f.calls...)
+	slices.Sort(ids)
+	return ids
+}
+
+var _ = ginkgo.It("target selection queries only matching providers in table and JSON", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bomb := &fakeProv{}
+	gk := &fakeProv{results: map[string]domain.Result{
+		"grok:0": {Account: "default", AccountSource: domain.AccountSourceConfiguredAlias, Status: domain.StatusOK, UsedPercent: ptr(28)},
+	}}
+	var out, errBuf bytes.Buffer
+	code := runWithIO([]string{"-t", "grok"}, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, gk, bomb, bomb, bomb, bomb
+	})
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("selected table: code=%d stderr=%q", code, errBuf.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[1], "Grok") || !strings.Contains(lines[1], "default") ||
+		!strings.HasSuffix(lines[1], "28%") {
+		t.Fatalf("selected table = %q", out.String())
+	}
+	if len(gk.calls) != 1 || !slices.Equal(sortedIDs(gk), []string{"grok:0"}) || len(bomb.calls) != 0 {
+		t.Fatalf("unselected providers were queried: grok=%v others=%v", gk.calls, bomb.calls)
+	}
+
+	bomb = &fakeProv{}
+	cx := &fakeProv{results: map[string]domain.Result{
+		"codex:0": {Status: domain.StatusOK, UsedPercent: ptr(37)},
+		"codex:1": {Status: domain.StatusOK, UsedPercent: ptr(15)},
+	}}
+	out.Reset()
+	errBuf.Reset()
+	code = runWithIO([]string{"--target=ChatGPT", "--json"}, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return cx, bomb, bomb, bomb, bomb, bomb
+	})
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("selected JSON: code=%d stderr=%q", code, errBuf.String())
+	}
+	var snapshot struct {
+		Results []struct {
+			TargetID string   `json:"target_id"`
+			Account  string   `json:"account"`
+			Status   string   `json:"status"`
+			Percent  *float64 `json:"used_percent"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &snapshot); err != nil {
+		t.Fatalf("selected JSON = %q: %v", out.String(), err)
+	}
+	if len(snapshot.Results) != 2 || snapshot.Results[0].TargetID != "codex:0" ||
+		snapshot.Results[0].Account != "first" || snapshot.Results[0].Percent == nil || *snapshot.Results[0].Percent != 37 ||
+		snapshot.Results[1].TargetID != "codex:1" || snapshot.Results[1].Account != "second" ||
+		snapshot.Results[1].Percent == nil || *snapshot.Results[1].Percent != 15 {
+		t.Fatalf("selected JSON rows = %+v", snapshot.Results)
+	}
+	if !slices.Equal(sortedIDs(cx), []string{"codex:0", "codex:1"}) || len(bomb.calls) != 0 {
+		t.Fatalf("unselected providers were queried: codex=%v others=%v", cx.calls, bomb.calls)
+	}
+})
+
+var _ = ginkgo.It("selected target failures keep their row, diagnostic, and exit status", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bomb := &fakeProv{}
+	gk := &fakeProv{results: map[string]domain.Result{
+		"grok:0": {Status: domain.StatusAuthRequired,
+			Diagnostic: domain.Diagnostic{Code: "auth_required", Message: "grok:0: authenticate using the provider CLI outside gaebokchi"}},
+	}}
+	var out, errBuf bytes.Buffer
+	code := runWithIO([]string{"-t", "grok"}, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, gk, bomb, bomb, bomb, bomb
+	})
+	if code != 1 {
+		t.Fatalf("selected failure: code=%d, want 1", code)
+	}
+	if !strings.Contains(out.String(), "Grok") || !strings.Contains(out.String(), "AUTH REQUIRED") {
+		t.Fatalf("failed selected row missing:\n%s", out.String())
+	}
+	if !strings.Contains(errBuf.String(), "gaebokchi: grok:0: AUTH REQUIRED:") {
+		t.Fatalf("selected diagnostic missing:\n%s", errBuf.String())
+	}
+	if len(gk.calls) != 1 || len(bomb.calls) != 0 {
+		t.Fatalf("unselected providers were queried: grok=%v others=%v", gk.calls, bomb.calls)
+	}
+})
+
+var _ = ginkgo.It("a shared alias selects a weekly provider and ZCode in every output mode", func() {
+	t := testT{ginkgo.GinkgoT()}
+	setTestConfig(t, "aliases: {zcode: [grok]}\ngrok:\n  - name: grok-main\n    path: ~/grok\nzcode:\n  - name: default\n")
+	// Each output mode gets fresh fakes so call counts describe one run.
+	makeProv := func() (func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier), *fakeProv, *fakeProv, *fakeProv) {
+		bomb := &fakeProv{}
+		gk := &fakeProv{results: map[string]domain.Result{
+			"grok:0": {Status: domain.StatusOK, UsedPercent: ptr(28), Period: domain.PeriodWeekly},
+		}}
+		zc := &fakeProv{results: map[string]domain.Result{
+			"zcode:0": {Status: domain.StatusOK, UsedPercent: ptr(42), Period: domain.PeriodFiveHour, Source: domain.SourceZCodeCLIUsage},
+		}}
+		return func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+			return bomb, gk, bomb, bomb, bomb, zc
+		}, bomb, gk, zc
+	}
+	assertCalls := func(bomb, gk, zc *fakeProv) {
+		if !slices.Equal(sortedIDs(gk), []string{"grok:0"}) || !slices.Equal(sortedIDs(zc), []string{"zcode:0"}) || len(bomb.calls) != 0 {
+			t.Fatalf("unexpected query set: grok=%v zcode=%v others=%v", gk.calls, zc.calls, bomb.calls)
+		}
+	}
+
+	tableProv, tableBomb, tableGrok, tableZCode := makeProv()
+	var out, errBuf bytes.Buffer
+	if code := runWithIO([]string{"-t", "GROK"}, &out, &errBuf, tableProv); code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("shared-alias table: code=%d stderr=%q", code, errBuf.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	if len(lines) != 5 || !strings.Contains(lines[0], "WEEKLY USAGE") ||
+		!strings.Contains(lines[1], "Grok") || !strings.Contains(lines[1], "grok-main") || !strings.HasSuffix(lines[1], "28%") ||
+		lines[2] != "" || !strings.Contains(lines[3], "5H USAGE") ||
+		!strings.Contains(lines[4], "ZCode") || !strings.Contains(lines[4], "default") || !strings.HasSuffix(lines[4], "42%") {
+		t.Fatalf("shared-alias table = %q", out.String())
+	}
+	assertCalls(tableBomb, tableGrok, tableZCode)
+
+	jsonProv, jsonBomb, jsonGrok, jsonZCode := makeProv()
+	out.Reset()
+	errBuf.Reset()
+	if code := runWithIO([]string{"-t", "GROK", "--json"}, &out, &errBuf, jsonProv); code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("shared-alias JSON: code=%d stderr=%q", code, errBuf.String())
+	}
+	var snapshot struct {
+		Results []struct {
+			TargetID string   `json:"target_id"`
+			Status   string   `json:"status"`
+			Percent  *float64 `json:"used_percent"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &snapshot); err != nil {
+		t.Fatalf("shared-alias JSON = %q: %v", out.String(), err)
+	}
+	// One flat array in target order keeps each provider's own percentage;
+	// no aggregate row or combined allowance may appear.
+	if len(snapshot.Results) != 2 || snapshot.Results[0].TargetID != "grok:0" ||
+		snapshot.Results[0].Percent == nil || *snapshot.Results[0].Percent != 28 ||
+		snapshot.Results[1].TargetID != "zcode:0" ||
+		snapshot.Results[1].Percent == nil || *snapshot.Results[1].Percent != 42 {
+		t.Fatalf("shared-alias JSON rows = %+v", snapshot.Results)
+	}
+	assertCalls(jsonBomb, jsonGrok, jsonZCode)
+
+	termProv, termBomb, termGrok, termZCode := makeProv()
+	termFile, err := os.CreateTemp(t.TempDir(), "terminal-selection-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	termPath := termFile.Name()
+	errBuf.Reset()
+	code := executeWithTerminal(parse(t, "-t", "GROK"), termFile, &errBuf, termProv,
+		func(*os.File) (int, int, error) { return 100, 30, nil },
+		func(key string) string {
+			if key == "TERM" {
+				return "xterm-256color"
+			}
+			if key == "NO_COLOR" {
+				return "1"
+			}
+			return ""
+		})
+	_ = termFile.Close()
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("shared-alias terminal: code=%d stderr=%q", code, errBuf.String())
+	}
+	termBytes, err := os.ReadFile(termPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Each draw of a two-section frame contains two 🐡 glyphs, so the final
+	// frame is the output after the last carriage return that starts it.
+	lastCR := strings.LastIndex(string(termBytes), "\r")
+	if lastCR < 0 {
+		t.Fatal("terminal view drew no frame")
+	}
+	finalFrame := string(termBytes)[lastCR:]
+	lastPos := -1
+	for _, token := range []string{"grok-main", "default"} {
+		pos := strings.Index(finalFrame, token)
+		if pos <= lastPos {
+			t.Fatalf("terminal final frame missing or out of order at %q (pos=%d lastPos=%d):\n%s", token, pos, lastPos, finalFrame)
+		}
+		lastPos = pos
+	}
+	assertCalls(termBomb, termGrok, termZCode)
+})
+
+var _ = ginkgo.It("target selection retains both agy pool targets", func() {
+	t := testT{ginkgo.GinkgoT()}
+	setTestConfig(t, "codex:\n  - name: first\n    path: ~/codex-a\nagy:\n  - name: default\n")
+	bomb := &fakeProv{}
+	ag := &fakeProv{results: map[string]domain.Result{
+		"agy:0": {Status: domain.StatusOK, UsedPercent: ptr(74.15718734264374), Period: domain.PeriodWeekly},
+		"agy:1": {Status: domain.StatusOK, UsedPercent: ptr(12.76919841766357), Period: domain.PeriodWeekly},
+	}}
+	var out, errBuf bytes.Buffer
+	code := runWithIO([]string{"-t", "agy"}, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, ag, bomb, bomb
+	})
+	if code != 0 || errBuf.Len() != 0 {
+		t.Fatalf("selected agy: code=%d stderr=%q", code, errBuf.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[1], "agy") || !strings.Contains(lines[1], "gemini") || !strings.HasSuffix(lines[1], "74.2%") ||
+		!strings.Contains(lines[2], "agy") || !strings.Contains(lines[2], "claude/gpt") || !strings.HasSuffix(lines[2], "12.8%") {
+		t.Fatalf("selected agy table = %q", out.String())
+	}
+	if !slices.Equal(sortedIDs(ag), []string{"agy:0", "agy:1"}) || len(bomb.calls) != 0 {
+		t.Fatalf("unselected providers were queried: agy=%v others=%v", ag.calls, bomb.calls)
+	}
+})
+
+var _ = ginkgo.It("invalid target input exits two without usage stdout or provider execution", func() {
+	t := testT{ginkgo.GinkgoT()}
+	bomb := &fakeProv{}
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
+	}
+	for _, args := range [][]string{
+		{"-t", "codex"}, {"--target", "no-such-name"},
+		{"-t", ""}, {"-t", "  "}, {"--target="},
+		{"-t", "a", "-t", "b"}, {"-t", "a", "--target", "b"},
+		{"-t"},
+	} {
+		var out, errBuf bytes.Buffer
+		code := runWithIO(args, &out, &errBuf, prov)
+		if code != 2 || out.Len() != 0 || errBuf.Len() == 0 {
+			t.Fatalf("args %v: code=%d stdout=%q stderr=%q", args, code, out.String(), errBuf.String())
+		}
+	}
+	var out, errBuf bytes.Buffer
+	if code := runWithIO([]string{"-t", "codex"}, &out, &errBuf, prov); code != 2 ||
+		!strings.Contains(errBuf.String(), `target "codex" matched no enabled account targets`) {
+		t.Fatalf("no-match diagnostic: code=%d stderr=%q", code, errBuf.String())
+	}
+	if len(bomb.calls) != 0 {
+		t.Fatalf("usage errors launched providers: %v", bomb.calls)
+	}
+})
+
+var _ = ginkgo.It("target selection cannot bypass invalid configuration", func() {
+	t := testT{ginkgo.GinkgoT()}
+	setTestConfig(t, "grok:\n  - name: default\n    path: ~/grok\nclaude:\n  - name: same\n    path: /one\n  - name: same\n    path: /two\n")
+	bomb := &fakeProv{}
+	var out, errBuf bytes.Buffer
+	code := runWithIO([]string{"-t", "grok"}, &out, &errBuf, func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
+	})
+	if code != 2 || out.Len() != 0 || !strings.Contains(errBuf.String(), "claude account names must be unique") ||
+		!strings.Contains(errBuf.String(), options.ConfigGuideURL) || len(bomb.calls) != 0 {
+		t.Fatalf("invalid unselected config: code=%d stdout=%q stderr=%q calls=%v",
+			code, out.String(), errBuf.String(), bomb.calls)
+	}
+})
+
+var _ = ginkgo.It("version and help keep their contracts beside the target flag", func() {
+	t := testT{ginkgo.GinkgoT()}
+	t.Setenv("HOME", t.TempDir()) // no configuration file exists
+	bomb := &fakeProv{}
+	prov := func() (codexQuerier, grokQuerier, claudeQuerier, agyQuerier, cursorQuerier, zcodeQuerier) {
+		return bomb, bomb, bomb, bomb, bomb, bomb
+	}
+	for _, tc := range []struct {
+		args   []string
+		code   int
+		prefix string
+	}{
+		{[]string{"version"}, 0, "gaebokchi "},
+		{[]string{"version", "--json"}, 0, `{"name":`},
+		{[]string{"-t", "grok", "--help"}, 0, "Usage:\n"},
+		{[]string{"-t", "no-such-provider", "--help"}, 0, "Usage:\n"},
+	} {
+		var out, errBuf bytes.Buffer
+		code := runWithIO(tc.args, &out, &errBuf, prov)
+		if code != tc.code || !strings.HasPrefix(out.String(), tc.prefix) || errBuf.Len() != 0 {
+			t.Fatalf("args %v: code=%d stdout=%q stderr=%q", tc.args, code, out.String(), errBuf.String())
+		}
+	}
+	for _, args := range [][]string{
+		{"version", "-t", "grok"}, {"-t", "grok", "version"}, {"--help", "-t", ""},
+	} {
+		var out, errBuf bytes.Buffer
+		code := runWithIO(args, &out, &errBuf, prov)
+		if code != 2 || out.Len() != 0 {
+			t.Fatalf("args %v: code=%d stdout=%q stderr=%q", args, code, out.String(), errBuf.String())
+		}
+	}
+	if len(bomb.calls) != 0 {
+		t.Fatalf("version and help paths launched providers: %v", bomb.calls)
+	}
+})

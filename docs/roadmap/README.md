@@ -18,8 +18,8 @@ governs v0.1.0 publication. Cursor adapter integration and live executable
 acceptance are complete in EPIC-013 (TASK-039 through TASK-041). ZCode support
 and its requirement ownership are recorded in EPIC-014 (TASK-042).
 EPIC-015 implements provider selection and configurable aliases through
-TASK-043 to TASK-045. Alias configuration and matching are implemented;
-the selection option and integrated acceptance remain pending.
+TASK-043 to TASK-045. Alias configuration, matching and target selection are
+implemented; integrated acceptance remains pending TASK-045.
 
 ## How to use this plan
 
@@ -64,7 +64,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; `cursor-agent 2026.10.16-e3cb207` preload-hook contract qualified on 2026-10-18 | COMPLETE (implementation and live acceptance milestone) |
 | 14 | [EPIC-014: ZCode usage support and traceability](#epic-014) | [TASK-042](#task-042) | EPIC-013 complete; ZCode qualification and integrated-executable evidence recorded | COMPLETE (component milestone; release gates remain separate) |
-| 15 | [EPIC-015: Provider target selection and configurable aliases](#epic-015) | [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045) | EPIC-014 complete; alias configuration and matching implemented | IN PROGRESS |
+| 15 | [EPIC-015: Provider target selection and configurable aliases](#epic-015) | [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045) | EPIC-014 complete; aliases and target selection implemented | IN PROGRESS |
 
 Historical note: EPIC-001 through EPIC-013 began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -1867,8 +1867,8 @@ verification and publication under the release procedure.
 case-insensitively, including aliases shared by several providers.
 
 **Entry:** EPIC-014 complete. The owner approved this documentation registration
-on 2026-10-22. TASK-043 implements alias configuration and matching;
-TASK-044 owns target-option integration and TASK-045 owns integrated acceptance.
+on 2026-10-22. Alias configuration, matching and target-option integration
+are implemented; TASK-045 owns integrated acceptance.
 
 **Execution dossier:** [Provider target selection](../todo/TODO-PROVIDER-TARGET-SELECTION.md)
 is temporary and must be retired during TASK-045 closeout after durable
@@ -1920,7 +1920,7 @@ invalid-configuration cases; `go run scripts/check-docs.go` and
 <a id="task-044"></a>
 ### TASK-044: Integrate provider target selection
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Apply the selection before any provider work and expose it in all
 existing output modes.
