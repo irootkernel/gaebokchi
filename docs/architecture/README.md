@@ -10,8 +10,9 @@ ARCH-01 through ARCH-20 describe the implemented baseline, including the
 EPIC-013 Cursor single-account adapter (`cursor-agent 2026.10.16-e3cb207`,
 TASK-039 through TASK-041) and the ZCode (`zcode 0.16.9`) 5-hour single-account
 adapter and two-section presentation ([ARCH-20](#arch-20)).
-The planned provider-selection contract in [ARCH-21](#arch-21) is unimplemented
-and owned by EPIC-015; it does not change this baseline at registration.
+The provider-selection extension in [ARCH-21](#arch-21) is owned by EPIC-015.
+TASK-043 implements alias configuration and matching; the command still queries
+all configured accounts until TASK-044 integrates selection.
 
 | Section | Responsibility |
 |---|---|
@@ -1307,8 +1308,9 @@ documents the qualified `zcode 0.16.9` contract on `darwin/arm64`.
 Related: [REQ-069](../specs/README.md#req-069), [REQ-070](../specs/README.md#req-070).
 Owners: [TASK-043](../roadmap/README.md#task-043) through
 [TASK-045](../roadmap/README.md#task-045), [EPIC-015](../roadmap/README.md#epic-015).
-This section is an approved, unimplemented extension. ARCH-03 remains the
-implemented account and command contract until the delivery tasks update it.
+TASK-043 implements the alias configuration and name-resolution contract below.
+The selection option and execution boundary remain pending TASK-044. ARCH-03
+continues to describe the command's default account-query behavior.
 
 ### Configuration and name resolution
 

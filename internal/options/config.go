@@ -27,13 +27,14 @@ type cursorAccount struct {
 }
 
 type accountConfig struct {
-	Codex  []account             `yaml:"codex"`
-	Grok   []account             `yaml:"grok"`
-	Claude []account             `yaml:"claude"`
-	Agy    []account             `yaml:"agy"`
-	Cursor []cursorAccount       `yaml:"cursor"`
-	ZCode  []cursorAccount       `yaml:"zcode"`
-	order  []domain.ProviderKind `yaml:"-"`
+	Aliases map[string][]string   `yaml:"aliases"`
+	Codex   []account             `yaml:"codex"`
+	Grok    []account             `yaml:"grok"`
+	Claude  []account             `yaml:"claude"`
+	Agy     []account             `yaml:"agy"`
+	Cursor  []cursorAccount       `yaml:"cursor"`
+	ZCode   []cursorAccount       `yaml:"zcode"`
+	order   []domain.ProviderKind `yaml:"-"`
 }
 
 func configf(path, format string, args ...any) error {
@@ -75,6 +76,16 @@ func loadConfig(path, home string) (accountConfig, error) {
 			value := fields[i+1]
 			for value.Kind == yaml.AliasNode {
 				value = value.Alias
+			}
+			// The typed decoder matches struct fields on the decoded string,
+			// so a tagged key such as !!binary names "aliases" while
+			// key.Value keeps its raw spelling.
+			var logicalKey string
+			if key.Decode(&logicalKey) == nil && logicalKey == "aliases" {
+				if err := validateAliases(path, value); err != nil {
+					return accountConfig{}, err
+				}
+				continue
 			}
 			if value.Tag == "!!null" {
 				return accountConfig{}, configf(path, "%s must be a list; omit it or use [] to disable", key.Value)

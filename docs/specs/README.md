@@ -22,9 +22,11 @@ and closed [EPIC-012](../roadmap/README.md#epic-012) `agy` requirements
 ([REQ-065](#req-065) and [REQ-066](#req-066)), and the ZCode 5-hour
 extension requirements ([REQ-067](#req-067) and [REQ-068](#req-068)).
 
-[Planned provider selection](#planned-provider-selection) adds the unimplemented
-REQ-069 and REQ-070 contract under EPIC-015. Existing checked requirements
-retain their implemented baseline until that extension is delivered.
+[Planned provider selection](#planned-provider-selection) adds the REQ-069 and
+REQ-070 contract under EPIC-015. TASK-043 implements alias configuration and
+matching; CLI selection and integrated acceptance remain pending. Existing
+checked requirements retain their implemented baseline until that extension is
+delivered.
 
 ## Product outcome
 
@@ -456,13 +458,14 @@ Preserve completed task/evidence bodies and the historical v0.1.0 release gate.
 ## Planned provider selection
 
 [EPIC-015](../roadmap/README.md#epic-015) owns this extension. Both requirements
-remain unchecked until implementation and the task-scoped acceptance evidence
-exist. Provider adapters, account credentials, quota semantics, and the JSON
-result schema retain their existing contracts.
+remain unchecked until the complete integrated acceptance evidence exists.
+TASK-043 implements configuration and matching; TASK-044 owns the selection
+option and execution boundary. Provider adapters, account credentials, quota
+semantics, and the JSON result schema retain their existing contracts.
 
 <a id="req-069"></a>
 - [ ] **REQ-069: Configurable provider aliases.** Add an optional top-level `aliases` mapping to `config.yaml`, keyed by the existing provider configuration keys (`codex`, `grok`, `claude`, `agy`, `cursor`, `zcode`), with lists of string aliases. The always-valid default selection names are `chatgpt`, `grok`, `claude`, `agy`, `cursor`, and `zcode`, respectively. Compare input, default names, and configured aliases by exact equality after lowercasing. Add no implicit `codex` alias; `aliases: {codex: [codex]}` enables that spelling. Omission, an empty mapping, or an empty per-provider list adds no aliases. Reject unknown provider keys, invalid shapes, null mappings/lists, non-string aliases, and empty or whitespace-only aliases before any provider starts. Duplicate matches within a provider select it once; aliases shared across providers, including another provider's default name, select every matching enabled provider. Alias metadata never enables a provider, supplies an account, changes a displayed account alias, or affects provider order.
-  - Architecture: [ARCH-21](../architecture/README.md#arch-21). Owner: [TASK-043](../roadmap/README.md#task-043); [TASK-045](../roadmap/README.md#task-045) owns final integrated acceptance. Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-E2E](../architecture/README.md#v-e2e). Evidence: pending implementation and acceptance.
+  - Architecture: [ARCH-21](../architecture/README.md#arch-21). Owner: [TASK-043](../roadmap/README.md#task-043); [TASK-045](../roadmap/README.md#task-045) owns final integrated acceptance. Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-E2E](../architecture/README.md#v-e2e). Evidence: [configuration and matching checks](../verification/TASK-043.md); integrated acceptance pending TASK-045.
 
 <a id="req-070"></a>
 - [ ] **REQ-070: Targeted usage snapshots.** Add one optional `-t NAME` / `--target NAME` flag, including the `=NAME` forms. Without it, query the existing configured account set. With it, query every configured account or model-pool target of every provider whose default name or configured alias matches under REQ-069. Validate the entire configuration first, then select targets before any provider query or preflight. Preserve target IDs, configured ordering, existing period sections, output schema, and per-target failure behavior, with dense result indices. Unselected providers perform no executable resolution or child execution and contribute no diagnostics or exit-status failures. Empty or whitespace-only values, repeated target flags (including mixed short/long forms), and inputs matching no enabled account targets exit 2 with stderr diagnostics and no usage stdout or provider execution. Match one name per invocation without prefix, substring, or comma-list expansion. Support the same selection in the interactive terminal, plain table, and `--json`; retain help and version without configuration or provider execution.

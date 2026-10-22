@@ -1,7 +1,7 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: v0.1.0 baseline with provider extensions\
-Status: EPIC-001 through EPIC-014 retain their recorded COMPLETE milestones. EPIC-015 is NOT STARTED. The exact-release gate remains separately recorded below.
+Status: EPIC-001 through EPIC-014 retain their recorded COMPLETE milestones. EPIC-015 is IN PROGRESS. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
@@ -17,8 +17,9 @@ the meaning they had when completed; the [current release gate](#current-release
 governs v0.1.0 publication. Cursor adapter integration and live executable
 acceptance are complete in EPIC-013 (TASK-039 through TASK-041). ZCode support
 and its requirement ownership are recorded in EPIC-014 (TASK-042).
-EPIC-015 registers planned provider selection and configurable aliases
-(TASK-043 through TASK-045); registration does not implement the feature.
+EPIC-015 implements provider selection and configurable aliases through
+TASK-043 to TASK-045. Alias configuration and matching are implemented;
+the selection option and integrated acceptance remain pending.
 
 ## How to use this plan
 
@@ -63,7 +64,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; `cursor-agent 2026.10.16-e3cb207` preload-hook contract qualified on 2026-10-18 | COMPLETE (implementation and live acceptance milestone) |
 | 14 | [EPIC-014: ZCode usage support and traceability](#epic-014) | [TASK-042](#task-042) | EPIC-013 complete; ZCode qualification and integrated-executable evidence recorded | COMPLETE (component milestone; release gates remain separate) |
-| 15 | [EPIC-015: Provider target selection and configurable aliases](#epic-015) | [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045) | EPIC-014 complete; owner-approved selection contract registered | NOT STARTED |
+| 15 | [EPIC-015: Provider target selection and configurable aliases](#epic-015) | [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045) | EPIC-014 complete; alias configuration and matching implemented | IN PROGRESS |
 
 Historical note: EPIC-001 through EPIC-013 began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -1859,14 +1860,15 @@ verification and publication under the release procedure.
 <a id="epic-015"></a>
 ## EPIC-015: Provider target selection and configurable aliases
 
-- [ ] Epic complete. **Status: NOT STARTED.**
+- [ ] Epic complete. **Status: IN PROGRESS.**
 
 **Goal:** Select all configured accounts of matching providers with one
 `-t` / `--target` name. Match default display names and user-configured aliases
 case-insensitively, including aliases shared by several providers.
 
 **Entry:** EPIC-014 complete. The owner approved this documentation registration
-on 2026-10-22. Runtime implementation and task acceptance remain pending.
+on 2026-10-22. TASK-043 implements alias configuration and matching;
+TASK-044 owns target-option integration and TASK-045 owns integrated acceptance.
 
 **Execution dossier:** [Provider target selection](../todo/TODO-PROVIDER-TARGET-SELECTION.md)
 is temporary and must be retired during TASK-045 closeout after durable
@@ -1886,7 +1888,7 @@ output behavior, and task evidence. Existing release gates remain separate.
 <a id="task-043"></a>
 ### TASK-043: Add configurable provider aliases and matching
 
-- [ ] Task complete. **Status: NOT STARTED.**
+- [x] Task complete. **Status: COMPLETE.**
 
 **Purpose:** Parse invocation-local alias configuration and resolve a selection
 name to every matching provider.

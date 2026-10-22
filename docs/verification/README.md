@@ -44,6 +44,8 @@ current merely because a later tree retains the record.
   gates, artifact staging, and the final clean-binary live gate.
 - [go-1.27-tooling.md](go-1.27-tooling.md) records the later compiler, lint,
   and local scanner upgrade against its own working-tree snapshot.
+- [TASK-043.md](TASK-043.md) records provider alias configuration and matching
+  checks; CLI selection and integrated acceptance belong to TASK-044 and TASK-045.
 
 The canonical lifecycle state remains in [the roadmap](../roadmap/README.md),
 and required behavior remains in [the specifications](../specs/README.md).

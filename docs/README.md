@@ -72,7 +72,8 @@ against `zcode 0.16.9` in [zcode-compatibility.md](verification/zcode-compatibil
 
 [EPIC-015](roadmap/README.md#epic-015) registers invocation-local provider
 selection with `-t` / `--target` and configurable provider aliases. It is
-**NOT STARTED**. [REQ-069](specs/README.md#req-069),
+**IN PROGRESS**: TASK-043 implements alias configuration and matching; the
+selection option remains pending TASK-044. [REQ-069](specs/README.md#req-069),
 [REQ-070](specs/README.md#req-070), and [ARCH-21](architecture/README.md#arch-21)
 own the planned contract; the
 [temporary execution dossier](todo/TODO-PROVIDER-TARGET-SELECTION.md) maps the
