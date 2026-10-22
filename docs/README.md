@@ -68,14 +68,26 @@ with a read-only `NODE_OPTIONS` preload hook and splits the UI into top
 **Weekly usage** and bottom **5h usage** sections when configured, verified
 against `zcode 0.16.9` in [zcode-compatibility.md](verification/zcode-compatibility.md).
 
+## Planned provider selection
+
+[EPIC-015](roadmap/README.md#epic-015) registers invocation-local provider
+selection with `-t` / `--target` and configurable provider aliases. It is
+**NOT STARTED**. [REQ-069](specs/README.md#req-069),
+[REQ-070](specs/README.md#req-070), and [ARCH-21](architecture/README.md#arch-21)
+own the planned contract; the
+[temporary execution dossier](todo/TODO-PROVIDER-TARGET-SELECTION.md) maps the
+work to TASK-043 through TASK-045 and defines its retirement conditions.
+The implemented usage command still queries all configured accounts. Public usage and
+configuration instructions change when TASK-044 implements selection.
+
 ## Precedence
 
 When documents disagree, resolve the conflict in the same scoped change. Until that happens, use this precedence: specifications, accepted ADRs, current architecture, roadmap, then implementation or operations guidance.
 
 ## Identifiers
 
-- **Roadmap.** The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN` and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history are preserved. Epic and task sequences are independent and monotonic; numbers are never reused. New allocations increment the current epic maximum of 14 and task maximum of 42. Cross-scope qualification is unnecessary while this repository has one delivery scope.
-- **Specification.** Requirements (`REQ-###`), architecture sections (`ARCH-##`), verification catalog entries (such as V-CODEX, in ARCH-11), and primary sources (`S-##`, in ARCH-15) are stable identifiers with explicit `<a id>` anchors. They are never renumbered or reused. The current maxima are REQ-068, ARCH-20, and S-24.
+- **Roadmap.** The sole roadmap namespace is `docs/roadmap/README.md`. Existing `EPIC-NNN` and `TASK-NNN` identifiers, lifecycle terms, ordering, and completion history are preserved. Epic and task sequences are independent and monotonic; numbers are never reused. New allocations increment the current epic maximum of 15 and task maximum of 45. Cross-scope qualification is unnecessary while this repository has one delivery scope.
+- **Specification.** Requirements (`REQ-###`), architecture sections (`ARCH-##`), verification catalog entries (such as V-CODEX, in ARCH-11), and primary sources (`S-##`, in ARCH-15) are stable identifiers with explicit `<a id>` anchors. They are never renumbered or reused. The current maxima are REQ-070, ARCH-21, and S-24.
 - **Decision records.** ADR file names are numbered from `ADR-0001` upward.
 
 ## Checks

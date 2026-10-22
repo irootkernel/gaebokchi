@@ -22,6 +22,10 @@ and closed [EPIC-012](../roadmap/README.md#epic-012) `agy` requirements
 ([REQ-065](#req-065) and [REQ-066](#req-066)), and the ZCode 5-hour
 extension requirements ([REQ-067](#req-067) and [REQ-068](#req-068)).
 
+[Planned provider selection](#planned-provider-selection) adds the unimplemented
+REQ-069 and REQ-070 contract under EPIC-015. Existing checked requirements
+retain their implemented baseline until that extension is delivered.
+
 ## Product outcome
 
 **Gaebokchi (개복치)** is a small, read-only Go CLI in the **Aquarium tool ecosystem**. It shows how much of each provider-reported **weekly subscription allowance** has been used for configured Codex (ChatGPT), Grok, Claude, `agy`, and Cursor accounts, and how much of the **5-hour Coding Plan allowance** has been used for a configured ZCode (`zcode`) account. It reuses the logins that the installed provider CLIs already manage instead of implementing account linking.
@@ -57,6 +61,7 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
 
 <a id="req-002"></a>
 - [x] **REQ-002: Configured account set.** Require `~/.config/gaebokchi/config.yaml` for usage. Query only configured accounts, ordered by the top-level provider keys and per-provider account lists written in `config.yaml` (with `agy` expanding to `gemini` followed by `claude/gpt` at its configured position). Omitted or empty provider lists disable that provider. Require at least one account. Preserve every configured row when another target fails. Missing or invalid configuration exits 2 before any provider starts and prints its path and the GitHub configuration guide link to stderr. Help and version work without the file.
+  - Planned extension: [REQ-070](#req-070) will select a subset of this configured account set before any provider starts; the optional `aliases` metadata in [REQ-069](#req-069) will not contribute accounts or provider ordering.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-18](../architecture/README.md#arch-18), [ARCH-19](../architecture/README.md#arch-19), [ARCH-20](../architecture/README.md#arch-20). Owner: [TASK-010](../roadmap/README.md#task-010). Verification: [V-OUTPUT](../architecture/README.md#v-output). Evidence: [TASK-010](../verification/TASK-010.md) — the default run queried `codex:0`, `codex:1`, and `grok:0` and rendered the header plus three rows; per-target failures kept their rows.
   - Changed 2026-09-23 (Claude extension, historical): the default set gained the Claude target, so that release queried four targets. The then-current CLI tests asserted the ordered four-row default; they ran in the [TASK-030](../verification/TASK-030.md) `make test` gate.
   - Re-qualified 2026-09-29: [TASK-032](../verification/TASK-032.md) covers current YAML selection, no-launch configuration errors, ordered rows and partial failure; the live run returned four configured rows.
@@ -82,6 +87,7 @@ The 2026-09-29 configuration extension changes REQ-002, REQ-006 through REQ-008,
 
 <a id="req-006"></a>
 - [x] **REQ-006: Small documented command surface.** Implement only the command surface in ARCH-03: help; the `version [--json]` command; executable overrides; the per-target timeout; and `--json` ([REQ-052](#req-052)). Reject removed `--codex-home` and `--grok-account` flags. Help and version must not launch a provider process. Reject unknown flags and unsupported positional arguments, including the removed `--version` form. Resolve an explicit relative executable override against the invocation directory before any child starts ([REQ-039](#req-039)). Normalize configured aliases with the display-label policy of [REQ-012](#req-012); a blank alias is a configuration error before any provider starts.
+  - Planned extension: [REQ-070](#req-070) will add `-t` / `--target`; registration alone does not add those flags to the implemented command surface.
   - Architecture: [ARCH-03](../architecture/README.md#arch-03), [ARCH-18](../architecture/README.md#arch-18), [ARCH-19](../architecture/README.md#arch-19), [ARCH-20](../architecture/README.md#arch-20). Owner: [TASK-010](../roadmap/README.md#task-010). Re-qualified: [TASK-017](../roadmap/README.md#task-017), [TASK-019](../roadmap/README.md#task-019), [TASK-023](../roadmap/README.md#task-023). Verification: [V-OPTIONS](../architecture/README.md#v-options). Evidence: [TASK-002](../verification/TASK-002.md) parser matrix plus [TASK-010](../verification/TASK-010.md) help, version, no-launch, and exit-code tests; [TASK-017](../verification/TASK-017.md) relative executable overrides; [TASK-019](../verification/TASK-019.md) and [TASK-023](../verification/TASK-023.md) alias normalization.
   - Changed 2026-09-23 (Claude extension) and 2026-09-25 (EPIC-009): the surface also includes `--claude-bin` ([REQ-056](#req-056)) and `--json` ([REQ-052](#req-052)).
   - Re-qualified 2026-09-29: [TASK-032](../verification/TASK-032.md) covers the YAML-era command and error matrix, relative executable overrides, alias validation, and no-launch help/version paths.
@@ -446,6 +452,22 @@ REQ-067 and REQ-068 are owned by [TASK-042](../roadmap/README.md#task-042) in
 [ZCode compatibility](../verification/zcode-compatibility.md).
 Preserve completed task/evidence bodies and the historical v0.1.0 release gate.
 
+<a id="planned-provider-selection"></a>
+## Planned provider selection
+
+[EPIC-015](../roadmap/README.md#epic-015) owns this extension. Both requirements
+remain unchecked until implementation and the task-scoped acceptance evidence
+exist. Provider adapters, account credentials, quota semantics, and the JSON
+result schema retain their existing contracts.
+
+<a id="req-069"></a>
+- [ ] **REQ-069: Configurable provider aliases.** Add an optional top-level `aliases` mapping to `config.yaml`, keyed by the existing provider configuration keys (`codex`, `grok`, `claude`, `agy`, `cursor`, `zcode`), with lists of string aliases. The always-valid default selection names are `chatgpt`, `grok`, `claude`, `agy`, `cursor`, and `zcode`, respectively. Compare input, default names, and configured aliases by exact equality after lowercasing. Add no implicit `codex` alias; `aliases: {codex: [codex]}` enables that spelling. Omission, an empty mapping, or an empty per-provider list adds no aliases. Reject unknown provider keys, invalid shapes, null mappings/lists, non-string aliases, and empty or whitespace-only aliases before any provider starts. Duplicate matches within a provider select it once; aliases shared across providers, including another provider's default name, select every matching enabled provider. Alias metadata never enables a provider, supplies an account, changes a displayed account alias, or affects provider order.
+  - Architecture: [ARCH-21](../architecture/README.md#arch-21). Owner: [TASK-043](../roadmap/README.md#task-043); [TASK-045](../roadmap/README.md#task-045) owns final integrated acceptance. Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-E2E](../architecture/README.md#v-e2e). Evidence: pending implementation and acceptance.
+
+<a id="req-070"></a>
+- [ ] **REQ-070: Targeted usage snapshots.** Add one optional `-t NAME` / `--target NAME` flag, including the `=NAME` forms. Without it, query the existing configured account set. With it, query every configured account or model-pool target of every provider whose default name or configured alias matches under REQ-069. Validate the entire configuration first, then select targets before any provider query or preflight. Preserve target IDs, configured ordering, existing period sections, output schema, and per-target failure behavior, with dense result indices. Unselected providers perform no executable resolution or child execution and contribute no diagnostics or exit-status failures. Empty or whitespace-only values, repeated target flags (including mixed short/long forms), and inputs matching no enabled account targets exit 2 with stderr diagnostics and no usage stdout or provider execution. Match one name per invocation without prefix, substring, or comma-list expansion. Support the same selection in the interactive terminal, plain table, and `--json`; retain help and version without configuration or provider execution.
+  - Architecture: [ARCH-21](../architecture/README.md#arch-21), [ARCH-03](../architecture/README.md#arch-03), [ARCH-10](../architecture/README.md#arch-10). Owner: [TASK-044](../roadmap/README.md#task-044); [TASK-045](../roadmap/README.md#task-045) owns final integrated acceptance. Verification: [V-OPTIONS](../architecture/README.md#v-options), [V-OUTPUT](../architecture/README.md#v-output), [V-EXIT](../architecture/README.md#v-exit), [V-E2E](../architecture/README.md#v-e2e). Evidence: pending implementation and acceptance.
+
 <a id="completion-rules"></a>
 ## Completion rules
 
@@ -502,6 +524,9 @@ This index is a navigation aid. The individual checkbox remains authoritative.
 | [TASK-039](../roadmap/README.md#task-039) | [REQ-065](#req-065) |
 | [TASK-041](../roadmap/README.md#task-041) | [REQ-066](#req-066); TASK-040 supplies implementation coverage |
 | [TASK-042](../roadmap/README.md#task-042) | [REQ-067](#req-067), [REQ-068](#req-068); owns ZCode component traceability |
+| [TASK-043](../roadmap/README.md#task-043) | Implements [REQ-069](#req-069) with focused configuration and matching evidence; final acceptance belongs to TASK-045 |
+| [TASK-044](../roadmap/README.md#task-044) | Implements [REQ-070](#req-070) with focused execution and output evidence; final acceptance belongs to TASK-045 |
+| [TASK-045](../roadmap/README.md#task-045) | Final integrated acceptance of [REQ-069](#req-069) and [REQ-070](#req-070), durable documentation, and temporary dossier retirement |
 
 Component tasks also contribute to cross-cutting requirements owned by integration or release tasks. See the dependency and verification mappings in [the roadmap](../roadmap/README.md#plan-roadmap).
 

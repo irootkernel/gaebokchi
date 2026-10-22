@@ -10,12 +10,15 @@ ARCH-01 through ARCH-20 describe the implemented baseline, including the
 EPIC-013 Cursor single-account adapter (`cursor-agent 2026.10.16-e3cb207`,
 TASK-039 through TASK-041) and the ZCode (`zcode 0.16.9`) 5-hour single-account
 adapter and two-section presentation ([ARCH-20](#arch-20)).
+The planned provider-selection contract in [ARCH-21](#arch-21) is unimplemented
+and owned by EPIC-015; it does not change this baseline at registration.
 
 | Section | Responsibility |
 |---|---|
 | [ARCH-01](#arch-01) | Decisions and scope |
 | [ARCH-02](#arch-02) | Components, dependency direction, repository layout |
 | [ARCH-03](#arch-03) | CLI options and account targets |
+| [ARCH-21](#arch-21) | Planned provider selection and configurable aliases |
 | [ARCH-04](#arch-04) | Domain model and usage semantics |
 | [ARCH-05](#arch-05) | Execution, deadlines, ownership and cleanup |
 | [ARCH-06](#arch-06) | Shared transport with separate wire dialects |
@@ -134,6 +137,10 @@ A usage run reads `~/.config/gaebokchi/config.yaml`; help and `version [--json]`
 Targets are built in the top-level provider order and account list order written in `config.yaml` (with `agy` expanding to `gemini` followed by `claude/gpt` at its configured position, and falling back to `Codex, Grok, Claude, agy, Cursor, ZCode` only when `accountConfig` is constructed directly without a parsed key order). IDs are `codex:0`, `grok:0`, `claude:0`, `agy:0` (`gemini`), `agy:1` (`claude/gpt`), `cursor:0`, `zcode:0`, etc., with dense result indices in final output order. The configured `path` becomes `CODEX_HOME`, `GROK_HOME`, or, for non-default Claude homes, `CLAUDE_CONFIG_DIR` in that target's child environment. For the current user's `~/.claude`, remove ambient `CLAUDE_CONFIG_DIR` and use the CLI's implicit default credential namespace. An enabled `agy` entry uses the CLI's single default login (`HOME` preserved) and expands into two weekly pool rows (`gemini` and `claude/gpt`). Enabled `cursor` and `zcode` entries use their CLIs' single default logins (`HOME` preserved) and emit one row (`cursor:0`, `zcode:0`) using the configured `name`. The configured `name` is the output account alias on every status (or `gemini` and `claude/gpt` for `agy`'s two model-pool rows). Ambient selector values do not choose a target. A name does not verify which login is stored in its path.
 
 Missing or invalid configuration exits 2 without starting a provider or writing usage stdout. stderr names the config location and points to `https://github.com/irootkernel/gaebokchi/blob/main/configuration/README.md`. The old `--codex-home` and `--grok-account` flags are rejected. The remaining flags are `--codex-bin`, `--grok-bin`, `--claude-bin`, `--agy-bin`, `--cursor-bin`, `--zcode-bin`, `--timeout` (1s to 120s; default 20s), `--json`, and `--help`/`-h`. The only subcommand is `version [--json]`; it never reads configuration or starts providers. Executable overrides retain explicit-path resolution before the child's temporary working directory is selected.
+
+The unimplemented extension in [ARCH-21](#arch-21) will add optional alias
+metadata and target filtering. The account and command descriptions above
+remain the implemented baseline until that work is delivered.
 
 <a id="arch-04"></a>
 ## ARCH-04: Domain and normalized result
@@ -1293,3 +1300,104 @@ documents the qualified `zcode 0.16.9` contract on `darwin/arm64`.
   an upper weekly section (`WEEKLY USAGE` / `🐡 gaebokchi · weekly usage`) and a
   lower 5-hour section (`5H USAGE` / `🐡 gaebokchi · 5h usage`), emitting only
   non-empty sections while preserving configured order within each section.
+
+<a id="arch-21"></a>
+## ARCH-21: Provider selection and alias resolution (planned)
+
+Related: [REQ-069](../specs/README.md#req-069), [REQ-070](../specs/README.md#req-070).
+Owners: [TASK-043](../roadmap/README.md#task-043) through
+[TASK-045](../roadmap/README.md#task-045), [EPIC-015](../roadmap/README.md#epic-015).
+This section is an approved, unimplemented extension. ARCH-03 remains the
+implemented account and command contract until the delivery tasks update it.
+
+### Configuration and name resolution
+
+Keep the existing provider account lists and add optional alias metadata:
+
+```yaml
+aliases:
+  codex: [codex]
+  cursor: [grok]
+
+codex:
+  - name: work
+    path: ~/.codex-work
+  - name: personal
+    path: ~/.codex-personal
+grok:
+  - name: personal
+    path: ~/.grok-personal
+cursor:
+  - name: default
+```
+
+`internal/options` owns parsing, validation, matching and target construction.
+Use invocation-local alias data and the existing `domain.ProviderKind` identity
+and display names. Resolve a name to a provider set; an alias may identify
+several providers. No mutable global alias state is needed.
+
+| Configuration key | Always-valid default selection name |
+|---|---|
+| `codex` | `chatgpt` |
+| `grok` | `grok` |
+| `claude` | `claude` |
+| `agy` | `agy` |
+| `cursor` | `cursor` |
+| `zcode` | `zcode` |
+
+Apply `strings.ToLower` to the target value and candidate names, then compare
+the entire strings. Do not trim, split or perform prefix/substring expansion.
+Reject target values and aliases that are empty or whitespace-only. Configured
+aliases extend the defaults; no `codex` alias is built in. In the example,
+`ChatGPT` and `CODEX` both select the two Codex accounts, `grok` selects Grok
+and Cursor, and `cursor` selects Cursor. A default-name match has no priority
+over a matching alias on another provider. Repeated aliases or a match through
+both a default and an alias select each provider once.
+
+The optional `aliases` value must be a mapping from known, case-sensitive
+configuration keys to lists of strings. Omitted metadata, `{}`, missing
+per-provider entries and `[]` add no aliases. Reject null values at the mapping,
+list or element level, non-string elements and unknown provider keys. Preserve
+the existing rejection of duplicate YAML keys, merge keys, multiple documents
+and invalid account data. Alias entries for disabled providers are allowed but
+do not enable them or satisfy the requirement for at least one configured account.
+Exclude `aliases` from the recorded top-level provider order wherever it occurs.
+
+### Selection and execution boundary
+
+Parse `-t NAME`, `-t=NAME`, `--target NAME` and `--target=NAME` as one shared,
+single-use option. Its value is a single name; repeating either spelling is a
+usage error. Preserve raw argument parsing before configuration loading, but
+resolve valid names after loading and validating the entire configuration.
+Help and version retain their configuration-free behavior; help lists the
+default names and points to the configuration guide for custom aliases.
+
+Without the option, construct the existing target set. With it, retain only
+matching providers with configured targets, before executable resolution or
+any child launch. If no targets remain, return a usage error (exit 2, stderr
+diagnostic, no usage stdout). Alias metadata may not bypass invalid account
+configuration in an unselected provider.
+
+Build the selected targets in configured provider/account order, keeping
+their original provider-local IDs and assigning dense `Target.Index` values.
+Selecting `agy` retains both pool targets and its existing shared-query
+behavior. Pass only this target slice to the runner and every renderer.
+Unselected providers perform no query, binary lookup or preflight and produce
+no diagnostics. Selected target failures retain their rows and existing exit
+semantics. Preserve period grouping, empty-section omission and the flat JSON
+schema. Shared aliases group selection; each provider still reports its own
+subscription allowance in its own rows.
+
+### Verification and durable ownership
+
+Extend V-OPTIONS, V-OUTPUT, V-EXIT and V-E2E coverage with parser, configuration,
+matching, dense-index and fake-process no-launch checks. Exercise the same
+selection in deterministic terminal tests, the plain table and JSON, including
+multiple Codex accounts, shared aliases, mixed weekly/5h groups and `agy` pools.
+TASK-045 records complete offline acceptance. Provider protocols and quota
+calculations are unchanged, so this extension does not require new live account
+queries or provider-interface qualification.
+
+The specifications and this section retain the contract after the temporary
+dossier is deleted. Task-scoped records under `docs/verification/` retain
+actual checks and limits, and the roadmap retains lifecycle history.

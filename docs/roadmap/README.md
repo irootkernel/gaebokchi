@@ -1,10 +1,11 @@
 # Gaebokchi (개복치): Sequential Implementation Plan
 
 Version: v0.1.0 baseline with provider extensions\
-Status: EPIC-001 through EPIC-014 retain their recorded COMPLETE milestones. The exact-release gate remains separately recorded below.
+Status: EPIC-001 through EPIC-014 retain their recorded COMPLETE milestones. EPIC-015 is NOT STARTED. The exact-release gate remains separately recorded below.
 Prepared: 2026-09-22  
 Extension plan registered: 2026-10-15\
 Preflight and implementation-contract supplement: 2026-10-16\
+Provider selection plan registered: 2026-10-22\
 Project: Gaebokchi (개복치)  
 Ecosystem: Aquarium tool  
 Repository and executable: `gaebokchi`
@@ -16,6 +17,8 @@ the meaning they had when completed; the [current release gate](#current-release
 governs v0.1.0 publication. Cursor adapter integration and live executable
 acceptance are complete in EPIC-013 (TASK-039 through TASK-041). ZCode support
 and its requirement ownership are recorded in EPIC-014 (TASK-042).
+EPIC-015 registers planned provider selection and configurable aliases
+(TASK-043 through TASK-045); registration does not implement the feature.
 
 ## How to use this plan
 
@@ -41,7 +44,7 @@ The compatibility probe in TASK-001 is deliberately first. Codex and Grok are bo
 ## Roadmap in execution order
 
 ```text
-EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011 -> EPIC-012 -> EPIC-013 -> EPIC-014
+EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007 -> EPIC-008 -> EPIC-009 -> EPIC-010 -> EPIC-011 -> EPIC-012 -> EPIC-013 -> EPIC-014 -> EPIC-015
 ```
 
 | Order | Epic | Tasks, executed left to right | Entry dependency | Current status (reconciled) |
@@ -60,6 +63,7 @@ EPIC-001 -> EPIC-002 -> EPIC-003 -> EPIC-004 -> EPIC-005 -> EPIC-006 -> EPIC-007
 | 12 | [EPIC-012: agy single-account weekly support](#epic-012) | [TASK-034](#task-034) -> [TASK-035](#task-035) -> [TASK-036](#task-036) -> [TASK-037](#task-037) -> [TASK-038](#task-038) | EPIC-011 recorded milestone complete; `agy 1.4.0` single-account metadata contract qualified on 2026-10-17 | COMPLETE (implementation and live acceptance milestone) |
 | 13 | [EPIC-013: Cursor Agent usage support](#epic-013) | [TASK-039](#task-039) -> [TASK-040](#task-040) -> [TASK-041](#task-041) | EPIC-012 complete; `cursor-agent 2026.10.16-e3cb207` preload-hook contract qualified on 2026-10-18 | COMPLETE (implementation and live acceptance milestone) |
 | 14 | [EPIC-014: ZCode usage support and traceability](#epic-014) | [TASK-042](#task-042) | EPIC-013 complete; ZCode qualification and integrated-executable evidence recorded | COMPLETE (component milestone; release gates remain separate) |
+| 15 | [EPIC-015: Provider target selection and configurable aliases](#epic-015) | [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045) | EPIC-014 complete; owner-approved selection contract registered | NOT STARTED |
 
 Historical note: EPIC-001 through EPIC-013 began NOT STARTED at plan authoring. The reconciled
 column above shows each epic's current state. The original six epics keep their
@@ -71,7 +75,7 @@ the interactive terminal view. EPIC-011 completed current public-release
 readiness: YAML and Claude acceptance, packaging, and the REQ-048 live gate.
 The exact release commit still needs its post-commit gate receipt before tagging.
 
-The task order is globally sequential: TASK-001 through TASK-042. Runtime
+The task order is globally sequential: TASK-001 through TASK-045. Runtime
 account queries may be concurrent; development tasks may not.
 
 EPIC-012 (`TASK-034` through `TASK-038`) completed on 2026-10-17, delivering
@@ -1851,6 +1855,136 @@ The compatibility record owns the qualified CLI and component live evidence.
 
 **Handoff:** The release handler retains responsibility for current-candidate
 verification and publication under the release procedure.
+
+<a id="epic-015"></a>
+## EPIC-015: Provider target selection and configurable aliases
+
+- [ ] Epic complete. **Status: NOT STARTED.**
+
+**Goal:** Select all configured accounts of matching providers with one
+`-t` / `--target` name. Match default display names and user-configured aliases
+case-insensitively, including aliases shared by several providers.
+
+**Entry:** EPIC-014 complete. The owner approved this documentation registration
+on 2026-10-22. Runtime implementation and task acceptance remain pending.
+
+**Execution dossier:** [Provider target selection](../todo/TODO-PROVIDER-TARGET-SELECTION.md)
+is temporary and must be retired during TASK-045 closeout after durable
+documentation and evidence are complete. This roadmap owns status and order.
+
+**Task sequence:** [TASK-043](#task-043) -> [TASK-044](#task-044) -> [TASK-045](#task-045).
+
+**Local epic acceptance:** REQ-069 and REQ-070 have complete configuration,
+selection, no-launch and output evidence on the final candidate; the complete
+offline gate passes; public instructions describe the delivered behavior; and
+the dossier and its incoming links are removed after its lasting content is
+retained in canonical documents and verification records.
+
+**Handoff:** Provider selection and alias contracts, verified execution and
+output behavior, and task evidence. Existing release gates remain separate.
+
+<a id="task-043"></a>
+### TASK-043: Add configurable provider aliases and matching
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Parse invocation-local alias configuration and resolve a selection
+name to every matching provider.
+
+**Dependency:** EPIC-014 complete.
+
+**Owners:** REQ-069 implementation; ARCH-21. TASK-045 owns final acceptance.
+
+**Scope and deliverables:** Add optional `aliases` metadata to the existing
+account configuration without changing account-list syntax or provider order.
+Implement lowercase exact matching of default display names plus configured
+aliases, with provider-set results and no hardcoded extra aliases. Validate
+strict shapes, known provider keys, string values and nonblank aliases. Add
+focused tests with the implementation and record evidence under the task's
+verification record. Keep default query behavior intact until TASK-044.
+
+**Acceptance:** Existing configuration remains valid; metadata contributes no
+accounts or provider ordering; shared aliases and default-name collisions
+return every matching provider once; disabled providers stay disabled; invalid
+alias configuration fails before provider launch.
+
+**Verification:** `go test ./internal/options -count=1`, including default-name,
+mixed-case, omitted/empty alias, shared/duplicate alias, disabled-provider and
+invalid-configuration cases; `go run scripts/check-docs.go` and
+`git diff --check`. Record actual results in `docs/verification/TASK-043.md`.
+
+**Handoff:** TASK-044 receives the tested configuration and matching behavior.
+
+<a id="task-044"></a>
+### TASK-044: Integrate provider target selection
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Apply the selection before any provider work and expose it in all
+existing output modes.
+
+**Dependency:** TASK-043 complete.
+
+**Owners:** REQ-070 implementation; ARCH-21, ARCH-03 and ARCH-10. TASK-045 owns
+final acceptance.
+
+**Scope and deliverables:** Add `-t` / `--target`, including equals forms and
+shared duplicate-flag detection. After full configuration validation, build
+only selected account targets, retaining stable IDs and dense indices. Cover
+multi-account and multi-provider selection, no-selection compatibility,
+no-match errors, and absence of executable resolution or child execution for
+unselected providers. Add focused fake-provider, CLI and output tests with the
+implementation. Update help, the root README, configuration guide and affected
+canonical sections to distinguish delivered behavior from pending acceptance.
+
+**Acceptance:** The same selected targets reach table, terminal and JSON
+output; account and period semantics are preserved; unselected provider
+failures cannot affect the result; invalid input and invalid configuration
+produce exit 2 without provider execution or usage stdout. Help and version
+remain independent of configuration and provider execution.
+
+**Verification:** `go test ./internal/options ./cmd/gaebokchi ./internal/render ./test/integration -count=1`,
+using fake provider processes and deterministic terminal checks;
+`go run scripts/check-docs.go` and `git diff --check`. Record actual results in
+`docs/verification/TASK-044.md` and index the task evidence.
+
+**Handoff:** TASK-045 receives the integrated candidate with focused evidence
+and current user instructions.
+
+<a id="task-045"></a>
+### TASK-045: Accept provider selection and retire the dossier
+
+- [ ] Task complete. **Status: NOT STARTED.**
+
+**Purpose:** Verify the complete selection contract and finish durable
+documentation before retiring the temporary execution dossier.
+
+**Dependency:** TASK-044 complete.
+
+**Owners:** Final acceptance of REQ-069 and REQ-070 and complete EPIC-015 coverage.
+
+**Scope and deliverables:** Run the complete offline gate and reconcile focused
+evidence against the final candidate, including unchanged default behavior and
+existing-provider regressions. Record commands, outcomes, candidate identity,
+limits and unperformed checks in `docs/verification/TASK-045.md`, and index all
+three task records. After acceptance evidence and lasting decisions are in
+canonical documents, remove only this epic's temporary dossier and replace or
+remove every incoming link. Keep task and requirement IDs and acceptance
+history. Update lifecycle only under the existing evidence and task-commit
+rules; documentation registration alone completes none of these tasks.
+
+**Acceptance:** Both new requirements are fully evidenced, full offline checks
+pass, public guidance matches the implementation, and dossier retirement loses
+no contract or evidence and leaves no dangling links. Provider protocol
+requalification and real account queries are outside this filtering extension.
+
+**Verification:** `make test`, `go test ./... -count=1`, and final
+`go run scripts/check-docs.go` plus `git diff --check` after dossier/link
+removal. Inspect references to the retired path. Record any gate failure or
+unperformed check explicitly; installation and release acceptance remain separate.
+
+**Handoff:** Verified provider selection, durable configuration and usage
+guidance, requirement evidence, and completed temporary-dossier retirement.
 
 <a id="current-release-gate"></a>
 ## Current v0.1.0 release gate
